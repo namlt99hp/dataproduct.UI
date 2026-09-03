@@ -2,8 +2,10 @@
 // Fork của SummaryTableSTD.tsx cho Sổ Xuất-Nhập-Tồn HRC1 — đổi Id_HeaderKey -> PhuLieuID, bỏ hẳn
 // cột/logic tyLeRH + KLPB_RH (HRC1 không có công đoạn RH, chỉ BOF/LF). Xem .claude/hrc1_xnt.md mục 2.3.
 import React, { useMemo, useState, useCallback, memo, useEffect } from "react";
-import { Table, Input, Button, InputNumber, message, Tag, Tooltip } from "antd";
+import { Table, Input, Button, InputNumber, message, Tag, Tooltip, Popconfirm } from "antd";
 import type { STD_NXT_HRC1_PhanBoDto } from "../models/STD_NXT_HRC1_Model";
+
+type STD_NXT_HRC1_ResetRow = STD_NXT_HRC1_PhanBoDto & { IsPhanBo: boolean };
 
 // Cột tổng hợp tính toán (readOnly) cần chặn/cảnh báo khi ra giá trị âm — mirror GroupedTableSTD_HRC1.
 const NEGATIVE_HIGHLIGHT_COLS = ["totalTonDauCa", "totalNhapTrongCa", "totalTonCuoiCa", "totalSuDung"];
@@ -52,6 +54,8 @@ interface SummaryTableSTD_HRC1Props {
   onPhanBo?: (data: STD_NXT_HRC1_PhanBoDto) => void;
   onThuHoi?: (data: STD_NXT_HRC1_PhanBoDto) => void;
   onKhongPhanBo?: (data: STD_NXT_HRC1_PhanBoDto) => void;
+  /** Reset toàn bộ phụ liệu đang Đã phân bổ/Không phân bổ về lại Chưa xử lý (nút ở header cột Thao tác) */
+  onResetAll?: (rows: STD_NXT_HRC1_ResetRow[]) => void | Promise<void>;
   /** Chỉ cho phép bấm "Phân bổ" khi tất cả phiếu tiêu hao BOF/LF liên quan đã Hoàn thành */
   canPhanBo?: boolean;
   idPhieu?: string | null;
@@ -69,6 +73,7 @@ export default function SummaryTableSTD_HRC1({
   onPhanBo,
   onThuHoi,
   onKhongPhanBo,
+  onResetAll,
   canPhanBo = true,
   idPhieu,
   editable = true,
@@ -267,6 +272,35 @@ export default function SummaryTableSTD_HRC1({
     }
   }, [getIsPhanBo, mockApiCall, idPhieu, onKhongPhanBo]);
 
+  const [resetAllLoading, setResetAllLoading] = useState(false);
+
+  const handleResetAllClick = useCallback(async () => {
+    const rowsToReset: STD_NXT_HRC1_ResetRow[] = dataWithChenhLech
+      .filter((r) => !r._isTotalRow && getIsPhanBo(r) !== null)
+      .map((r) => ({
+        NgaySX: r.NgaySX,
+        Ca: r.Ca,
+        PhuLieuID: r.PhuLieuID,
+        ChenhLech: Number(r.totalChenhLech ?? 0),
+        IdPhieu: idPhieu ?? "",
+        IsPhanBo: getIsPhanBo(r) as boolean,
+      }));
+
+    if (rowsToReset.length === 0) {
+      message.info("Không có phụ liệu nào đã phân bổ hoặc không phân bổ để reset.");
+      return;
+    }
+
+    setResetAllLoading(true);
+    try {
+      // Không cần tự set phanBoMap ở đây — onResetAll (BE) xong sẽ gọi refreshSummaryAndStatus ở component
+      // cha, đổi initialData, và useEffect ở trên đã tự reset phanBoMap = {} khi initialData đổi.
+      await onResetAll?.(rowsToReset);
+    } finally {
+      setResetAllLoading(false);
+    }
+  }, [dataWithChenhLech, getIsPhanBo, idPhieu, onResetAll]);
+
   const handleCellChange = (key: string, dataIndex: string, value: any) => {
     const updatedData = dataWithChenhLech.map((row) => {
       if (row.key === key) {
@@ -449,9 +483,32 @@ export default function SummaryTableSTD_HRC1({
     },
   } as any);
 
-  // Cột "Thao tác" — gộp Phân bổ + Không phân bổ
+  // Cột "Thao tác" — gộp Phân bổ + Không phân bổ, header có nút Reset tất cả
   tableColumns.push({
-    title: "Thao tác",
+    title: (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+        <span>Thao tác</span>
+        {onResetAll && (
+          <Popconfirm
+            title="Reset tất cả phân bổ?"
+            description="Toàn bộ phụ liệu đang Đã phân bổ / Không phân bổ sẽ được đưa về Chưa xử lý. Không thể hoàn tác."
+            okText="Reset tất cả"
+            cancelText="Hủy"
+            onConfirm={handleResetAllClick}
+            disabled={!editable || !!lockedTooltip}
+          >
+            <Button
+              size="small"
+              danger
+              loading={resetAllLoading}
+              disabled={!editable || !!lockedTooltip}
+            >
+              Reset tất cả
+            </Button>
+          </Popconfirm>
+        )}
+      </div>
+    ),
     width: 180,
     dataIndex: "thaotac",
     align: "center" as const,

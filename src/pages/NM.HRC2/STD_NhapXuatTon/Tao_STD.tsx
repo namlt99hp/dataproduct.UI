@@ -696,6 +696,43 @@ const Tao_STD = () => {
     [form, idphieu, refreshSummaryAndStatus]
   );
 
+  const handleResetAllSummary = useCallback(
+    async (rows: Array<STD_NXT_HRC2_PhanBoDto & { IsPhanBo: boolean }>) => {
+      if (!idphieu || rows.length === 0) return;
+      setLoading(true);
+      try {
+        await Promise.all(
+          rows.map((r) =>
+            r.IsPhanBo
+              ? STD_NXT_HRC2ServiceApi.thuHoiPhanBo({
+                  NgaySX: r.NgaySX,
+                  Ca: r.Ca,
+                  Id_HeaderKey: r.Id_HeaderKey,
+                  ChenhLech: r.ChenhLech,
+                  IdPhieu: idphieu,
+                  TyLeBOF: 0,
+                  TyLeTinhLuyen: 0,
+                  TyLeRH: 0,
+                })
+              : STD_NXT_HRC2ServiceApi.khongPhanBo({
+                  NgaySX: r.NgaySX,
+                  Ca: r.Ca,
+                  Id_HeaderKey: r.Id_HeaderKey,
+                  IdPhieu: idphieu,
+                })
+          )
+        );
+        message.success(`Đã reset ${rows.length} phụ liệu về trạng thái ban đầu.`);
+      } catch (err: any) {
+        message.error(err?.message || "Reset tất cả thất bại. Vui lòng thử lại.");
+      } finally {
+        await refreshSummaryAndStatus();
+        setLoading(false);
+      }
+    },
+    [idphieu, refreshSummaryAndStatus]
+  );
+
   /** Khu vực có phiếu liên quan (BOF/LF/RH) đang Đã chốt (5) thì không làm mới dữ liệu của riêng khu vực đó */
   const isKhuVucLocked = useCallback(
     (khuVucLabel: string) => {
@@ -1140,6 +1177,7 @@ const Tao_STD = () => {
                         onPhanBo={handlePhanBoSummary}
                         onThuHoi={handleThuHoiSummary}
                         onKhongPhanBo={handleKhongPhanBoSummary}
+                        onResetAll={handleResetAllSummary}
                         canPhanBo={canPhanBo}
                         idPhieu={idphieu ?? undefined}
                         editable={!(filterLoading || forceSyncLoading)}

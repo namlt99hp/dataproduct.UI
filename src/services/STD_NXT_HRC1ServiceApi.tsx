@@ -1,6 +1,8 @@
 import type {
   STD_NXT_HRC1_GetDetailResponse,
   STD_NXT_HRC1_KhongPhanBoDto,
+  STD_NXT_HRC1_NhapXuatTonRow,
+  STD_NXT_HRC1_NhapXuatTonSearchRequest,
   STD_NXT_HRC1_PhanBoDto,
   STD_NXT_HRC1_UpsertDto,
 } from "../models/STD_NXT_HRC1_Model";
@@ -21,4 +23,9 @@ export const STD_NXT_HRC1ServiceApi = {
     apiService.post<{ data: STD_NXT_RelatedPhieuStatusResponse }>("/api/STD_NXT_HRC1/related-phieu-statuses", data),
   khongPhanBo: (data: STD_NXT_HRC1_KhongPhanBoDto) =>
     apiService.post<{ data: boolean }>("/api/STD_NXT_HRC1/khong-phan-bo", data),
+  searchNhapXuatTon: (data: STD_NXT_HRC1_NhapXuatTonSearchRequest) =>
+    apiService.post<{ data: STD_NXT_HRC1_NhapXuatTonRow[] }>(
+      "/api/STD_NXT_HRC1/search-nhapxuatton",
+      data
+    ),
 };

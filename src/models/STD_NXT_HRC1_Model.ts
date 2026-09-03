@@ -126,3 +126,28 @@ export interface STD_NXT_HRC1_KhongPhanBoDto {
   IdPhieu: string;
   PhuLieuID: number;
 }
+
+/**
+ * Payload lọc "Nhập Xuất Tồn" (đối chiếu tồn cuối ca trước / tồn đầu ca sau) theo khoảng ngày.
+ */
+export interface STD_NXT_HRC1_NhapXuatTonSearchRequest {
+  TuNgay: string;
+  DenNgay: string;
+}
+
+/**
+ * 1 dòng đối chiếu: bên trái là Tồn cuối của phiếu ca trước, bên phải là Tồn đầu của phiếu ca sau
+ * (cùng Scope + Phụ liệu, ghép theo 2 bản ghi liên tiếp trong thời gian).
+ * Field camelCase — khớp System.Text.Json (mặc định lowercase ký tự đầu) của BE.
+ */
+export interface STD_NXT_HRC1_NhapXuatTonRow {
+  ngaySXTruoc?: string | null;
+  caTruoc?: number | null;
+  phuLieuTruoc?: string | null;
+  tonCuoiTruoc?: number | null;
+
+  ngaySXSau?: string | null;
+  caSau?: number | null;
+  phuLieuSau?: string | null;
+  tonDauSau?: number | null;
+}

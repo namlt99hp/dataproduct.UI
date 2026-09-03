@@ -1,7 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useMemo, useState, useCallback, memo, useEffect } from "react";
-import { Table, Input, Button, InputNumber, message, Tag, Tooltip } from "antd";
+import { Table, Input, Button, InputNumber, message, Tag, Tooltip, Popconfirm } from "antd";
 import type { STD_NXT_HRC2_PhanBoDto } from "../models/STD_NXT_Model";
+
+type STD_NXT_HRC2_ResetRow = STD_NXT_HRC2_PhanBoDto & { IsPhanBo: boolean };
 
 const formatVi = (val: any): string => {
   if (val === null || val === undefined || val === "") return "";
@@ -44,6 +46,8 @@ interface SummaryTableSTDProps {
   onPhanBo?: (data: STD_NXT_HRC2_PhanBoDto) => void;
   onThuHoi?: (data: STD_NXT_HRC2_PhanBoDto) => void;
   onKhongPhanBo?: (data: STD_NXT_HRC2_PhanBoDto) => void;
+  /** Reset toàn bộ phụ liệu đang Đã phân bổ/Không phân bổ về lại Chưa xử lý (nút ở header cột Thao tác) */
+  onResetAll?: (rows: STD_NXT_HRC2_ResetRow[]) => void | Promise<void>;
   /** Chỉ cho phép bấm "Phân bổ" khi tất cả phiếu ở tab nấu luyện đã Hoàn thành */
   canPhanBo?: boolean;
   idPhieu?: string | null; // Phiếu đang mở (để gửi kèm payload phân bổ/thu hồi)
@@ -62,6 +66,7 @@ export default function SummaryTableSTD({
   onPhanBo,
   onThuHoi,
   onKhongPhanBo,
+  onResetAll,
   canPhanBo = true,
   idPhieu,
   editable = true,
@@ -273,6 +278,35 @@ export default function SummaryTableSTD({
     }
   }, [getIsPhanBo, mockApiCall, idPhieu, onKhongPhanBo]);
 
+  const [resetAllLoading, setResetAllLoading] = useState(false);
+
+  const handleResetAllClick = useCallback(async () => {
+    const rowsToReset: STD_NXT_HRC2_ResetRow[] = dataWithChenhLech
+      .filter((r) => !r._isTotalRow && getIsPhanBo(r) !== null)
+      .map((r) => ({
+        NgaySX: r.NgaySX,
+        Ca: r.Ca,
+        Id_HeaderKey: r.Id_HeaderKey,
+        ChenhLech: Number(r.totalChenhLech ?? 0),
+        IdPhieu: idPhieu ?? "",
+        IsPhanBo: getIsPhanBo(r) as boolean,
+      }));
+
+    if (rowsToReset.length === 0) {
+      message.info("Không có phụ liệu nào đã phân bổ hoặc không phân bổ để reset.");
+      return;
+    }
+
+    setResetAllLoading(true);
+    try {
+      // Không cần tự set phanBoMap ở đây — onResetAll (BE) xong sẽ gọi refreshSummaryAndStatus ở component
+      // cha, đổi initialData, và useEffect ở trên đã tự reset phanBoMap = {} khi initialData đổi.
+      await onResetAll?.(rowsToReset);
+    } finally {
+      setResetAllLoading(false);
+    }
+  }, [dataWithChenhLech, getIsPhanBo, idPhieu, onResetAll]);
+
   const handleCellChange = (key: string, dataIndex: string, value: any) => {
     // Cập nhật dữ liệu và tính lại chênh lệch
     const updatedData = dataWithChenhLech.map((row) => {
@@ -460,9 +494,32 @@ export default function SummaryTableSTD({
     },
   } as any);
 
-  // Cột "Thao tác" — gộp Phân bổ + Không phân bổ
+  // Cột "Thao tác" — gộp Phân bổ + Không phân bổ, header có nút Reset tất cả
   tableColumns.push({
-    title: "Thao tác",
+    title: (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+        <span>Thao tác</span>
+        {onResetAll && (
+          <Popconfirm
+            title="Reset tất cả phân bổ?"
+            description="Toàn bộ phụ liệu đang Đã phân bổ / Không phân bổ sẽ được đưa về Chưa xử lý. Không thể hoàn tác."
+            okText="Reset tất cả"
+            cancelText="Hủy"
+            onConfirm={handleResetAllClick}
+            disabled={!editable || !!lockedTooltip}
+          >
+            <Button
+              size="small"
+              danger
+              loading={resetAllLoading}
+              disabled={!editable || !!lockedTooltip}
+            >
+              Reset tất cả
+            </Button>
+          </Popconfirm>
+        )}
+      </div>
+    ),
     width: 180,
     dataIndex: "thaotac",
     align: "center" as const,

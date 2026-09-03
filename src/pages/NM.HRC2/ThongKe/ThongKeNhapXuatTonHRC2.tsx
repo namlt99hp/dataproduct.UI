@@ -51,7 +51,7 @@ const ThongKeNhapXuatTonHRC2 = () => {
         TuNgay: fromDate.format("YYYY-MM-DD"),
         DenNgay: toDate.format("YYYY-MM-DD"),
       });
-      const rows = res?.data ?? [];
+      const rows = res?.data?.data ?? [];
       setTableData(rows);
       if (!rows.length) {
         message.info("Không có dữ liệu phù hợp với điều kiện lọc.");

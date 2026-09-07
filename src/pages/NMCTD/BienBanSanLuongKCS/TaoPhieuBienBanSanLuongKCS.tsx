@@ -138,7 +138,7 @@ const TaoPhieuBienBanSanLuongKCS = () => {
   // ─────────────────────────────────────────────────────────────────────────
   //  initData
   // ─────────────────────────────────────────────────────────────────────────
-  const initData = useCallback(async () => {
+  const initData = useCallback(async (options?: { skipTableLoad?: boolean }) => {
     try {
       setLoading(true);
       const idPhieu = idphieu || "";
@@ -237,15 +237,15 @@ const TaoPhieuBienBanSanLuongKCS = () => {
               form.setFieldsValue(overrides);
           }
 
-          if (!formValues.table1 && !Array.isArray(formValues.table1)) {
-            // Set LSX before calling refresh
-            form.setFieldsValue({ LSX: parsedFromPhieu.LSX || "" });
-            // gọi hàm làm mới lại key cho table data để tránh lỗi khi render table
-            setTimeout(() => {
-              handleRefreshRef.current?.();
-            }, 100);
-          } else {
-            setTableData(formValues.table1 || []);
+          if (!options?.skipTableLoad) {
+            if (!formValues.table1 && !Array.isArray(formValues.table1)) {
+              form.setFieldsValue({ LSX: parsedFromPhieu.LSX || "" });
+              setTimeout(() => {
+                handleRefreshRef.current?.();
+              }, 100);
+            } else {
+              setTableData(formValues.table1 || []);
+            }
           }
 
           // Rebuild pheDuyet từ form fields nếu API không trả về đầy đủ
@@ -590,14 +590,15 @@ const TaoPhieuBienBanSanLuongKCS = () => {
       setLoading(true);
       await PhieuApi.resetPhieu(idphieu);
       message.success("Reset phiếu thành công!");
-      await initData();
+      await initData({ skipTableLoad: true });
+      await handleRefresh();
     } catch (error: any) {
       console.error("Reset phiếu failed:", error);
       message.error(error?.message || "Reset phiếu thất bại!");
     } finally {
       setLoading(false);
     }
-  }, [idphieu, initData]);
+  }, [idphieu, initData, handleRefresh]);
 
   // Group table data by tenPhanLoai (stored in ghiChu)
   const groupedAndFlattenedData = useMemo(() => {
@@ -799,7 +800,7 @@ const TaoPhieuBienBanSanLuongKCS = () => {
             )}
             {idphieu &&
               currentTinhTrang !== TrangThaiPhieuConst.DaChot &&
-              getThongTinUser().iD_PhanXuong === phieuInfo.nguoiTaoId && (
+              getThongTinUser().iD_TaiKhoan === phieuInfo.nguoiTaoId && (
                 <Button
                   type="default"
                   icon={<RedoOutlined />}

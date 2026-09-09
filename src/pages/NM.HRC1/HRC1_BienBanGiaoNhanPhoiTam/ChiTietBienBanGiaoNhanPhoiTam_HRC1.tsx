@@ -1140,7 +1140,10 @@ const ChiTietBienBanGiaoNhanPhoiTam_HRC1 = ({ readOnly = false }: { readOnly?: b
                     pagination={false}
                     scroll={{ x: "max-content", y: 520 }}
                     sticky={{ offsetHeader: 0 }}
-                    rowClassName={(r) => r.isChuyenCa ? "row-chuyen-ca" : ""}
+                    rowClassName={(r) => [
+                      r.isChuyenCa ? "row-chuyen-ca" : "",
+                      r.isManualEdited ? "row-manual-edited" : "",
+                    ].filter(Boolean).join(" ")}
                     summary={() => {
                       const totalKL = filteredSlabDetails.reduce((s, r) => s + (r.khoiLuong ?? 0), 0);
                       const optColCount = ((isDuc || isCan || isPKH) ? 1 : 0) + ((isCan || isPKH) ? 1 : 0) + ((isC4 || isPKH) ? 1 : 0) + (isPKH ? 1 : 0);
@@ -1357,13 +1360,21 @@ const ChiTietBienBanGiaoNhanPhoiTam_HRC1 = ({ readOnly = false }: { readOnly?: b
         />
       </Modal>
 
-      {/* CSS cho row được chuyển ca */}
+      {/* CSS cho row được chuyển ca / đã sửa thủ công — bảng tab "Chi tiết" dùng virtual (Table
+          virtual), rc-table render cell bằng <div className="ant-table-cell"> thay vì <td>, nên
+          phải match cả 2 kiểu selector để hoạt động ở cả bảng thường và bảng virtual. */}
       <style>{`
-        .row-chuyen-ca td {
+        .row-chuyen-ca td, .row-chuyen-ca.ant-table-row > .ant-table-cell {
           background-color: #fff7e6 !important;
         }
-        .row-chuyen-ca:hover td {
+        .row-chuyen-ca:hover td, .row-chuyen-ca.ant-table-row:hover > .ant-table-cell {
           background-color: #ffe7ba !important;
+        }
+        .row-manual-edited td, .row-manual-edited.ant-table-row > .ant-table-cell {
+          background-color: #fffbe6 !important;
+        }
+        .row-manual-edited:hover td, .row-manual-edited.ant-table-row:hover > .ant-table-cell {
+          background-color: #fff1b8 !important;
         }
       `}</style>
     </Card>

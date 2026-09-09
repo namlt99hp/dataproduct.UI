@@ -56,6 +56,8 @@ export interface Hrc1SlabItem {
   ghiChu?: string | null;
   maVatTu?: string | null;
   tenVatTu?: string | null;
+  // Đã qua "Sửa slab thủ công" (tồn tại record Hrc1SlabEdit) — dùng để highlight dòng ở FE.
+  isManualEdited: boolean;
   // Workflow
   isChuyenCa: boolean;
   idPhieuGoc?: string | null;

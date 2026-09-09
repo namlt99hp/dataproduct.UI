@@ -335,6 +335,10 @@ export const LoThoiPanel = ({
       await onReload();
     } catch (e: any) {
       message.error(e?.message ?? "Lỗi lưu dữ liệu");
+      // Lỗi lưu có thể do dữ liệu đã đổi ở phía khác trong lúc phiếu đang mở (vd: Đúc vừa xác nhận
+      // mẻ sau khi trang này tải xong — khóa isLocked() dựa trên trangThaiDuc của snapshot cũ nên
+      // vẫn hiện editable) — reload để đồng bộ lại state mới nhất, khóa đúng ngay trên UI.
+      await onReload();
     } finally {
       setSaving(false);
     }
@@ -647,9 +651,11 @@ export const LoThoiPanel = ({
     { title: "Ghi chú đúc", key: "ghiChuDuc", width: 90, render: (_: unknown, me: HRC1_MeThepVm) => me.ghiChuDuc ?? "" },
   ];
 
-  // Đúc "xác nhận" chỉ là trạng thái tạm (còn "Hủy xác nhận" được) — không khóa lò thổi ở bước này.
-  // Chỉ khi mẻ đã CHỐT (isChot, khóa vĩnh viễn) mới thực sự cấm nhập/lưu. Khớp với klLan3Locked bên dưới
-  // (readOnly || isChot) và với guard IsChot ở BE UpdateMeAsync.
+  // trangThaiDuc === 1 khóa cả panel (không chỉ IsChot) — nếu không, đổi DichChuyen len_thang→tinh_luyen
+  // sẽ reset IdMayDucDich trong khi Đúc vẫn coi mẻ là "đã xác nhận" (mẻ vô định, không máy đúc nào
+  // còn thấy). Đây chỉ là khóa dựa trên snapshot đã tải (phieuData) — không thay được cho guard phía BE
+  // (UpdateMeAsync/NhanMeAsync): nếu Đúc xác nhận SAU khi trang này đã tải xong, UI vẫn hiện editable
+  // cho tới khi reload; catch ở handleSaveAll bên dưới sẽ tự reload lại khi BE từ chối lưu.
   const isLocked = (me: HRC1_MeThepVm) => readOnly || !!me.isChot || (me.trangThaiLo ?? 0) >= 1 || !!me.isGhost || me.trangThaiDuc === 1;
   const columns = buildColumns(isLocked);
 

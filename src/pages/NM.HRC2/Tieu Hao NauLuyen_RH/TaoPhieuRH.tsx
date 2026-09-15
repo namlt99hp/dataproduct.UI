@@ -22,6 +22,47 @@ import HRC2ExportBienBanButtons from "../../../components/HRC2ExportBienBanButto
 
 const DEFAULT_EXCLUDED_KEYS = ["meThoi", "macThep","queLayMau","queDoNhiet", "ghiChu", "stt", "STT"];
 
+/**
+ * Ghi giá trị các cột "Thêm cột điều chỉnh" (manual_col_*, lưu riêng ở
+ * table1DynamicColumns.adjust[].values vì sanitizeRowsBeforeSubmit đã xoá field này
+ * khỏi table1[] trước khi lưu) trở lại vào từng dòng khi khôi phục phiếu.
+ * Đồng thời set cờ `${dataIndex}__IsManual = true` giống lúc user sửa tay trên UI
+ * (xem CustomTableHRC) để applyManualOverrides giữ được giá trị này khi merge lại
+ * với dữ liệu NM mới nhất ở loadFromNM() — nếu không, giá trị bị mất ngay khi
+ * dữ liệu NM (không có field manual_col_*) ghi đè lên.
+ */
+function mergeAdjustColumnValuesIntoRows(
+  rows: HRCTableRow[],
+  adjustMetas:
+    | (DynamicColumnMeta & {
+        values?: Array<{
+          rowId?: number | null;
+          meThoi?: string | null;
+          value?: string | number | null;
+        }>;
+      })[]
+    | undefined
+): HRCTableRow[] {
+  if (!rows?.length || !adjustMetas?.length) return rows || [];
+  const list = rows.map((r) => ({ ...r }));
+  adjustMetas.forEach((meta) => {
+    const values = meta.values;
+    if (!values?.length || !meta.dataIndex) return;
+    values.forEach((v) => {
+      const row = list.find(
+        (r) =>
+          (v.rowId != null && r.id === v.rowId) ||
+          (v.meThoi != null && r.meThoi === v.meThoi)
+      );
+      if (row) {
+        (row as Record<string, unknown>)[meta.dataIndex] = v.value;
+        (row as Record<string, unknown>)[`${meta.dataIndex}__IsManual`] = true;
+      }
+    });
+  });
+  return list;
+}
+
 const TaoPhieuTieuHaoNauLuyen_RH = () => {
   const { idphieu, navigateToDetail, safeGetDetail, redirectToList } = usePhieuNavigation(
     "phieu_rh_id",
@@ -206,7 +247,7 @@ const TaoPhieuTieuHaoNauLuyen_RH = () => {
     return adjustColumnMetas
       .filter((meta) => !meta.dataIndex.startsWith("phanBo_"))
       .map((meta) => ({
-        title: meta.isManuallyAdded ? (
+        title: meta.isManuallyAdded && !isFormLocked ? (
           <div style={{ position: "relative", minWidth: 140, paddingRight: 18 }}>
             <HeaderKeyAutocomplete
               value={meta.headerKeyId ?? null}
@@ -230,12 +271,12 @@ const TaoPhieuTieuHaoNauLuyen_RH = () => {
         ) : (meta.headerKeyLabel ?? "Điều chỉnh"),
         dataIndex: meta.dataIndex,
         width: meta.width ?? 140,
-        editable: meta.isManuallyAdded ? true : false,
+        editable: meta.isManuallyAdded && !isFormLocked ? true : false,
         variant: meta.isManuallyAdded ? undefined : ("adjust" as const),
         metaLabel: meta.headerKeyLabel ?? "Điều chỉnh",
         headerKeyId: meta.headerKeyId ?? null,
       }));
-  }, [adjustColumnMetas, config.code, handleColumnHeaderChange, handleRemoveAdjustColumn]);
+  }, [adjustColumnMetas, config.code, handleColumnHeaderChange, handleRemoveAdjustColumn, isFormLocked]);
 
   const restoreDynamicColumns = useCallback(
     (map?: Record<string, DynamicColumnMeta[]>) => {
@@ -253,6 +294,10 @@ const TaoPhieuTieuHaoNauLuyen_RH = () => {
             hrc2TableService.adjustMetaFromDynamic(map.adjust)
           )
         );
+        // Có cột "Thêm cột điều chỉnh" đã lưu → hiện luôn, không chờ user bấm nút
+        if (map.adjust.length > 0) {
+          setShowAdjustColumns(true);
+        }
       } else {
         setAdjustColumnMetas([]);
       }
@@ -526,7 +571,11 @@ const TaoPhieuTieuHaoNauLuyen_RH = () => {
           }
 
           if (formValues.table1) {
-            const processedTable1 = (formValues.table1 as HRCTableRow[]).map((row) => ({
+            const table1WithAdjustValues = mergeAdjustColumnValuesIntoRows(
+              formValues.table1 as HRCTableRow[],
+              (formValues.table1DynamicColumns as any)?.adjust
+            );
+            const processedTable1 = table1WithAdjustValues.map((row) => ({
               ...row,
               IsNM: row.IsNM !== undefined ? row.IsNM : true,
             }));

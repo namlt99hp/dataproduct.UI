@@ -24,6 +24,7 @@ import {
   type ThongKeLoaiBMKey,
 } from "../../../utils/configs/thongKeHRC2HeaderConfig";
 import ThongKeBBGNThepLong from "./ThongKeBBGNThepLong";
+import ThongKeSlab from "./ThongKeSlab";
 import { BM_CONFIG } from "../../../utils/configs/BieuMauConst";
 import { getAllowedScope } from "../../../utils/helpers/checkAdminRole";
 
@@ -149,9 +150,10 @@ type SumRowMap = Record<string, number | null>;
 const flattenLeafColumns = (cols: any[]): any[] =>
   cols.flatMap((c) => (Array.isArray(c.children) ? flattenLeafColumns(c.children) : [c]));
 
-const MAIN_TAB_SCOPE_MAP: Record<"tieuhao" | "bbgn", string> = {
+const MAIN_TAB_SCOPE_MAP: Record<"tieuhao" | "bbgn" | "slab", string> = {
   tieuhao: "TIEUHAO",
   bbgn: "BBGN",
+  slab: "SLAB",
 };
 
 const ThongKeHRC2 = () => {
@@ -162,7 +164,7 @@ const ThongKeHRC2 = () => {
   const [columns, setColumns] = useState<any[]>([]);
   const [tableData, setTableData] = useState<any[]>([]);
   const [loaiBmKey, setLoaiBmKey] = useState<LoaiBMKey>("BOF");
-  const [mainTabKey, setMainTabKey] = useState<"tieuhao" | "bbgn">("tieuhao");
+  const [mainTabKey, setMainTabKey] = useState<"tieuhao" | "bbgn" | "slab">("tieuhao");
   const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 });
 
   const allowedScope = useMemo(
@@ -171,9 +173,10 @@ const ThongKeHRC2 = () => {
   );
 
   const mainTabItems = useMemo(() => {
-    const all: { key: "tieuhao" | "bbgn"; label: string }[] = [
+    const all: { key: "tieuhao" | "bbgn" | "slab"; label: string }[] = [
       { key: "tieuhao", label: "Thống kê tiêu hao HRC2" },
       { key: "bbgn", label: "Thống kê BBGN thép lỏng" },
+      { key: "slab", label: "Thống kê Phôi tấm" }
     ];
     if (allowedScope === null) return all;
     return all.filter((t) => allowedScope.includes(MAIN_TAB_SCOPE_MAP[t.key]));
@@ -573,12 +576,14 @@ const ThongKeHRC2 = () => {
     <div style={{ margin: 2 }}>
       <Tabs
         activeKey={mainTabKey}
-        onChange={(k) => setMainTabKey(k as "tieuhao" | "bbgn")}
+        onChange={(k) => setMainTabKey(k as "tieuhao" | "bbgn" | "slab")}
         items={mainTabItems}
       />
 
       {mainTabKey === "bbgn" ? (
         <ThongKeBBGNThepLong />
+      ) : mainTabKey === "slab" ? (
+        <ThongKeSlab />
       ) : (
     <Card style={{ boxShadow: "0 2px 8px #f0f1f2" }}>
       <Title level={3} style={{ textAlign: "center", marginBottom: 24 }}>

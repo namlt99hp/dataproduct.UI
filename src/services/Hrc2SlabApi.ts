@@ -118,6 +118,30 @@ export interface PhieuBBSLItem {
   soSlabPKH: number;
 }
 
+// ── Thống kê slab (ThongKeSlab.tsx) — API riêng, KHÔNG dùng chung với search. BE gom nhóm
+// (pivot) sẵn theo (MayDuc, MacThep, MeThep, OrderId, NgayXuLy, KipBBSL) — chỉ tìm theo 1 ngày
+// bắt buộc (+ ca tùy chọn) để lượng dữ liệu xử lý trong 1 lần gọi luôn nhỏ.
+export interface ThongKeSlabRequest {
+  ngay: string; // bắt buộc, "YYYY-MM-DD"
+  ca?: number | null;
+}
+
+// 1 dòng đã gom nhóm — field pn_*/png_* khớp đúng dataIndex của bảng (xem THONGKE_SLAB_COLUMNS).
+export interface ThongKeSlabRow {
+  ca?: number | null;
+  ngayLenBBSL?: string | null;
+  kipLenBBSL?: string | null;
+  mayDuc?: number | null;
+  lo?: number | null;
+  macThep?: string | null;
+  meThep?: string | null;
+  lsx?: string | null;
+  tongSanLuongPhoi: number;
+  hangCXL?: string | null;
+  tyLeTieuHao?: number | null;
+  [key: string]: unknown; // pn_kichThuoc, pn_loai1_kl, pn_loai1_st, png_loai1_kl, ...
+}
+
 export interface SlabTongHopItem {
   meThep?: string | null;
   macThep?: string | null;
@@ -186,6 +210,10 @@ export const Hrc2SlabApi = {
   getSlabsByPhieu: async (idPhieu: string, currentUserId?: number): Promise<HrcSlabItem[]> => {
     const qs = currentUserId != null ? `?currentUserId=${currentUserId}` : "";
     return (await apiService.get(`${BASE}/slabs-by-phieu/${idPhieu}${qs}`)) as HrcSlabItem[];
+  },
+
+  thongKeSlab: async (request: ThongKeSlabRequest): Promise<ThongKeSlabRow[]> => {
+    return (await apiService.post(`${BASE}/thong-ke-slab`, request)) as ThongKeSlabRow[];
   },
 
   chuyenBBSL: async (

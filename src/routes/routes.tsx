@@ -9,6 +9,7 @@ import {
   TaoYeuCau,
   BienBanPhoiNong,
   BienBanPhoiNguoi,
+  ChatboxPage,
 } from "../pages";
 import LoginPage from "../pages/Login/LoginPage";
 import NotFound from "../pages/NotFound/NotFound";
@@ -126,6 +127,14 @@ export const routes = [
         element: (
           <RequireAuth>
             <Dashboard />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "chatbox",
+        element: (
+          <RequireAuth>
+            <ChatboxPage />
           </RequireAuth>
         ),
       },

@@ -1,4 +1,5 @@
 export { default as Home } from './Home/Home';
+export { default as ChatboxPage } from './Chatbox/ChatboxPage';
 export { default as Dashboard } from './Dashboard/Dashboard';
 export { default as TicketProcessing } from './TicketProcessing/TicketProcessing';
 export { default as Reports } from './Reports/Reports';

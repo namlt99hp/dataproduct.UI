@@ -9,6 +9,7 @@ import {
   SettingOutlined,
   SafetyCertificateOutlined,
   EyeOutlined,
+  MessageOutlined,
 } from "@ant-design/icons";
 import { Tooltip } from "antd";
 import { NavLink } from "react-router-dom";
@@ -33,6 +34,7 @@ export const menuConfig = [
     label: <NavLink to="/">Trang chủ</NavLink>,
     // roles: ["admin"], // chỉ admin mới thấy
   },
+  
   {
     key: "sub1",
     label: "Kho dữ liệu",
@@ -1414,4 +1416,9 @@ export const menuConfig = [
   //   label: <NavLink to="/users">Quản lý tài khoản</NavLink>,
   //   roles: ["admin"],
   // },
+  {
+    key: "menu-chatbox-ai",
+    icon: <MessageOutlined />,
+    label: <NavLink to="/chatbox">Chat box</NavLink>,
+  },
 ];

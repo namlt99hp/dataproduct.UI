@@ -1,6 +1,7 @@
 ﻿/* eslint-disable @typescript-eslint/no-explicit-any */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  AutoComplete,
   Button,
   Card,
   Col,
@@ -54,10 +55,12 @@ import {
 import { phieuActionService } from "../../../services/PhieuActionService";
 import { DETAIL_HIDDEN_BUTTON_KEYS } from "../../../utils/constants/PhieuActionButtonKeys";
 import { BM_CONFIG } from "../../../utils/configs/BieuMauConst";
+import { MaVatTuApi } from "../../../services/MaVatTuApi";
 
 const { Title } = Typography;
 
 const MA_BM = BM_CONFIG.HRC1.HRC1_BBSL_PhoiTam as string;
+const NHA_MAY_MA_VAT_TU = "HRC1";
 const TT_COLOR: Record<number, string> = { 0: "default", 1: "green" };
 
 // Màu theo Ý NGHĨA (không theo vị trí) để nhất quán giữa các nhóm filter: xám = "Tất cả" (không
@@ -159,6 +162,28 @@ const ChiTietBienBanGiaoNhanPhoiTam_HRC1 = ({ readOnly = false }: { readOnly?: b
   const [addForm] = Form.useForm();
   const [formMode, setFormMode] = useState<"add" | "edit">("add");
   const [editingSlabId, setEditingSlabId] = useState<number | null>(null);
+
+  // Autocomplete "Mác thép" — gợi ý từ bảng MaVatTu (NhaMay = HRC1), debounce theo từ khóa gõ.
+  const [macThepOptions, setMacThepOptions] = useState<{ value: string }[]>([]);
+  const macThepSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const searchMacThep = useCallback((keyword: string) => {
+    if (macThepSearchTimer.current) clearTimeout(macThepSearchTimer.current);
+    macThepSearchTimer.current = setTimeout(async () => {
+      try {
+        const res = await MaVatTuApi.search({
+          nhaMay: NHA_MAY_MA_VAT_TU,
+          macThep: keyword.trim() || undefined,
+          page: 1,
+          pageSize: 20,
+        });
+        const unique = Array.from(
+          new Set(res.data.map((x) => x.macThep).filter((v): v is string => !!v)),
+        );
+        setMacThepOptions(unique.map((v) => ({ value: v })));
+      } catch { /* không chặn nhập tay nếu lỗi gợi ý */ }
+    }, 300);
+  }, []);
 
   const [pasteModalOpen, setPasteModalOpen] = useState(false);
   const [pasteText, setPasteText] = useState("");
@@ -300,7 +325,8 @@ const ChiTietBienBanGiaoNhanPhoiTam_HRC1 = ({ readOnly = false }: { readOnly?: b
     setEditingSlabId(null);
     addForm.resetFields();
     setAddModalOpen(true);
-  }, [addForm]);
+    searchMacThep("");
+  }, [addForm, searchMacThep]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -370,7 +396,8 @@ const ChiTietBienBanGiaoNhanPhoiTam_HRC1 = ({ readOnly = false }: { readOnly?: b
       khoiLuong: row.khoiLuong ?? null,
     });
     setAddModalOpen(true);
-  }, [selectedRows, addForm]);
+    searchMacThep(row.macThep ?? "");
+  }, [selectedRows, addForm, searchMacThep]);
 
   // Xóa mềm: slab bị ẩn khỏi phiếu và không bị SyncAsync hồi sinh ở lần "Làm mới dữ liệu" kế
   // tiếp (khác xóa cứng trước đây — TSC luôn trả đủ slab của ca nên sẽ bị insert lại ngay).
@@ -1293,7 +1320,16 @@ const ChiTietBienBanGiaoNhanPhoiTam_HRC1 = ({ readOnly = false }: { readOnly?: b
                 label="Mác thép"
                 rules={[{ required: true, message: "Nhập Mác thép" }]}
               >
-                <Input maxLength={50} placeholder="Mác thép" style={{ height: 36 }} />
+                <AutoComplete
+                  options={macThepOptions}
+                  onSearch={searchMacThep}
+                  onFocus={() => searchMacThep(addForm.getFieldValue("macThep") ?? "")}
+                  filterOption={false}
+                  placeholder="Mác thép"
+                  style={{ width: "100%" }}
+                >
+                  <Input maxLength={50} style={{ height: 36 }} />
+                </AutoComplete>
               </Form.Item>
             </Col>
             <Col span={12}>

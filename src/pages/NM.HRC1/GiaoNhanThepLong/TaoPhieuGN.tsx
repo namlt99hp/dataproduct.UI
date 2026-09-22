@@ -86,6 +86,12 @@ const calcKlThepLong = (dichChuyen: string | null | undefined, kllf: number | nu
   return null;
 };
 
+// Tính KL đổ xỉ tự động = KL bì - Lần 2 (klLan2) - Khối lượng thùng LF trước khi ra thép (klLan3)
+const calcKlDoXi = (klLan2: number | null | undefined, klLan3: number | null | undefined): number | null => {
+  if (klLan2 == null || klLan3 == null) return null;
+  return Math.round((klLan2 - klLan3) * 100) / 100;
+};
+
 // Ghi chú dùng chung cả 3 công đoạn — auto-save khi blur
 const GhiChuInput = ({ meId, value, locked, field }: { meId: number; value?: string | null; locked: boolean; field: "lo" | "tl" | "duc" | "pcn" }) => {
   const [local, setLocal] = useState(value ?? "");
@@ -295,7 +301,7 @@ export const LoThoiPanel = ({
     const loKlFields: { key: string; label: string }[] = [
       { key: "kllfSauThep",      label: "KL thùng LF sau khi ra thép" },
       { key: "klLan2",           label: "KL bì - Lần 2" },
-      { key: "klLan3",           label: "KL bì - Lần 3" },
+      { key: "klLan3",           label: "Khối lượng thùng LF trước khi ra thép" },
       { key: "klThepLongPhanBo", label: "KL phân bổ" },
     ];
     const negativeErrors: string[] = [];
@@ -500,7 +506,7 @@ export const LoThoiPanel = ({
       },
     },
     {
-      title: "KL bì - Lần 3 (tấn)", key: "klLan3", width: 75,
+      title: "Khối lượng thùng LF trước khi ra thép", key: "klLan3", width: 75,
       render: (_, me) => {
         const klLan3Locked = readOnly || !!me.isChot;
         return (
@@ -530,6 +536,14 @@ export const LoThoiPanel = ({
             <span style={{ fontWeight: 600, color: isTransferred ? "#aaa" : undefined }}>{v}</span>
           </Tooltip>
         );
+      },
+    },
+    {
+      title: "KL đổ xỉ", key: "klDoXi", width: 75,
+      render: (_, me) => {
+        const doXi = calcKlDoXi(me.klLan2, me.klLan3);
+        const isOver = doXi != null && Math.abs(doXi) > 4;
+        return <span style={{ fontWeight: 700, color: isOver ? "#ff4d4f" : undefined }}>{doXi ?? ""}</span>;
       },
     },
     {
@@ -690,7 +704,7 @@ export const LoThoiPanel = ({
       <MeThepTable
         columns={columns}
         dataSource={displayData}
-        scrollX={showChuyenMeCols ? 2110 : 1850}
+        scrollX={showChuyenMeCols ? 2185 : 1925}
         scrollY="calc(100vh - 207px)"
         onRow={(me) => ({
           style: me.isGhost ? { background: "#fff7e6", opacity: 0.85 } : undefined,
@@ -759,7 +773,7 @@ export const TinhLuyenPanel = ({
       { key: "kllfSauThep", label: "KL thùng LF sau khi ra thép" },
       { key: "klLan1",      label: "KL lần 1" },
       { key: "klLan2",      label: "KL bì - Lần 2" },
-      { key: "klLan3",      label: "KL bì - Lần 3" },
+      { key: "klLan3",      label: "Khối lượng thùng LF trước khi ra thép" },
     ];
     const negativeErrors: string[] = [];
     for (const [meIdStr, req] of dirty) {
@@ -1127,7 +1141,7 @@ export const TinhLuyenPanel = ({
       },
     },
     {
-      title: "KL bì - Lần 3 (tấn)", key: "klLan3", width: 70,
+      title: "Khối lượng thùng LF trước khi ra thép", key: "klLan3", width: 70,
       render: (_, me) => {
         const editable = !!me.isManualTL && !isLocked(me);
         return (
@@ -1157,6 +1171,14 @@ export const TinhLuyenPanel = ({
             <span style={{ fontWeight: 600, color: isTransferred ? "#aaa" : undefined }}>{v}</span>
           </Tooltip>
         );
+      },
+    },
+    {
+      title: "KL đổ xỉ", key: "klDoXi", width: 75,
+      render: (_, me) => {
+        const doXi = calcKlDoXi(me.klLan2, me.klLan3);
+        const isOver = doXi != null && Math.abs(doXi) > 4;
+        return <span style={{ fontWeight: 700, color: isOver ? "#ff4d4f" : undefined }}>{doXi ?? ""}</span>;
       },
     },
     { title: "Thử nghiệm", dataIndex: "isThuNghiem", width: 44, render: (v) => <Checkbox checked={!!v} disabled /> },
@@ -1334,7 +1356,7 @@ export const TinhLuyenPanel = ({
           columns={mainCols}
           dataSource={tlDisplayData}
           rowKey={(r) => `${r.id}-${r.mePhanCongId}`}
-          scrollX={showChuyenMeCols ? 2220 : 1960}
+          scrollX={showChuyenMeCols ? 2295 : 2035}
           scrollY="calc(100vh - 258px)"
           onRow={(me) => ({ style: me.isManualTL ? { background: "#FFFFCC" } : undefined })}
         />
@@ -1611,7 +1633,7 @@ export const DucPanel = ({
     { title: "KL thùng LF sau khi ra thép",    dataIndex: "kllfSauThep",  width: 75,  render: (v) => v ?? "" },
     { title: "KL thùng&thép lỏng vào bệ xoay - Lần 1 (tấn)", dataIndex: "klLan1",       width: 75,  render: (v) => v ?? "" },
     { title: "KL bì - Lần 2 (tấn)", dataIndex: "klLan2",       width: 75,  render: (v) => v ?? "" },
-    { title: "KL bì - Lần 3 (tấn)", dataIndex: "klLan3",       width: 75,  render: (v) => v ?? "" },
+    { title: "Khối lượng thùng LF trước khi ra thép", dataIndex: "klLan3",       width: 75,  render: (v) => v ?? "" },
     { title: "KL thép lỏng", dataIndex: "klThepLong", width: 80, render: (v) => <span style={{ fontWeight: 700 }}>{v ?? ""}</span> },
     {
       title: "KL thép lỏng chốt", key: "klThepLongChot", width: 85,
@@ -1624,6 +1646,14 @@ export const DucPanel = ({
             <span style={{ fontWeight: 600, color: isTransferred ? "#aaa" : undefined }}>{v}</span>
           </Tooltip>
         );
+      },
+    },
+    {
+      title: "KL đổ xỉ", key: "klDoXi", width: 75,
+      render: (_, me) => {
+        const doXi = calcKlDoXi(me.klLan2, me.klLan3);
+        const isOver = doXi != null && Math.abs(doXi) > 4;
+        return <span style={{ fontWeight: 700, color: isOver ? "#ff4d4f" : undefined }}>{doXi ?? ""}</span>;
       },
     },
     {
@@ -1668,7 +1698,7 @@ export const DucPanel = ({
       <MeThepTable
         columns={columns}
         dataSource={sortedMes}
-        scrollX={1934}
+        scrollX={2009}
         scrollY={tableScrollY}
         onRow={(me) => ({ style: me.isManualTL ? { background: "#FFFFCC" } : undefined })}
         summary={(pageData) => {
@@ -1691,8 +1721,8 @@ export const DucPanel = ({
                 <Table.Summary.Cell index={12}>
                   <strong>{totalChot > 0 ? totalChot : ""}</strong>
                 </Table.Summary.Cell>
-                {/* remaining 11 cols */}
-                <Table.Summary.Cell index={13} colSpan={11} />
+                {/* remaining 12 cols (đã gồm klDoXi) */}
+                <Table.Summary.Cell index={13} colSpan={12} />
               </Table.Summary.Row>
             </Table.Summary>
           );

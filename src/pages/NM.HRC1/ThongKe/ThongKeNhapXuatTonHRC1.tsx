@@ -51,7 +51,9 @@ const ThongKeNhapXuatTonHRC1 = () => {
         TuNgay: fromDate.format("YYYY-MM-DD"),
         DenNgay: toDate.format("YYYY-MM-DD"),
       });
-      const rows = res?.data?.data ?? [];
+      // Interceptor ApiService đã unwrap response.data -> res chính là body { data: [...] }
+      const payload = (res as unknown as { data?: unknown })?.data ?? res;
+      const rows: STD_NXT_HRC1_NhapXuatTonRow[] = Array.isArray(payload) ? payload : [];
       setTableData(rows);
       if (!rows.length) {
         message.info("Không có dữ liệu phù hợp với điều kiện lọc.");

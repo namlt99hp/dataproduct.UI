@@ -5,6 +5,16 @@ import type { STD_NXT_HRC2_PhanBoDto } from "../models/STD_NXT_Model";
 
 type STD_NXT_HRC2_ResetRow = STD_NXT_HRC2_PhanBoDto & { IsPhanBo: boolean };
 
+type TyLeField = "tyLeBOF" | "tyLeTinhLuyen" | "tyLeRH";
+
+// Cột tỷ lệ -> công đoạn (khớp bieuMau trong khuVucList) + cờ "có sử dụng" tương ứng trên row
+const TY_LE_CONG_DOAN: Record<TyLeField, { label: string; usedFlag: "_usedBOF" | "_usedLF" | "_usedRH" }> = {
+  tyLeBOF: { label: "BOF", usedFlag: "_usedBOF" },
+  tyLeTinhLuyen: { label: "LF", usedFlag: "_usedLF" },
+  tyLeRH: { label: "RH", usedFlag: "_usedRH" },
+};
+const TY_LE_FIELDS = Object.keys(TY_LE_CONG_DOAN) as TyLeField[];
+
 const formatVi = (val: any): string => {
   if (val === null || val === undefined || val === "") return "";
   const num = parseFloat(String(val));
@@ -56,6 +66,9 @@ interface SummaryTableSTDProps {
   className?: string;
   /** Khi set, toàn bộ action buttons bị disable + hiện tooltip này khi hover */
   lockedTooltip?: string;
+  /** Config khu vực [{label, bieuMau}] để biết phụ liệu dùng ở công đoạn nào (BOF/LF/RH) theo tongThucTe.
+   *  Không truyền -> cho nhập tỷ lệ cả 3 công đoạn như cũ. */
+  khuVucConfig?: Array<{ label?: string; bieuMau?: string }>;
 }
 
 export default function SummaryTableSTD({
@@ -73,11 +86,17 @@ export default function SummaryTableSTD({
   loading = false,
   className = "",
   lockedTooltip,
+  khuVucConfig,
 }: SummaryTableSTDProps) {
   // Tính tổng theo nguyên nhiên liệu duy nhất (theo thứ tự xuất hiện ở bảng trên)
   const summaryData = useMemo(() => {
     
     if (!table1Data || table1Data.length === 0) return [];
+    const hasKhuVucConfig = Array.isArray(khuVucConfig) && khuVucConfig.length > 0;
+    const bieuMauByKhuVuc: Record<string, string> = {};
+    (khuVucConfig || []).forEach((k) => {
+      if (k?.label && k?.bieuMau) bieuMauByKhuVuc[k.label] = String(k.bieuMau).toUpperCase();
+    });
     const materialOrder: string[] = [];
     const grouped: Record<string, any[]> = {};
 
@@ -102,6 +121,15 @@ export default function SummaryTableSTD({
       const totalSuDung = totalTonDauCa + totalNhapTrongCa - totalTonCuoiCa;
       const totalChenhLech = Math.abs(totalSuDung - totalSDTrongSoSach);
 
+      // Công đoạn có sử dụng phụ liệu = có ít nhất 1 dòng khu vực thuộc công đoạn đó với tongThucTe != 0
+      const isUsedAt = (bieuMau: string) =>
+        !hasKhuVucConfig ||
+        rows.some(
+          (r) =>
+            (bieuMauByKhuVuc[r.khuVuc] ?? "").startsWith(bieuMau) &&
+            (parseFloat(String(r.tongThucTe || 0)) || 0) !== 0
+        );
+
       // Lấy Id_HeaderKey từ bảng 1 (giả định mỗi nguyên liệu chỉ có 1 HeaderKey)
       const anyWithId = rows.find((r) => r.idNguyenNhienLieu != null);
       const idHeaderKey = anyWithId?.idNguyenNhienLieu ?? null;
@@ -119,6 +147,9 @@ export default function SummaryTableSTD({
         Id_HeaderKey: idHeaderKey,
         _isFirstMaterialRow: index === 0,
         _materialRowCount: materialOrder.length,
+        _usedBOF: isUsedAt("BOF"),
+        _usedLF: isUsedAt("LF"),
+        _usedRH: isUsedAt("RH"),
       };
 
       // Gắn thêm meta từ initialData (nếu có): Id_HeaderKey, HasPhanBo, NgaySX, Ca
@@ -145,6 +176,9 @@ export default function SummaryTableSTD({
         baseRow.KLPB_BOF = meta.klpB_BOF ?? meta.klpb_BOF ?? meta.KLPB_BOF ?? null;
         baseRow.KLPB_TL = meta.klpB_TL ?? meta.klpb_TL ?? meta.KLPB_TL ?? null;
         baseRow.KLPB_RH = meta.klpB_RH ?? meta.klpb_RH ?? meta.KLPB_RH ?? null;
+        baseRow.KLTK_BOF = meta.kltK_BOF ?? meta.kltk_BOF ?? meta.KLTK_BOF ?? null;
+        baseRow.KLTK_LF = meta.kltK_LF ?? meta.kltk_LF ?? meta.KLTK_LF ?? null;
+        baseRow.KLTK_RH = meta.kltK_RH ?? meta.kltk_RH ?? meta.KLTK_RH ?? null;
 
         // Ưu tiên chênh lệch từ BE (sau khi phân bổ/thu hồi BE có thể cập nhật lại)
         const chenhLechFromServer =
@@ -164,7 +198,7 @@ export default function SummaryTableSTD({
 
 
     return summaryRows;
-  }, [table1Data, initialData]);
+  }, [table1Data, initialData, khuVucConfig]);
 
   // Tính chênh lệch khi có thay đổi
   const dataWithChenhLech = useMemo(() => {
@@ -217,6 +251,25 @@ export default function SummaryTableSTD({
     return record.IsPhanBo ?? null;
   }, [phanBoMap]);
 
+  const getRawTyLe = useCallback((record: any, field: TyLeField): number | null => {
+    return tyLeMap[record.key]?.[field] ?? record[field] ?? null;
+  }, [tyLeMap]);
+
+  // Khóa ô tỷ lệ của công đoạn không sử dụng phụ liệu (theo tongThucTe trên màn hình).
+  // Dòng đã phân bổ giữ nguyên hiển thị tỷ lệ đã chốt, không áp khóa.
+  const isTyLeLocked = useCallback((record: any, field: TyLeField): boolean => {
+    return getIsPhanBo(record) !== true && record[TY_LE_CONG_DOAN[field].usedFlag] === false;
+  }, [getIsPhanBo]);
+
+  // Tỷ lệ gửi đi khi phân bổ: công đoạn bị khóa luôn = 0 (bỏ tỷ lệ cũ lưu trong DB nếu có)
+  const getTyLeForPhanBo = useCallback((record: any): Record<TyLeField, number | null> => {
+    const result = {} as Record<TyLeField, number | null>;
+    TY_LE_FIELDS.forEach((f) => {
+      result[f] = isTyLeLocked(record, f) ? 0 : getRawTyLe(record, f);
+    });
+    return result;
+  }, [isTyLeLocked, getRawTyLe]);
+
   const mockApiCall = useCallback((_action: string): Promise<boolean | null> => {
     return new Promise((resolve) => {
       setTimeout(() => {
@@ -235,11 +288,8 @@ export default function SummaryTableSTD({
       const next = await mockApiCall(action);
       setPhanBoMap(prev => ({ ...prev, [record.key]: next }));
       if (action === 'phan-bo') {
-        const rowTyLe = tyLeMap[record.key] ?? {};
-        const tyLeBOF = rowTyLe.tyLeBOF ?? record.tyLeBOF ?? 0;
-        const tyLeTinhLuyen = rowTyLe.tyLeTinhLuyen ?? record.tyLeTinhLuyen ?? 0;
-        const tyLeRH = rowTyLe.tyLeRH ?? record.tyLeRH ?? 0;
-        onPhanBo?.({ NgaySX: record.NgaySX, Ca: record.Ca, Id_HeaderKey: record.Id_HeaderKey, ChenhLech: Number(record.totalChenhLech ?? 0), IdPhieu: idPhieu ?? "", TyLeBOF: tyLeBOF, TyLeTinhLuyen: tyLeTinhLuyen, TyLeRH: tyLeRH });
+        const tyLe = getTyLeForPhanBo(record);
+        onPhanBo?.({ NgaySX: record.NgaySX, Ca: record.Ca, Id_HeaderKey: record.Id_HeaderKey, ChenhLech: Number(record.totalChenhLech ?? 0), IdPhieu: idPhieu ?? "", TyLeBOF: tyLe.tyLeBOF ?? 0, TyLeTinhLuyen: tyLe.tyLeTinhLuyen ?? 0, TyLeRH: tyLe.tyLeRH ?? 0 });
       } else {
         onThuHoi?.({ NgaySX: record.NgaySX, Ca: record.Ca, Id_HeaderKey: record.Id_HeaderKey, ChenhLech: Number(record.totalChenhLech ?? 0), IdPhieu: idPhieu ?? "", TyLeBOF: 0, TyLeTinhLuyen: 0, TyLeRH: 0 });
       }
@@ -248,7 +298,7 @@ export default function SummaryTableSTD({
     } finally {
       setLoadingMap(prev => ({ ...prev, [record.key]: null }));
     }
-  }, [getIsPhanBo, mockApiCall, tyLeMap, idPhieu, onPhanBo, onThuHoi]);
+  }, [getIsPhanBo, mockApiCall, getTyLeForPhanBo, idPhieu, onPhanBo, onThuHoi]);
 
   const handleThuHoiClick = useCallback(async (record: any) => {
     setLoadingMap(prev => ({ ...prev, [record.key]: 'thu-hoi' }));
@@ -344,8 +394,26 @@ export default function SummaryTableSTD({
     const isTyLeColumn = dataIndex === "tyLeBOF" || dataIndex === "tyLeTinhLuyen" || dataIndex === "tyLeRH";
 
     if (isTyLeColumn && !record._isTotalRow) {
+      const field = dataIndex as TyLeField;
       const hasPhanBo = getIsPhanBo(record) === true;
-      const tyLeVal = tyLeMap[record.key]?.[dataIndex as "tyLeBOF" | "tyLeTinhLuyen" | "tyLeRH"] ?? (record[dataIndex] ?? null);
+      const tyLeVal = getRawTyLe(record, field);
+      if (isTyLeLocked(record, field)) {
+        const congDoan = TY_LE_CONG_DOAN[field].label;
+        const hasStale = tyLeVal !== null && Number(tyLeVal) !== 0;
+        return (
+          <Tooltip
+            title={
+              hasStale
+                ? `Phụ liệu không sử dụng ở ${congDoan}. Tỷ lệ cũ ${tyLeVal}% sẽ bị bỏ (tính = 0) khi phân bổ.`
+                : `Phụ liệu không sử dụng ở ${congDoan}`
+            }
+          >
+            <span style={{ display: "block" }}>
+              <InputNumber value={hasStale ? tyLeVal : null} disabled style={{ width: "100%" }} />
+            </span>
+          </Tooltip>
+        );
+      }
       return (
         <InputNumber
           value={tyLeVal}
@@ -353,7 +421,7 @@ export default function SummaryTableSTD({
           max={100}
           disabled={!editable || hasPhanBo}
           style={{ width: "100%" }}
-          onChange={(v) => handleTyLeChange(record.key, dataIndex as "tyLeBOF" | "tyLeTinhLuyen" | "tyLeRH", v)}
+          onChange={(v) => handleTyLeChange(record.key, field, v)}
         />
       );
     }
@@ -416,13 +484,15 @@ export default function SummaryTableSTD({
       onCell: (record: any) => {
         const minW = isTotalTextColumn ? 80 : isMaterialCol ? 80 : isTyLeCol ? 60 : isNumberColumn ? 70 : 70;
         if (isTyLeCol && !record._isTotalRow) {
-          const rowTyLe = tyLeMap[record.key] ?? {};
-          const bof = rowTyLe.tyLeBOF ?? record.tyLeBOF ?? null;
-          const tl = rowTyLe.tyLeTinhLuyen ?? record.tyLeTinhLuyen ?? null;
-          const rh = rowTyLe.tyLeRH ?? record.tyLeRH ?? null;
-          const allFilled = bof !== null && tl !== null && rh !== null;
-          const total = allFilled ? Number(bof) + Number(tl) + Number(rh) : null;
-          const isInvalid = allFilled && Math.abs(total! - 100) > 0.001;
+          const field = col.dataIndex as TyLeField;
+          const tyLe = getTyLeForPhanBo(record);
+          const values = TY_LE_FIELDS.map((f) => tyLe[f]);
+          const allFilled = values.every((v) => v !== null && v !== undefined);
+          const total = allFilled ? values.reduce((s: number, v) => s + Number(v), 0) : null;
+          // Đỏ khi: tổng các ô đang mở != 100, hoặc ô bị khóa nhưng còn tỷ lệ cũ != 0
+          const rawVal = getRawTyLe(record, field);
+          const isStaleLocked = isTyLeLocked(record, field) && rawVal !== null && Number(rawVal) !== 0;
+          const isInvalid = (allFilled && Math.abs(total! - 100) > 0.001) || isStaleLocked;
           return { style: { minWidth: minW, ...(isInvalid && { backgroundColor: "#fff1f0" }) } };
         }
         return { style: { minWidth: minW } };
@@ -479,6 +549,32 @@ export default function SummaryTableSTD({
       },
     } as any
   );
+
+  // Cột "Check phân bổ": (KLTK_BOF + KLTK_LF + KLTK_RH) phải = Tổng sử dụng. KLTK do BE chốt khi bấm Phân bổ/Không PB,
+  // null khi chưa xử lý hoặc vừa Thu hồi -> để trống. So sánh làm tròn 3 số lẻ (khớp decimal(18,3) ở DB).
+  tableColumns.push({
+    title: "Check phân bổ",
+    dataIndex: "checkPhanBo",
+    align: "center" as const,
+    render: (_: any, record: any) => {
+      if (record._isTotalRow) return null;
+      const bof = record.KLTK_BOF;
+      const lf = record.KLTK_LF;
+      const rh = record.KLTK_RH;
+      if ([bof, lf, rh].every((v) => v === null || v === undefined)) return null;
+      const tongKLTK = (Number(bof) || 0) + (Number(lf) || 0) + (Number(rh) || 0);
+      const tongSuDung = Number(record.totalSuDung) || 0;
+      const diff = Math.round((tongKLTK - tongSuDung) * 1000) / 1000;
+      const detail = `KLTK BOF (${formatNumber(bof ?? 0)}) + KLTK LF (${formatNumber(lf ?? 0)}) + KLTK RH (${formatNumber(rh ?? 0)}) = ${formatNumber(tongKLTK)} | Tổng sử dụng = ${formatNumber(tongSuDung)}`;
+      return (
+        <Tooltip title={detail}>
+          {diff === 0
+            ? <Tag color="success">Khớp</Tag>
+            : <Tag color="error">Lệch {formatNumber(diff)}</Tag>}
+        </Tooltip>
+      );
+    },
+  } as any);
 
   // Cột "Tình trạng"
   tableColumns.push({
@@ -546,22 +642,24 @@ export default function SummaryTableSTD({
           </Button>
         );
       } else {
-        btnPhanBo = wrapLocked(
+        // Không công đoạn nào có sử dụng (theo tongThucTe) -> không có chỗ nhận phân bổ, chỉ dùng "Không PB"
+        const noCongDoanUsed = TY_LE_FIELDS.every((f) => isTyLeLocked(record, f));
+        const btn = (
           <Button
             type="primary"
             size="small"
             loading={isLoading === 'phan-bo'}
-            disabled={isPhanBo === false || !editable || isLocked || (canPhanBo === false && isPhanBo === null)}
+            disabled={isPhanBo === false || !editable || isLocked || (canPhanBo === false && isPhanBo === null) || noCongDoanUsed}
             onClick={() => {
-              const rowTyLe = tyLeMap[record.key] ?? {};
-              const tyLeBOF = rowTyLe.tyLeBOF ?? record.tyLeBOF ?? null;
-              const tyLeTinhLuyen = rowTyLe.tyLeTinhLuyen ?? record.tyLeTinhLuyen ?? null;
-              const tyLeRH = rowTyLe.tyLeRH ?? record.tyLeRH ?? null;
-              if (tyLeBOF === null || tyLeBOF === undefined || tyLeTinhLuyen === null || tyLeTinhLuyen === undefined || tyLeRH === null || tyLeRH === undefined) {
-                message.warning("Vui lòng nhập đủ tỷ lệ phân bổ BOF, LF và RH trước khi thực hiện phân bổ.");
+              const tyLe = getTyLeForPhanBo(record);
+              const missing = TY_LE_FIELDS
+                .filter((f) => tyLe[f] === null || tyLe[f] === undefined)
+                .map((f) => TY_LE_CONG_DOAN[f].label);
+              if (missing.length > 0) {
+                message.warning(`Vui lòng nhập tỷ lệ phân bổ ${missing.join(", ")} trước khi thực hiện phân bổ.`);
                 return;
               }
-              const total = Number(tyLeBOF) + Number(tyLeTinhLuyen) + Number(tyLeRH);
+              const total = TY_LE_FIELDS.reduce((s, f) => s + Number(tyLe[f]), 0);
               if (Math.abs(total - 100) > 0.001) {
                 message.warning(`Tổng tỷ lệ phân bổ phải bằng 100% (hiện tại: ${total.toFixed(2)}%).`);
                 return;
@@ -572,6 +670,9 @@ export default function SummaryTableSTD({
             Phân bổ
           </Button>
         );
+        btnPhanBo = !isLocked && noCongDoanUsed && isPhanBo === null
+          ? <Tooltip title="Phụ liệu không sử dụng ở công đoạn nào (BOF/LF/RH) trong ca. Dùng &quot;Không PB&quot; hoặc Làm mới số liệu."><span style={{ display: "inline-block" }}>{btn}</span></Tooltip>
+          : wrapLocked(btn);
       }
 
       // Nút Không phân bổ

@@ -51,6 +51,10 @@ export interface STD_NXT_Table2Row {
   KLPB_BOF?: string | number | null;
   KLPB_TL?: string | number | null;
   KLPB_RH?: string | number | null;
+  /** Tổng KL Thống Kê BOF/LF/RH chốt lúc Phân bổ/Không PB gần nhất (từ BE), null nếu chưa xử lý/vừa thu hồi */
+  KLTK_BOF?: string | number | null;
+  KLTK_LF?: string | number | null;
+  KLTK_RH?: string | number | null;
 }
 
 /**

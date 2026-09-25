@@ -48,6 +48,9 @@ export interface STD_NXT_HRC1_Table2Row {
   /** Khối lượng phân bổ theo 1 mẻ (từ BE) */
   KLPB_BOF?: string | number | null;
   KLPB_LF?: string | number | null;
+  /** Tổng KL Thống Kê BOF/LF chốt lúc Phân bổ/Không PB gần nhất (từ BE), null nếu chưa xử lý/vừa thu hồi */
+  KLTK_BOF?: string | number | null;
+  KLTK_LF?: string | number | null;
 }
 
 /**

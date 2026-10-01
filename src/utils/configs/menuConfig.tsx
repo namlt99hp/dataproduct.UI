@@ -168,7 +168,21 @@ export const menuConfig = [
             ),
           },
         ],
-      }
+      },
+      {
+        key: "sub1-5",
+        label: "Cân bằng NL",
+        children: [
+          {
+            key: "sub1-5-1",
+            label: (
+              <Tooltip title="Cân bằng nguyên liệu: đối chiếu dữ liệu giao nhận và dữ liệu vào lò">
+                <NavLink to="/canbangnl">Cân bằng nguyên liệu</NavLink>
+              </Tooltip>
+            ),
+          },
+        ],
+      },
     ],
   },
   {

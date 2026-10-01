@@ -108,6 +108,7 @@ import ThongKePhieuCTD from "../pages/NMCTD/ThongKe/ThongKePhieuCTD";
 import ThongKePhieuLG from "../pages/NMLG/ThongKe/ThongKePhieuLG";
 import PhanBoDuLieuPage from "../pages/NMLG/PhanBoDuLieu/PhanBoDuLieuPage";
 import PhuLieuHRC1 from "../pages/KhoDuLieu/NM.HRC1/PhuLieuHRC1";
+import CanBangNL from "../pages/KhoDuLieu/CanBangNL/CanBangNL";
 
 export const routes = [
   {
@@ -1690,6 +1691,16 @@ export const routes = [
           <RequireAuth>
             <RequireRole allowedRoles={["admin", "user"]}>
               <QuanLyTaiKhoan />
+            </RequireRole>
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "canbangnl",
+        element: (
+          <RequireAuth>
+            <RequireRole allowedRoles={["admin", "user"]}>
+              <CanBangNL />
             </RequireRole>
           </RequireAuth>
         ),

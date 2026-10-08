@@ -118,6 +118,9 @@ import TonSiloTKVV from "../pages/NMTKVV/TonSilo/TonSilo";
 import TaoPhieuTonSiloTKVV from "../pages/NMTKVV/TonSilo/TaoPhieuTonSilo";
 import ChiTietTonSiloTKVV from "../pages/NMTKVV/TonSilo/ChiTietTonSilo";
 import PhuLieuHRC1 from "../pages/KhoDuLieu/NM.HRC1/PhuLieuHRC1";
+import BaoCaoSanXuat_XNL from "../pages/NM.LC/BCSX_XNL/BaoCaoSanXuat_XNL";
+import TaoPhieuBaoCaoSanXuat_XNL from "../pages/NM.LC/BCSX_XNL/TaoPhieuBaoCaoSanXuat_XNL";
+import ChiTietBaoCaoSanXuat_XNL from "../pages/NM.LC/BCSX_XNL/ChiTietBaoCaoSanXuat_XNL";
 
 export const routes = [
   {
@@ -446,6 +449,56 @@ export const routes = [
           <RequireAuth>
             <RequireRole allowedRoles={["admin", "user"]}>
               <ChiTietTieuHaoNauLuyen_BOF />
+            </RequireRole>
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "baocaosanxuat_xnl",
+        element: (
+          <RequireAuth>
+            <RequireRole allowedRoles={["admin", "user"]}>
+              <BaoCaoSanXuat_XNL />
+            </RequireRole>
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "viecdentoi/baocaosanxuat_xnl",
+        element: (
+          <RequireAuth>
+            <RequireRole allowedRoles={["admin", "user"]}>
+              <BaoCaoSanXuat_XNL type="viecdentoi" />
+            </RequireRole>
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "xemphieu/baocaosanxuat_xnl",
+        element: (
+          <RequireAuth>
+            <RequireRole allowedRoles={["admin", "user"]}>
+              <BaoCaoSanXuat_XNL type="xemphieu" />
+            </RequireRole>
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "taophieubaocaosanxuat_xnl",
+        element: (
+          <RequireAuth>
+            <RequireRole allowedRoles={["admin", "user"]}>
+              <TaoPhieuBaoCaoSanXuat_XNL />
+            </RequireRole>
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "chitietbaocaosanxuat_xnl",
+        element: (
+          <RequireAuth>
+            <RequireRole allowedRoles={["admin", "user"]}>
+              <ChiTietBaoCaoSanXuat_XNL />
             </RequireRole>
           </RequireAuth>
         ),

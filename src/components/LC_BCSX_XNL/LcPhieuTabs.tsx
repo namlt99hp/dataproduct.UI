@@ -38,8 +38,8 @@ const LcPhieuTabs = ({ thanhPham, editable, tables, onTablesChange }: LcPhieuTab
             editable={editable}
             capLieuRows={tables.capLieu}
             onCapLieuChange={(rows) => onTablesChange({ capLieu: rows })}
-            tonSiloRows={tables.tonSilo}
-            onTonSiloChange={(rows) => onTablesChange({ tonSilo: rows })}
+            coHatNghien1Rows={tables.coHatNghien1}
+            onCoHatNghien1Change={(rows) => onTablesChange({ coHatNghien1: rows })}
           />
         );
         break;

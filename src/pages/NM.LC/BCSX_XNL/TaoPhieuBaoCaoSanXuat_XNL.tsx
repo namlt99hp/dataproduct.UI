@@ -96,7 +96,7 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
 
       setTables({
         capLieu: data.table_capLieu || [],
-        tonSilo: data.table_tonSilo || [],
+        coHatNghien1: data.table_coHatNghien1 || [],
         phoiTron: data.table_phoiTron || [],
         pheu: data.table_pheu || [],
         thap: data.table_thap || [],
@@ -157,7 +157,7 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
       xuongId: userInfo.iD_PhanXuong ?? null,
       idphongBan: userInfo.iD_PhongBan ?? null,
       table_capLieu: tables.capLieu,
-      table_tonSilo: tables.tonSilo,
+      table_coHatNghien1: tables.coHatNghien1,
       table_phoiTron: tables.phoiTron,
       table_pheu: tables.pheu,
       table_thap: tables.thap,

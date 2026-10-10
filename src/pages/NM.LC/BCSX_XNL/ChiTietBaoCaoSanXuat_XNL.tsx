@@ -39,7 +39,7 @@ const ChiTietBaoCaoSanXuat_XNL = () => {
       const fd = (res as any)?.jsonData || {};
       setTables({
         capLieu: fd.table_capLieu || [],
-        tonSilo: fd.table_tonSilo || [],
+        coHatNghien1: fd.table_coHatNghien1 || [],
         phoiTron: fd.table_phoiTron || [],
         pheu: fd.table_pheu || [],
         thap: fd.table_thap || [],

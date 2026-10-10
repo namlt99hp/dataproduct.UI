@@ -46,5 +46,8 @@ export const BM_CONFIG = {
         TKVV_BC_SanLuongChiPhi: 'TKVV_BC_SanLuongChiPhi',
         TKVV_TonSilo: 'TKVV_TONSILO',
     },
+    LC: {
+        BBBC_XNL_TP: 'BBBC_XNL_TP'
+    }
 }
 

@@ -18,6 +18,43 @@ export function buildSiloOptions(thanhPham: ThanhPham | null | undefined) {
   }));
 }
 
+/** Danh mục than (Tên than) — theo dữ liệu mẫu quan sát ở workbook thật TP1 (xem
+ *  .claude/LuyenCoc/PhanTichLayout.md). Placeholder; khi có backend sẽ thay bằng LC_VatLieu. */
+export const VAT_LIEU_OPTIONS = [
+  "Than PCI Yarrabee",
+  "Than HCC Saraji",
+  "Than HCC Illawarra",
+  "Than Semi Hard RA",
+  "Than PCI LV",
+  "Than HCC Caval Ridge",
+  "Than HCC Byerwen",
+  "Than HCC BC7",
+  "Than Hard EL",
+  "Than Cám 2",
+].map((ten) => ({ label: ten, value: ten }));
+
+/**
+ * Sinh sẵn N dòng cố định (1 dòng = 1 silo, theo đúng số thứ tự Silo trong workbook — TP1
+ * 16 silo, TP2 20 silo). Vùng "Cấp liệu & Silo" trong Excel KHÔNG cho thêm/xóa dòng tự do —
+ * mỗi silo luôn có đúng 1 dòng, xem PhanTichLayout.md mục 2–3 và LC_01 mục 2.2 Vùng 2.
+ */
+export function buildDefaultCapLieuRows(thanhPham: ThanhPham | null | undefined) {
+  const total = thanhPham === "TP2" ? 20 : 16;
+  return Array.from({ length: total }, (_, i) => ({
+    key: `silo-${i + 1}`,
+    siloSo: i + 1,
+  }));
+}
+
+/** "Cỡ hạt sau nghiền 1" — đúng 2 dòng cố định (≤1mm, ≤3mm) theo workbook (xem
+ *  PhanTichLayout.md mục 2, dòng 34–38 TP1 / 36–38 TP2). */
+export function buildDefaultCoHatNghien1Rows() {
+  return [
+    { key: "co-hat-1mm", kichCo: "≤1mm" },
+    { key: "co-hat-3mm", kichCo: "≤3mm" },
+  ];
+}
+
 const CUM_THAP_TP1 = ["1-2", "3-4", "5-6"];
 const CUM_THAP_TP2 = ["7-8", "9-10"];
 

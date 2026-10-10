@@ -593,6 +593,21 @@ export const menuConfig = [
             ),
           },
         ]
+      },
+      {
+        key: "sub2-lc",
+        label: "NM.Luyện Cốc",
+        children: [
+          {
+            key: "sub2-lc-1",
+            maBM: BM_CONFIG.LC.BBBC_XNL_TP,
+            label: (
+              <Tooltip title="BBBC Xưởng Nguyên liệu">
+                <NavLink to="/baocaosanxuat_xnl">Sổ theo dõi XNT Silo</NavLink>
+              </Tooltip>
+            ),
+          },
+        ]
       }
     ],
   },
@@ -929,6 +944,21 @@ export const menuConfig = [
           },
         ],
       },
+      {
+        key: "sub3-lc",
+        label: "NM.Luyện Cốc",
+        children: [
+          {
+            key: "sub3-lc-1",
+            maBM: BM_CONFIG.LC.BBBC_XNL_TP,
+            label: (
+              <Tooltip title="BBBC Xưởng Nguyên liệu">
+                <NavLink to="/viecdentoi/baocaosanxuat_xnl">Sổ theo dõi XNT Silo</NavLink>
+              </Tooltip>
+            ),
+          },
+        ]
+      }
     ],
   },
   {
@@ -1240,6 +1270,21 @@ export const menuConfig = [
           },
         ],
       },
+      {
+        key: "sub5-lc",
+        label: "NM.Luyện Cốc",
+        children: [
+          {
+            key: "sub3-lc-1",
+            maBM: BM_CONFIG.LC.BBBC_XNL_TP,
+            label: (
+              <Tooltip title="BBBC Xưởng Nguyên liệu">
+                <NavLink to="/xemphieu/baocaosanxuat_xnl">Sổ theo dõi XNT Silo</NavLink>
+              </Tooltip>
+            ),
+          },
+        ]
+      }
     ],
   },
   {

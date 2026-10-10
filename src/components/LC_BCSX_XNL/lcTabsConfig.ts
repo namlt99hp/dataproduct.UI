@@ -44,8 +44,11 @@ export const LC_BCSX_XNL_TABS: LcTabDef[] = [
 ];
 
 export interface LcPhieuTables {
+  /** 1 dòng = 1 silo, gộp cấp liệu + tồn silo (khớp 1 bảng duy nhất trong workbook —
+   *  xem .claude/LuyenCoc/PhanTichLayout.md mục 2–3). */
   capLieu: import("./TabCapLieuSilo").CapLieuRow[];
-  tonSilo: import("./TabCapLieuSilo").TonSiloRow[];
+  /** Cỡ hạt sau nghiền 1 — đúng 2 dòng cố định (≤1mm, ≤3mm). */
+  coHatNghien1: import("./TabCapLieuSilo").CoHatNghien1Row[];
   phoiTron: import("./TabPhoiTron").PhoiTronRow[];
   pheu: import("./TabThapPheu").PheuRow[];
   thap: import("./TabThapPheu").ThapRow[];
@@ -54,7 +57,7 @@ export interface LcPhieuTables {
 
 export const EMPTY_LC_PHIEU_TABLES: LcPhieuTables = {
   capLieu: [],
-  tonSilo: [],
+  coHatNghien1: [],
   phoiTron: [],
   pheu: [],
   thap: [],

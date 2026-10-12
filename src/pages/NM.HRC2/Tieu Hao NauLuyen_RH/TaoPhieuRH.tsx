@@ -618,9 +618,15 @@ const TaoPhieuTieuHaoNauLuyen_RH = () => {
       message.error("Không thể tải dữ liệu ban đầu!");
     } finally {
       setLoading(false);
-      // Sau khi khôi phục phiếu, tự động load dữ liệu NM (nếu đủ filter) — TRỪ phiếu đã Chốt
-      // (dùng snapshot đã restore ở trên, không load lại theo config hiện tại của Header_Key).
-      if (loadedTinhTrang !== TrangThaiPhieuConst.DaChot) {
+      // Chỉ tự động load lại dữ liệu từ NM khi phiếu còn ở trạng thái "đang soạn"
+      // (đang lưu / đã thu hồi / hiệu chỉnh). Từ DaGui trở đi PHẢI dùng snapshot đã lưu —
+      // nếu không, dữ liệu mà job sync NM (sp_Sync_HRC2_FromNM, chạy mỗi 5 phút) chèn
+      // thêm vào DLNM_HRC2 sau khi phiếu đã gửi sẽ bị merge và lưu đè lên phiếu đã gửi.
+      const canReloadFromNM =
+        loadedTinhTrang === TrangThaiPhieuConst.DangLuu ||
+        loadedTinhTrang === TrangThaiPhieuConst.DaThuHoi ||
+        loadedTinhTrang === TrangThaiPhieuConst.HieuChinh;
+      if (canReloadFromNM) {
         await loadFromNM();
       }
     }

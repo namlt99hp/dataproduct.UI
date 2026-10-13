@@ -186,9 +186,12 @@ export default function CustomFormNLTable({
     const key = String(dataIndex || "");
     const isManual = record?.[`_manual_${key}`] === true;
     const goc = record?.[`_goc_${key}`];
-    if (!isManual || goc == null) return <>{node}</>;
+    // Luôn bọc bằng Tooltip (title rỗng thì không hiện) để cấu trúc cây React không đổi khi ô
+    // chuyển sang nhập tay. Trước đây ô được bọc Fragment, sau lần gõ đầu tiên đổi sang Tooltip
+    // → Input bị unmount/mount lại → mất focus, người dùng gõ 1 ký tự là bị văng ra khỏi ô.
+    const tooltipTitle = isManual && goc != null ? `Giá trị gốc: ${goc}` : "";
     return (
-      <Tooltip title={`Giá trị gốc: ${goc}`} color="orange">
+      <Tooltip title={tooltipTitle} color="orange">
         {node}
       </Tooltip>
     );

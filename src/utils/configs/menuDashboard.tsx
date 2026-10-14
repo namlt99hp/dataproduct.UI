@@ -188,4 +188,16 @@ export const MenuDataDashboard = [
       },
     ],
   },
+  {
+    category: "NM.LC",
+    icon: "nmlc",
+    color: "#019221ff",
+    items: [
+      {
+        code: "baocaosanxuat_xnl",
+        title: "BIÊN BẢN BÁO CÁO XƯỞNG NGUYÊN LIỆU THÀNH PHẨM",
+        maBm: BM_CONFIG.LC.BBBC_XNL_TP,
+      },
+    ]
+  }
 ];

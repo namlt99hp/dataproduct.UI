@@ -1,0 +1,75 @@
+{
+  "code": "LC_BCSX_XNL",
+  "prefix": "BCSX_XNL",
+  "title": "BÁO CÁO SẢN XUẤT XƯỞNG NGUYÊN LIỆU LUYỆN CỐC",
+  "isoInfo": {
+    "code": "BM.20/QT.05.07",
+    "effectiveDate": "",
+    "revision": ""
+  },
+
+  "headerFields": [
+    {
+      "label": "Thành phẩm",
+      "type": "select",
+      "key": "scope",
+      "required": true,
+      "options": [
+        { "label": "TP1", "value": 1 },
+        { "label": "TP2", "value": 2 }
+      ]
+    },
+    {
+      "label": "Ngày sản xuất",
+      "type": "date",
+      "key": "NgaySX",
+      "required": true
+    },
+    {
+      "label": "Ca",
+      "type": "select",
+      "key": "ca",
+      "required": true,
+      "options": [
+        { "label": "Ca ngày", "value": 1 },
+        { "label": "Ca đêm", "value": 2 }
+      ]
+    },
+    {
+      "label": "Kíp",
+      "type": "select",
+      "key": "kip",
+      "required": true,
+      "options": [
+        { "label": "Kíp A", "value": "A" },
+        { "label": "Kíp B", "value": "B" },
+        { "label": "Kíp C", "value": "C" }
+      ]
+    }
+  ],
+
+  "footerNotes": [
+    "Dữ liệu các vùng chưa triển khai (Phối trộn, Tháp/Phễu, Dập cốc...) sẽ được bổ sung theo từng lát cắt, xem LC_02_Prompt_Vibecoding_V5.md mục 3."
+  ],
+
+  "signatures": [
+    {
+      "label": "Người lập",
+      "type": "selectNguoiKy",
+      "key": "nguoiKy_Kip",
+      "maphongBan": "NM.LC",
+      "capduyet": 0,
+      "isChon": true,
+      "required": true
+    },
+    {
+      "label": "Kíp trưởng/phó duyệt",
+      "type": "selectNguoiKy",
+      "key": "nguoiKy_Duyet",
+      "maphongBan": "NM.LC",
+      "capduyet": 1,
+      "isChon": true,
+      "required": true
+    }
+  ]
+}

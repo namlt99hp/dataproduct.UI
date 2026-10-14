@@ -222,6 +222,33 @@ export const LoThoiPanel = ({
   const [saving, setSaving] = useState(false);
   const [xoaBusy, setXoaBusy] = useState<Set<number>>(new Set());
   const [showChuyenMeCols, setShowChuyenMeCols] = useState(false);
+  const [chuyenCaBusy, setChuyenCaBusy] = useState<Set<number>>(new Set());
+
+  const handleChuyenCaDucLoThoi = async (meId: number, huong: "truoc" | "sau") => {
+    setChuyenCaBusy((prev) => new Set(prev).add(meId));
+    try {
+      await HRC1Api.chuyenCaDucLoThoi(meId, huong);
+      message.success(`Đã chuyển mẻ sang phiếu Đúc ca ${huong}`);
+      await onReload();
+    } catch (e: any) {
+      message.error(e?.message ?? "Lỗi chuyển ca");
+    } finally {
+      setChuyenCaBusy((prev) => { const next = new Set(prev); next.delete(meId); return next; });
+    }
+  };
+
+  const handleHuyChuyenCaDucLoThoi = async (meId: number) => {
+    setChuyenCaBusy((prev) => new Set(prev).add(meId));
+    try {
+      await HRC1Api.huyChuyenCaDucLoThoi(meId);
+      message.success("Đã hủy chuyển ca");
+      await onReload();
+    } catch (e: any) {
+      message.error(e?.message ?? "Lỗi hủy chuyển ca");
+    } finally {
+      setChuyenCaBusy((prev) => { const next = new Set(prev); next.delete(meId); return next; });
+    }
+  };
 
   // Mỗi lần phieuData được nạp lại từ server (mở lại phiếu, "Làm mới", đổi lò...) phải bỏ các
   // edit cục bộ chưa lưu — nếu không, edits cũ sẽ tiếp tục đè lên dữ liệu mới nhất khi render.
@@ -619,6 +646,36 @@ export const LoThoiPanel = ({
       },
     },
     { title: "Máy đúc",   dataIndex: "tenMayDucDich", width: 90, render: (v) => <Input size="small" style={{ width: 84 }} value={v ?? ""} disabled /> },
+    {
+      title: "Chuyển ca đúc", key: "chuyenCaDuc", width: 120,
+      render: (_: unknown, me: HRC1_MeThepVm) => {
+        const effectiveDich = (edits[me.id] && "dichChuyen" in edits[me.id]) ? edits[me.id].dichChuyen : me.dichChuyen;
+        if (effectiveDich !== "len_thang") return null;
+        if (readOnly || me.isChot || (me.trangThaiDuc ?? 0) >= 1) return null;
+        const busy = chuyenCaBusy.has(me.id);
+        if (me.isChuyenCaDuc) {
+          return (
+            <Popconfirm title="Hủy chuyển ca đúc của mẻ này?" okText="Hủy chuyển" cancelText="Không"
+              onConfirm={() => handleHuyChuyenCaDucLoThoi(me.id)}>
+              <Button size="small" type="link" icon={<UndoOutlined />} loading={busy}>Đã chuyển ca</Button>
+            </Popconfirm>
+          );
+        }
+        if (!me.idMayDucDich) return null;
+        return (
+          <Space size={2}>
+            <Popconfirm title="Chuyển mẻ này sang phiếu Đúc ca trước?" okText="Chuyển ca trước" cancelText="Không"
+              onConfirm={() => handleChuyenCaDucLoThoi(me.id, "truoc")}>
+              <Tooltip title="Chuyển sang phiếu Đúc ca trước"><Button size="small" icon={<ArrowLeftOutlined />} loading={busy} /></Tooltip>
+            </Popconfirm>
+            <Popconfirm title="Chuyển mẻ này sang phiếu Đúc ca sau?" okText="Chuyển ca sau" cancelText="Không"
+              onConfirm={() => handleChuyenCaDucLoThoi(me.id, "sau")}>
+              <Tooltip title="Chuyển sang phiếu Đúc ca sau"><Button size="small" icon={<ArrowRightOutlined />} loading={busy} /></Tooltip>
+            </Popconfirm>
+          </Space>
+        );
+      },
+    },
     ...(showChuyenMeCols ? [
       {
         title: "Chuyển mẻ", key: "chuyenVeMeId", width: 150,

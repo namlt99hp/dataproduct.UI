@@ -604,6 +604,20 @@ export const LoThoiPanel = ({
               disabled />
           );
         }
+        // Mẻ lên thẳng đã chuyển ca đúc — khóa đổi đích/máy đúc, bắt buộc hủy chuyển ca trước
+        // (xem HRC1_BBGNService.UpdateMeAsync: backend cũng chặn, đây chỉ là khóa UI tương ứng).
+        if (me.dichChuyen === "len_thang" && me.isChuyenCaDuc) {
+          return (
+            <Tooltip title="Mẻ đã chuyển ca đúc — hủy chuyển ca trước khi đổi đích hoặc máy đúc">
+              <span style={{ display: "inline-block" }}>
+                <Select size="small" style={{ width: 125 }}
+                  value={getDichEncoded(me) ?? undefined}
+                  options={getDichChuyenOpts(me)}
+                  disabled />
+              </span>
+            </Tooltip>
+          );
+        }
         const optsForMe = (me.trangThaiTL ?? 0) >= 1
           ? getDichChuyenOpts(me).slice(0, 1)
           : getDichChuyenOpts(me);

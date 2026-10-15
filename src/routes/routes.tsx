@@ -118,6 +118,7 @@ import TonSiloTKVV from "../pages/NMTKVV/TonSilo/TonSilo";
 import TaoPhieuTonSiloTKVV from "../pages/NMTKVV/TonSilo/TaoPhieuTonSilo";
 import ChiTietTonSiloTKVV from "../pages/NMTKVV/TonSilo/ChiTietTonSilo";
 import PhuLieuHRC1 from "../pages/KhoDuLieu/NM.HRC1/PhuLieuHRC1";
+import CanBangNL from "../pages/KhoDuLieu/CanBangNL/CanBangNL";
 
 export const routes = [
   {
@@ -1890,6 +1891,16 @@ export const routes = [
           <RequireAuth>
             <RequireRole allowedRoles={["admin", "user"]}>
               <QuanLyTaiKhoan />
+            </RequireRole>
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "canbangnl",
+        element: (
+          <RequireAuth>
+            <RequireRole allowedRoles={["admin", "user"]}>
+              <CanBangNL />
             </RequireRole>
           </RequireAuth>
         ),

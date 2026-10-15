@@ -14,8 +14,9 @@ import {
 import { PlusOutlined, DeleteOutlined, EditOutlined, MinusCircleOutlined } from "@ant-design/icons";
 import { BmQuyenXlApi } from "../../services/BmQuyenXlApi";
 import { TaiKhoanApi } from "../../services/TaiKhoanService";
-import { bmQuyenConfig } from "../../utils/configs/bmQuyenConfig";
+import { bmQuyenConfig, type KhuVucQuyenItem } from "../../utils/configs/bmQuyenConfig";
 import { isAdminUser } from "../../utils/helpers/checkAdminRole";
+import { useBmScopes } from "../../hooks/useBmScopes";
 
 const ALL_KHU_VUC = "ALL";
 
@@ -34,13 +35,11 @@ interface BmRow {
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
-const getScopeOptions = (maBm?: string) => {
-  const bm = bmQuyenConfig.danhSachBieuMau.find((b) => b.maBm === maBm);
-  return [
-    { value: ALL_KHU_VUC, label: "Tất cả" },
-    ...(bm?.scope ?? []).map((s) => ({ value: s.maKhuVuc, label: s.tenKhuVuc })),
-  ];
-};
+// scopes: kết quả useBmScopes().getScope(maBm) — gồm cả scope động (scopeSource) lẫn tĩnh
+const getScopeOptions = (scopes: KhuVucQuyenItem[]) => [
+  { value: ALL_KHU_VUC, label: "Tất cả" },
+  ...scopes.map((s) => ({ value: s.maKhuVuc, label: s.tenKhuVuc })),
+];
 
 const getKhuVucPhuOptions = (maBm?: string) => {
   const bm = bmQuyenConfig.danhSachBieuMau.find((b) => b.maBm === maBm);
@@ -83,7 +82,7 @@ const useMergedScopeMode = (maBm?: string): boolean => {
 const useKvpAsScopeMode = (maBm?: string): boolean => {
   const bm = bmQuyenConfig.danhSachBieuMau.find((b) => b.maBm === maBm);
   const kvps = bm?.khuVucPhus ?? [];
-  return kvps.length > 0 && !(bm?.scope?.length) && !kvps.some((k) => k.targetMaBm);
+  return kvps.length > 0 && !(bm?.scope?.length) && !bm?.scopeSource && !kvps.some((k) => k.targetMaBm);
 };
 
 const getKvpAsScopeOptions = (maBm?: string) => {
@@ -95,17 +94,17 @@ const getTargetBmLabel = (targetMaBm: string): string =>
   bmQuyenConfig.danhSachBieuMau.find((b) => b.maBm === targetMaBm)?.tenBm ?? targetMaBm;
 
 // Trả grouped options: scope chính + các nhóm khuVucPhu-with-targetMaBm
-const getMergedScopeOptions = (maBm?: string) => {
+const getMergedScopeOptions = (maBm: string | undefined, scopes: KhuVucQuyenItem[]) => {
   if (!maBm) return [{ value: ALL_KHU_VUC, label: "Tất cả" }];
   const bm = bmQuyenConfig.danhSachBieuMau.find((b) => b.maBm === maBm);
   const groups: { label: string; options: { value: string; label: string }[] }[] = [];
 
-  if ((bm?.scope ?? []).length > 0) {
+  if (scopes.length > 0 || bm?.scopeSource) {
     groups.push({
       label: "Máy đúc",
       options: [
         { value: ALL_KHU_VUC, label: "Tất cả (máy đúc)" },
-        ...(bm!.scope!.map((s) => ({ value: s.maKhuVuc, label: s.tenKhuVuc }))),
+        ...scopes.map((s) => ({ value: s.maKhuVuc, label: s.tenKhuVuc })),
       ],
     });
   }
@@ -233,6 +232,7 @@ const PhanQuyenBieuMau = () => {
   const [filterBmInModal, setFilterBmInModal] = useState<string | undefined>();
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [filterTaiKhoan, setFilterTaiKhoan] = useState<number | undefined>();
+  const { getScope } = useBmScopes();
 
   useEffect(() => {
     const userStr = localStorage.getItem("userinfo");
@@ -720,8 +720,8 @@ const PhanQuyenBieuMau = () => {
                           (useKvpAsScopeMode(bmRow.maBm)
                             ? getKvpAsScopeOptions(bmRow.maBm)
                             : useMergedScopeMode(bmRow.maBm)
-                              ? getMergedScopeOptions(bmRow.maBm)
-                              : getScopeOptions(bmRow.maBm)
+                              ? getMergedScopeOptions(bmRow.maBm, getScope(bmRow.maBm, subRow.maKhuVucs))
+                              : getScopeOptions(getScope(bmRow.maBm, subRow.maKhuVucs))
                           ) as { value: string; label: string }[]
                         }
                         onChange={(vals) => handleKhuVucChange(bmRow.key, subRow.key, vals)}

@@ -8,7 +8,7 @@ import {
   type TongHopBBGNThepLongResponse,
   type TongHopItem,
 } from "../../services/BBGNThepLongApi";
-import { MayDucServiceApi } from "../../services/MayDucServiceApi";
+import { useMayDucOptions } from "../../hooks/useMayDucOptions";
 import { SyncOutlined } from "@ant-design/icons";
 
 const { RangePicker } = DatePicker;
@@ -88,24 +88,10 @@ const ThongKeBBGNThepLong = ({ bieuMau, nhaMay }: Props) => {
     page: 1,
     pageSize: 20,
   });
-  const [mayDucOptions, setMayDucOptions] = useState<Array<{ label: string; value: number }>>([]);
+  const { options: mayDucOptions } = useMayDucOptions(nhaMay);
   const [exporting, setExporting] = useState(false);
   const [syncingPhanLoai, setSyncingPhanLoai] = useState(false);
   const [tongHopData, setTongHopData] = useState<TongHopBBGNThepLongResponse | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await MayDucServiceApi.search({ nhaMay, isLock: false, page: 1, pageSize: 200 });
-        if (cancelled) return;
-        setMayDucOptions((res.data || []).map((x) => ({ label: x.tenMayDuc, value: x.id })));
-      } catch (error) {
-        console.error(error);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [nhaMay]);
 
   const fetchData = useCallback(async (nextFilters: SearchThongKeBBGNThepLongRequest) => {
     try {
@@ -406,7 +392,7 @@ const ThongKeBBGNThepLong = ({ bieuMau, nhaMay }: Props) => {
       { title: "Người sửa", dataIndex: "lastNameUserEdit", key: "lastNameUserEdit", width: 130 },
 
     ],
-    [mayDucOptions, nhaMay]
+    [nhaMay]
   );
 
   return (

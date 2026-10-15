@@ -40,14 +40,15 @@ const LoginPage = () => {
 
       // Thay thế đoạn trên bằng API thực tế
       const res = await TaiKhoanApi.postLogin({ username, password });
+      const token = (res as any).token as string;
       const user = {
         id: (res as any).iD_TaiKhoan || "",
         username: (res as any).tenTaiKhoan || "",
         name: (res as any).hoVaTen || "",
         role: (res as any).role || "admin",
       };
-      dispatch(loginSuccess({ token: "token", user }));
-      localStorage.setItem("token", (res as any)?.token || "token");
+      dispatch(loginSuccess({ token, user }));
+      localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(user));
       localStorage.setItem("username", user.name);
       localStorage.setItem("userinfo", JSON.stringify(res));

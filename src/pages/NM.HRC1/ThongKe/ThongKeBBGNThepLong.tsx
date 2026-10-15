@@ -11,7 +11,8 @@ import {
   type HRC1_TongHopItem,
   type HRC1_TongHopResult,
 } from "../../../services/HRC1_BBGNApi";
-import { MayDucServiceApi } from "../../../services/MayDucServiceApi";
+import { NhaMayEnum } from "../../../services/MayDucServiceApi";
+import { useMayDucOptions } from "../../../hooks/useMayDucOptions";
 import { MacThepServiceApi } from "../../../services/MacThepServiceApi";
 import { BmQuyenXlApi } from "../../../services/BmQuyenXlApi";
 import { BM_CONFIG } from "../../../utils/configs/BieuMauConst";
@@ -69,7 +70,7 @@ const ThongKeBBGNThepLongHRC1 = () => {
   const [totalKlPhanBo, setTotalKlPhanBo] = useState<number | null>(null);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 100 });
   const [filters, setFilters]       = useState<HRC1_ThongKeQuery>({ page: 1, pageSize: 100 });
-  const [mayDucOpts, setMayDucOpts] = useState<{ label: string; value: number }[]>([]);
+  const { options: mayDucOpts } = useMayDucOptions(NhaMayEnum.HRC1);
   const [nhomMacOpts, setNhomMacOpts] = useState<{ label: string; value: number }[]>([]);
   const [tongHopData, setTongHopData] = useState<HRC1_TongHopResult | null>(null);
   const [canChotPCN, setCanChotPCN] = useState(false);
@@ -93,9 +94,6 @@ const ThongKeBBGNThepLongHRC1 = () => {
   }, []);
 
   useEffect(() => {
-    MayDucServiceApi.search({ nhaMay: 1, isLock: false, page: 1, pageSize: 200 })
-      .then((res) => setMayDucOpts((res.data || []).map((x: any) => ({ label: x.tenMayDuc, value: x.id }))))
-      .catch(() => {});
     MacThepServiceApi.getPhanLoaiNhomOptions({ pageSize: 200 })
       .then((res) => setNhomMacOpts(res.data.map((x) => ({ label: x.tenNhom, value: x.id }))))
       .catch(() => {});

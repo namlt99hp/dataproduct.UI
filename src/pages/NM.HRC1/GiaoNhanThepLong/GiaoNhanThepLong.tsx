@@ -12,6 +12,8 @@ import { BM_CONFIG } from "../../../utils/configs/BieuMauConst";
 import { PHIEU_STATUS_CONFIG } from "../../../utils/constants/TrangThaiPhieuDisplay";
 import type { SearchPhieuByUserRequest, SearchPhieuResponseModel } from "../../../models/Phieu";
 import { HRC1Api } from "../../../services/HRC1_BBGNApi";
+import { NhaMayEnum } from "../../../services/MayDucServiceApi";
+import { useMayDucOptions, type MayDucOption } from "../../../hooks/useMayDucOptions";
 
 type TableRecord = SearchPhieuResponseModel & { kip?: string | null };
 
@@ -34,16 +36,14 @@ const MABM_PREFIX: Record<string, string> = {
   [BM_CONFIG.HRC1.HRC1_BBGN_ThepLong]:  "BBGN_TL_HRC1",
 };
 
-const _mayDucScopes = bmQuyenConfig.danhSachBieuMau
-  .find((b) => b.maBm === BM_CONFIG.HRC1.HRC1_BBGN_ThepLong)?.scope ?? [];
-
-const getScopeOptions = (maBm: string) => {
+// mayDucOptions: máy đúc HRC1 đang dùng (useMayDucOptions(...).options) — scope phiếu Đúc = MayDuc.Id
+const getScopeOptions = (maBm: string, mayDucOptions: MayDucOption[]) => {
   if (maBm === BM_CONFIG.HRC1.HRC1_LoThoi)
     return [1,2,3,4,5].map((i) => ({ label: `Lò thổi ${i}`, value: i }));
   if (maBm === BM_CONFIG.HRC1.HRC1_TinhLuyen)
     return [1,2,3,4,5].map((i) => ({ label: `Tinh luyện ${i}`, value: i }));
   if (maBm === BM_CONFIG.HRC1.HRC1_BBGN_ThepLong)
-    return _mayDucScopes.map((s) => ({ label: s.tenKhuVuc, value: Number(s.maKhuVuc) }));
+    return mayDucOptions;
   const bmDef = bmQuyenConfig.danhSachBieuMau.find((b) => b.maBm === maBm);
   return (bmDef?.scope ?? []).map((s) => ({ label: s.tenKhuVuc, value: Number(s.maKhuVuc) }));
 };
@@ -65,8 +65,9 @@ const TaoPhieuModal = ({
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
   const [maBm, setMaBm] = useState<string>(congDoanOptions[0]?.value ?? BM_CONFIG.HRC1.HRC1_LoThoi);
+  const { options: mayDucOptions } = useMayDucOptions(NhaMayEnum.HRC1);
 
-  const scopeOptions = useMemo(() => getScopeOptions(maBm), [maBm]);
+  const scopeOptions = useMemo(() => getScopeOptions(maBm, mayDucOptions), [maBm, mayDucOptions]);
   const scopeRequired = !SCOPE_OPTIONAL_MABM.has(maBm);
 
   const handleOpen = () => {
@@ -84,7 +85,7 @@ const TaoPhieuModal = ({
     try {
       const scopeVal = scopeRequired ? values.scope : undefined;
       const scopeLabel = scopeVal != null
-        ? getScopeOptions(values.maBm).find((o) => o.value === scopeVal)?.label
+        ? getScopeOptions(values.maBm, mayDucOptions).find((o) => o.value === scopeVal)?.label
         : undefined;
       const res: any = await PhieuApi.postData({
         maBm:       values.maBm,
@@ -155,7 +156,12 @@ const TRANG_THAI_FILTER_OPTIONS = Object.entries(PHIEU_STATUS_CONFIG).map(
 );
 
 
-const getScopeName = (maBm: string, scope: number | null | undefined, tenScope?: string | null): string => {
+const getScopeName = (
+  maBm: string,
+  scope: number | null | undefined,
+  tenScope: string | null | undefined,
+  getTenMayDuc: (id: number) => string | undefined,
+): string => {
   if (tenScope) return tenScope;
   if (!scope) {
     if (maBm === BM_CONFIG.HRC1.HRC1_LoThoi)    return "Tất cả lò thổi";
@@ -165,7 +171,7 @@ const getScopeName = (maBm: string, scope: number | null | undefined, tenScope?:
   if (maBm === BM_CONFIG.HRC1.HRC1_LoThoi)         return `Lò thổi ${scope}`;
   if (maBm === BM_CONFIG.HRC1.HRC1_TinhLuyen)      return `Tinh luyện ${scope}`;
   if (maBm === BM_CONFIG.HRC1.HRC1_BBGN_ThepLong)
-    return _mayDucScopes.find((s) => s.maKhuVuc === String(scope))?.tenKhuVuc ?? `TSC/Đúc ${scope}`;
+    return getTenMayDuc(scope) ?? `Máy đúc ${scope}`;
   const bmDef = bmQuyenConfig.danhSachBieuMau.find((b) => b.maBm === maBm);
   return bmDef?.scope?.find((s) => s.maKhuVuc === String(scope))?.tenKhuVuc ?? `${maBm} - ${scope}`;
 };
@@ -184,6 +190,7 @@ const GiaoNhanThepLong = ({ type, maBmFilter }: { type?: string; maBmFilter?: st
   const [selectedBms, setSelectedBms] = useState<string[]>([]);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [exportLoading, setExportLoading] = useState(false);
+  const { getTen: getTenMayDuc } = useMayDucOptions(NhaMayEnum.HRC1);
 
   const routeCreate = "/taophieugiaonhantheplong_hrc1";
   const routeDetail = "/chitietgiaonhantheplong_hrc1";
@@ -384,7 +391,7 @@ const GiaoNhanThepLong = ({ type, maBmFilter }: { type?: string; maBmFilter?: st
       key: "thietBi",
       width: 170,
       render: (_: unknown, r: TableRecord) =>
-        <b>{getScopeName(r.maBm, r.scope, r.tenScope)}</b>,
+        <b>{getScopeName(r.maBm, r.scope, r.tenScope, getTenMayDuc)}</b>,
     },
     {
       title: "Ngày sản xuất",

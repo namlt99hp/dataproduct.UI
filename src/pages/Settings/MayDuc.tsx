@@ -14,9 +14,10 @@ import {
   Tag,
   message,
 } from "antd";
-import { PlusOutlined, SearchOutlined, ReloadOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
+import { PlusOutlined, SearchOutlined, ReloadOutlined, EditOutlined, LockOutlined } from "@ant-design/icons";
 import { useEffect, useMemo, useState } from "react";
 import { MayDucServiceApi, NhaMayEnum } from "../../services/MayDucServiceApi";
+import { invalidateMayDucCache } from "../../hooks/useMayDucOptions";
 import type { MayDuc, MayDucPayload } from "../../services/MayDucServiceApi";
 import type { ColumnType } from "antd/es/table";
 
@@ -115,27 +116,29 @@ const QuanLyMayDuc = () => {
         await MayDucServiceApi.create(payload);
         message.success("Tạo mới Máy đúc thành công");
       }
+      invalidateMayDucCache();
       handleModalCancel();
       fetchData(editingRecord ? pagination.current : 1, pagination.pageSize);
     } catch (error: unknown) {
       if (typeof error === "object" && error !== null && "errorFields" in error) return;
-      message.error("Không thể lưu Máy đúc");
+      message.error((error as { message?: string })?.message ?? "Không thể lưu Máy đúc");
     } finally {
       setModalLoading(false);
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleLock = async (id: number) => {
     try {
-      await MayDucServiceApi.delete(id);
-      message.success("Đã xóa Máy đúc");
-      const nextPage =
-        data.length === 1 && pagination.current > 1 ? pagination.current - 1 : pagination.current;
-      fetchData(nextPage, pagination.pageSize);
+      await MayDucServiceApi.lock(id);
+      message.success("Đã khóa Máy đúc");
+      invalidateMayDucCache();
+      fetchData(pagination.current, pagination.pageSize);
     } catch {
-      message.error("Không thể xóa Máy đúc");
+      message.error("Không thể khóa Máy đúc");
     }
   };
+
+  const modalNhaMay = Form.useWatch("nhaMay", modalForm);
 
   const columns = useMemo(
     () => [
@@ -184,16 +187,19 @@ const QuanLyMayDuc = () => {
             <Button size="small" type="link" icon={<EditOutlined />} onClick={() => openEditModal(record)}>
               Sửa
             </Button>
-            <Popconfirm
-              title="Xác nhận xóa Máy đúc này?"
-              onConfirm={() => handleDelete(record.id)}
-              okText="Xóa"
-              cancelText="Hủy"
-            >
-              <Button size="small" type="link" danger icon={<DeleteOutlined />}>
-                Xóa
-              </Button>
-            </Popconfirm>
+            {!record.isLock && (
+              <Popconfirm
+                title="Khóa (ngừng sử dụng) Máy đúc này?"
+                description="Phiếu và quyền cũ vẫn giữ nguyên, chỉ không chọn được cho phiếu mới."
+                onConfirm={() => handleLock(record.id)}
+                okText="Khóa"
+                cancelText="Hủy"
+              >
+                <Button size="small" type="link" danger icon={<LockOutlined />}>
+                  Khóa
+                </Button>
+              </Popconfirm>
+            )}
           </Space>
         ),
       },
@@ -290,7 +296,11 @@ const QuanLyMayDuc = () => {
           >
             <Input placeholder="Nhập tên máy đúc" />
           </Form.Item>
-          <Form.Item name="loaiMayDuc" label="Loại máy đúc">
+          <Form.Item
+            name="loaiMayDuc"
+            label="Loại máy đúc"
+            rules={[{ required: modalNhaMay === NhaMayEnum.HRC1, message: "Máy đúc HRC1 bắt buộc chọn loại máy đúc" }]}
+          >
             <Select allowClear placeholder="Chọn loại máy đúc">
               <Select.Option value="DV">Đúc Vuông</Select.Option>
               <Select.Option value="DT">Đúc Tấm</Select.Option>

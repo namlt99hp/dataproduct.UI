@@ -14,8 +14,7 @@ import { bbgbThepLongApi } from "../../services/BBGNThepLongApi";
 import type { BBGNThepLongBieuMau } from "./GiaoNhanThepLongList";
 import BBGNThepLongTable, { type BBGNRow } from "./BBGNThepLongTable";
 import BBGNExportButtons from "./BBGNExportButtons";
-import { MayDucServiceApi } from "../../services/MayDucServiceApi";
-import type { NhaMayEnum } from "../../models/SiloModel";
+import { useMayDucOptions } from "../../hooks/useMayDucOptions";
 import { validateBBGNRows } from "./bbgnThepLongValidation";
 import { PhieuActionButtonKeys } from "../../utils/constants/PhieuActionButtonKeys";
 
@@ -99,7 +98,7 @@ const TaoPhieuGN = ({
   const [soPhieu, setSoPhieu] = useState("");
   const [tableData, setTableData] = useState<BBGNRow[]>([]);
   const initialTableDataRef = useRef<BBGNRow[]>([]);
-  const [mayDucOptions, setMayDucOptions] = useState<Array<{ label: string; value: number }>>([]);
+  const { getOptions: getMayDucOptions, getTen: getTenMayDuc } = useMayDucOptions(nhaMay);
 
   const scopeValue = Form.useWatch("scope", form);
   const ngaySXValue = Form.useWatch("NgaySX", form);
@@ -249,27 +248,11 @@ const TaoPhieuGN = ({
     };
   }, [idphieu, loadDetail, fetchBbgnTableFromServer]);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await MayDucServiceApi.search({
-          nhaMay: nhaMay as NhaMayEnum,
-          isLock: false,
-          page: 1,
-          pageSize: 200,
-        });
-        if (cancelled) return;
-        const options = (res.data || []).map((x) => ({ label: x.tenMayDuc, value: x.id }));
-        setMayDucOptions(options);
-      } catch (e) {
-        console.error(e);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [nhaMay]);
+  // Máy đã khóa không hiển thị; chỉ giữ lại khi là máy của phiếu đã tạo (ô bị khóa) để hiện tên
+  const mayDucOptions = useMemo(
+    () => getMayDucOptions(hasExistingPhieu && scopeValue != null ? [Number(scopeValue)] : []),
+    [getMayDucOptions, hasExistingPhieu, scopeValue]
+  );
 
   const headerFields = useMemo(() => {
     return (config.headerFields || []).map((f: any) => {
@@ -281,10 +264,11 @@ const TaoPhieuGN = ({
     });
   }, [config.headerFields, mayDucOptions]);
 
-  const selectedMayDucLabel = useMemo(() => {
-    const selected = mayDucOptions.find((x) => Number(x.value) === Number(scopeValue));
-    return selected?.label ?? null;
-  }, [mayDucOptions, scopeValue]);
+  // Tên máy (không kèm "(ngừng)") — được lưu làm tenScope của phiếu
+  const selectedMayDucLabel = useMemo(
+    () => getTenMayDuc(scopeValue != null ? Number(scopeValue) : null) ?? null,
+    [getTenMayDuc, scopeValue]
+  );
 
   const getUserInfo = useCallback(() => {
     const stored = localStorage.getItem("userinfo");

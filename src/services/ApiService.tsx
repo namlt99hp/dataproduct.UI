@@ -20,7 +20,7 @@ apiService.interceptors.response.use(
     if (error.response?.status === 401) {
       // Ví dụ: xóa token + redirect login
       localStorage.removeItem("token");
-      window.location.href = "/login";
+      window.location.href = import.meta.env.BASE_URL + "login";
 
       return Promise.reject({
         message: "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.",

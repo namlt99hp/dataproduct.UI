@@ -30,10 +30,7 @@
       "type": "select",
       "key": "scope",
       "required": true,
-      "options": [
-        { "label": "CCM1", "value": 6 , "tenScope": "CCM1"},
-        { "label": "CCM2", "value": 7 , "tenScope": "CCM2"}
-      ]
+      "options": []
     }
   ],
 

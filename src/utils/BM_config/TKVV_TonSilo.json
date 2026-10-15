@@ -1,0 +1,129 @@
+{
+  "code": "TKVV_TONSILO",
+  "prefix": "TKVV_TONSILO",
+  "title": "SỔ THEO DÕI XUẤT NHẬP TỒN SILO",
+  "headerInfo": {
+    "company": "HÒA PHÁT DUNG QUẤT",
+    "subCompany": "CÔNG TY CỔ PHẦN THÉP"
+  },
+  "isoInfo": {
+    "code": "BM.05/QT.05.03",
+    "effectiveDate": "01/06/2023"
+  },
+
+  "headerFields": [
+    {
+      "label": "Ngày sản xuất",
+      "type": "date",
+      "key": "ngaySX",
+      "required": true,
+      "lockOnEdit": true
+    },
+    {
+      "label": "Ca",
+      "type": "select",
+      "key": "ca",
+      "required": true,
+      "lockOnEdit": true,
+      "options": [
+        { "label": "Ca ngày", "value": 1 },
+        { "label": "Ca đêm", "value": 2 }
+      ]
+    },
+    {
+      "label": "Xưởng",
+      "type": "select",
+      "key": "scope",
+      "required": true,
+      "lockOnEdit": true,
+      "options": []
+    }
+  ],
+
+  "layout": [
+    {
+      "sectionType": "table",
+      "key": "table1",
+      "columns": [
+        {
+          "title": "Silo",
+          "dataIndex": "maSilo",
+          "width": 120,
+          "readonly": true
+        },
+        {
+          "title": "Tên Nguyên Liệu",
+          "dataIndex": "nguyenLieu",
+          "width": 180,
+          "readonly": true
+        },
+        {
+          "title": "Độ ẩm %",
+          "dataIndex": "doAmText",
+          "width": 80,
+          "type": "float",
+          "align": "right"
+        },
+        {
+          "title": "Tồn đầu (Tấn)",
+          "dataIndex": "tonDau",
+          "width": 100,
+          "type": "float",
+          "align": "right",
+          "readonly": true
+        },
+        {
+          "title": "Nhập (Tấn)",
+          "dataIndex": "nhap",
+          "readonly": true,
+          "width": 100,
+          "type": "float",
+          "align": "right"
+        },
+        {
+          "title": "Xuất (Tấn)",
+          "dataIndex": "xuat",
+          "width": 100,
+          "type": "float",
+          "align": "right",
+          "min": 0
+        },
+        {
+          "title": "Tồn cuối (Tấn)",
+          "dataIndex": "tonCuoi",
+          "width": 100,
+          "type": "float",
+          "align": "right",
+          "min": 0
+        },
+        { "title": "Ghi chú", "dataIndex": "ghiChu", "width": 160 }
+      ]
+    }
+  ],
+
+  "footerNotes": [
+    "Tồn đầu của kíp được tự động lấy từ Tồn cuối của kíp liền trước (cùng Silo).",
+    "Tồn cuối lấy từ cân tự động (sensor). Có thể điều chỉnh tay nếu cần."
+  ],
+
+  "signatures": [
+    {
+      "label": "Người giao kíp",
+      "type": "selectNguoiKy",
+      "key": "nguoiKy_GiaoKip",
+      "maphongBan": "NM.TKVV",
+      "capDuyet": 0,
+      "isChon": true,
+      "required": true
+    },
+    {
+      "label": "Người nhận kíp",
+      "type": "selectNguoiKy",
+      "key": "nguoiKy_NhanKip",
+      "maphongBan": "NM.TKVV",
+      "capDuyet": 1,
+      "isChon": true,
+      "required": true
+    }
+  ]
+}

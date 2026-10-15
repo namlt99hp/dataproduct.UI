@@ -135,6 +135,10 @@ const ChiTietBienBanGiaoNhanPhoiTam_HRC1 = ({ readOnly = false }: { readOnly?: b
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [tongHopRefreshLoading, setTongHopRefreshLoading] = useState(false);
 
+  // Luồng C4 (GĐ/PGĐ NM) đã bỏ cho phiếu mới — chỉ phiếu cũ đang "dính" C4 (có ≥1 slab đã được C4
+  // xác nhận) mới còn hiện cột/bộ lọc/nút C4 và bắt buộc C4 khi chốt (BE: Hrc1SlabRepository.IsDinhC4).
+  const isDinhC4 = useMemo(() => slabDetails.some((r) => r.trangThaiC4), [slabDetails]);
+
   // Search client-side (không gọi API) cho cột Số Mẻ / ID Slab trong tab chi tiết —
   // gõ trực tiếp vào ô input, hoặc bấm nút Paste để mở popup dán danh sách
   // (mỗi dòng/phẩy/tab 1 giá trị) từ Excel.
@@ -146,7 +150,7 @@ const ChiTietBienBanGiaoNhanPhoiTam_HRC1 = ({ readOnly = false }: { readOnly?: b
   const [filterCan, setFilterCan] = useState<"all" | "chua" | "da">("all");
   const [filterC4, setFilterC4] = useState<"all" | "chua" | "da">("all");
   const [filterPKH, setFilterPKH] = useState<"all" | "chua" | "da">("all");
-  const hasActiveFilter = filterDuc !== "all" || filterCan !== "all" || filterC4 !== "all" || filterPKH !== "all";
+  const hasActiveFilter = filterDuc !== "all" || filterCan !== "all" || filterC4 !== "all" || filterPKH !== "all"; // filterC4 chỉ đổi được khi phiếu dính C4
   const resetFilters = () => {
     setFilterDuc("all");
     setFilterCan("all");
@@ -426,13 +430,13 @@ const ChiTietBienBanGiaoNhanPhoiTam_HRC1 = ({ readOnly = false }: { readOnly?: b
       if (filterDuc === "da" && r.trangThaiDuc !== 1) return false;
       if (filterCan === "chua" && r.trangThaiCan !== 0) return false;
       if (filterCan === "da" && r.trangThaiCan !== 1) return false;
-      if (filterC4 === "chua" && r.trangThaiC4) return false;
-      if (filterC4 === "da" && !r.trangThaiC4) return false;
+      if (isDinhC4 && filterC4 === "chua" && r.trangThaiC4) return false;
+      if (isDinhC4 && filterC4 === "da" && !r.trangThaiC4) return false;
       if (filterPKH === "chua" && r.trangThaiPKH !== 0) return false;
       if (filterPKH === "da" && r.trangThaiPKH !== 1) return false;
       return true;
     });
-  }, [slabDetails, filterDuc, filterCan, filterC4, filterPKH]);
+  }, [slabDetails, filterDuc, filterCan, filterC4, filterPKH, isDinhC4]);
 
   // Lọc riêng cho tab "Chi tiết" theo Số Mẻ / ID Slab — tách các giá trị nhập/paste theo
   // dòng/phẩy/tab, 1 dòng khớp nếu chứa (contains, không phân biệt hoa/thường) BẤT KỲ giá trị
@@ -449,20 +453,20 @@ const ChiTietBienBanGiaoNhanPhoiTam_HRC1 = ({ readOnly = false }: { readOnly?: b
     });
   }, [sharedFilteredSlabDetails, maMeSearch, idSlabSearch]);
 
-  // Đúc, Cán và C4 đồng cấp (song song, không phụ thuộc lẫn nhau)
+  // Đúc, Cán (và C4 với phiếu cũ dính C4) đồng cấp (song song, không phụ thuộc lẫn nhau)
   const canXacNhanDuc = selectedCount > 0 && selectedRows.every((r) => r.trangThaiDuc === 0 && r.trangThaiPKH === 0);
   const canHuyDuc     = selectedCount > 0 && selectedRows.every((r) => r.trangThaiDuc === 1 && r.trangThaiPKH === 0);
   const canXacNhanCan = selectedCount > 0 && selectedRows.every((r) => r.trangThaiCan === 0 && r.trangThaiPKH === 0);
   const canHuyCan     = selectedCount > 0 && selectedRows.every((r) => r.trangThaiCan === 1 && r.trangThaiPKH === 0);
   const canXacNhanC4  = selectedCount > 0 && selectedRows.every((r) => !r.trangThaiC4 && r.trangThaiPKH === 0);
   const canHuyC4      = selectedCount > 0 && selectedRows.every((r) => r.trangThaiC4 && r.trangThaiPKH === 0);
-  // PKH chỉ chốt được khi cả Đúc, Cán và C4 đã xác nhận
+  // PKH chỉ chốt được khi Đúc + Cán đã xác nhận (cộng thêm C4 nếu phiếu cũ dính C4)
 
   const handleXacNhan = async (loai: "Duc" | "Can" | "C4" | "PKH") => {
     try {
       setActionLoading(true);
       const ids = selectedRows.map((r) => r.id);
-      await Hrc1SlabApi.xacNhan(ids, loai, getUserId());
+      await Hrc1SlabApi.xacNhan(ids, loai, getUserId(), idphieu ?? undefined);
       message.success(`Xác nhận ${loai} thành công cho ${ids.length} slab`);
       await loadData();
     } catch (err: any) {
@@ -646,13 +650,14 @@ const ChiTietBienBanGiaoNhanPhoiTam_HRC1 = ({ readOnly = false }: { readOnly?: b
       align: "center" as const,
       render: (v: number) => <Tag color={TT_COLOR[v]}>{v === 1 ? "Đã XN" : "Chưa"}</Tag>,
     },
-    {
+    // Cột C4 chỉ hiện với phiếu cũ đang dính luồng C4
+    ...(isDinhC4 ? [{
       title: "TT GĐ/PGĐ NM",
       dataIndex: "trangThaiC4",
       width: 85,
       align: "center" as const,
       render: (v: boolean) => <Tag color={v ? "green" : "default"}>{v ? "Đã XN" : "Chưa"}</Tag>,
-    },
+    }] : []),
     {
       title: "TT PKH",
       dataIndex: "trangThaiPKH",
@@ -661,7 +666,7 @@ const ChiTietBienBanGiaoNhanPhoiTam_HRC1 = ({ readOnly = false }: { readOnly?: b
       render: (v: number) => <Tag color={v === 1 ? "blue" : "default"}>{v === 1 ? "Đã chốt" : "Chưa"}</Tag>,
     },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [isDuc, isCan, isC4, isPKH, rowEdits, saveRowEdit, data?.tinhTrang, maMeSearch, idSlabSearch, openPasteModal]);
+  ], [isDuc, isCan, isC4, isPKH, isDinhC4, rowEdits, saveRowEdit, data?.tinhTrang, maMeSearch, idSlabSearch, openPasteModal]);
 
   // ── Tab tổng hợp rows ─────────────────────────────────────────────────────
   // Pivot từ sharedFilteredSlabDetails (đã áp bộ lọc trạng thái Đúc/Cán/GĐ-PGĐ NM/PKH dùng
@@ -918,20 +923,22 @@ const ChiTietBienBanGiaoNhanPhoiTam_HRC1 = ({ readOnly = false }: { readOnly?: b
               <Radio.Button value="da" style={filterBtnStyle("da", filterCan)}>Đã XN</Radio.Button>
             </Radio.Group>
           </Space>
-          <Space size={4}>
-            <span style={{ color: "#555" }}>GĐ/PGĐ NM:</span>
-            <Radio.Group
-              size="small"
-              value={filterC4}
-              onChange={(e) => setFilterC4(e.target.value)}
-              optionType="button"
-              buttonStyle="solid"
-            >
-              <Radio.Button value="all" style={filterBtnStyle("all", filterC4)}>Tất cả</Radio.Button>
-              <Radio.Button value="chua" style={filterBtnStyle("chua", filterC4)}>Chưa XN</Radio.Button>
-              <Radio.Button value="da" style={filterBtnStyle("da", filterC4)}>Đã XN</Radio.Button>
-            </Radio.Group>
-          </Space>
+          {isDinhC4 && (
+            <Space size={4}>
+              <span style={{ color: "#555" }}>GĐ/PGĐ NM:</span>
+              <Radio.Group
+                size="small"
+                value={filterC4}
+                onChange={(e) => setFilterC4(e.target.value)}
+                optionType="button"
+                buttonStyle="solid"
+              >
+                <Radio.Button value="all" style={filterBtnStyle("all", filterC4)}>Tất cả</Radio.Button>
+                <Radio.Button value="chua" style={filterBtnStyle("chua", filterC4)}>Chưa XN</Radio.Button>
+                <Radio.Button value="da" style={filterBtnStyle("da", filterC4)}>Đã XN</Radio.Button>
+              </Radio.Group>
+            </Space>
+          )}
           <Space size={4}>
             <span style={{ color: "#555" }}>PKH:</span>
             <Radio.Group
@@ -1094,8 +1101,8 @@ const ChiTietBienBanGiaoNhanPhoiTam_HRC1 = ({ readOnly = false }: { readOnly?: b
                         </>
                       )}
 
-                      {/* C4 (GĐ/PGĐ NM): xác nhận C4, song song với Đúc/Cán */}
-                      {isC4 && (
+                      {/* C4 (GĐ/PGĐ NM): chỉ còn với phiếu cũ đang dính luồng C4, song song với Đúc/Cán */}
+                      {isC4 && isDinhC4 && (
                         <>
                           <Popconfirm
                             title={`Xác nhận C4 ${selectedCount} slab?`}
@@ -1173,7 +1180,7 @@ const ChiTietBienBanGiaoNhanPhoiTam_HRC1 = ({ readOnly = false }: { readOnly?: b
                     ].filter(Boolean).join(" ")}
                     summary={() => {
                       const totalKL = filteredSlabDetails.reduce((s, r) => s + (r.khoiLuong ?? 0), 0);
-                      const optColCount = ((isDuc || isCan || isPKH) ? 1 : 0) + ((isCan || isPKH) ? 1 : 0) + ((isC4 || isPKH) ? 1 : 0) + (isPKH ? 1 : 0);
+                      const optColCount = ((isDuc || isCan || isPKH) ? 1 : 0) + ((isCan || isPKH) ? 1 : 0) + (isDinhC4 && (isC4 || isPKH) ? 1 : 0) + (isPKH ? 1 : 0);
                       return (
                         <Table.Summary fixed>
                           <Table.Summary.Row>

@@ -107,7 +107,7 @@ const ChiTietGN = () => {
   const canDoAnything = effectiveCanChot || hasQuyenXacNhan;
 
   const congDoanLabel = data ? getGroupLabel(data.maBm ?? "") : "";
-  const scopeName = data ? getScopeName(data.maBm ?? "", data.scope ?? 0) : "";
+  const scopeName = data ? getScopeName(data.maBm ?? "", data.scope ?? 0, data.tenScope, data.danhSachMayDuc) : "";
 
   const downloadBlob = (raw: unknown, filename: string) => {
     const blob = raw instanceof Blob ? raw : new Blob([raw as BlobPart]);

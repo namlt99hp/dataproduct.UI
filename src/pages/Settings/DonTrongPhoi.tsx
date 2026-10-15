@@ -25,6 +25,9 @@ import {
   DeleteOutlined,
   DownloadOutlined,
   UploadOutlined,
+  SyncOutlined,
+  LockOutlined,
+  UnlockOutlined,
 } from "@ant-design/icons";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -38,6 +41,7 @@ type FilterState = {
   mac?: string;
   kichThuoc?: string;
   isXacNhan?: number | null;
+  maVatTu?: string;
 };
 
 const QuanLyDonTrongPhoi = () => {
@@ -52,6 +56,7 @@ const QuanLyDonTrongPhoi = () => {
   const [editingRecord, setEditingRecord] = useState<DonTrongPhoi | null>(null);
   const [exportLoading, setExportLoading] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
+  const [syncLoading, setSyncLoading] = useState(false);
   const [importResultVisible, setImportResultVisible] = useState(false);
   const [importResult, setImportResult] = useState<ImportDonTrongPhoiResult | null>(null);
 
@@ -85,6 +90,7 @@ const QuanLyDonTrongPhoi = () => {
       mac: values.mac?.trim() || undefined,
       kichThuoc: values.kichThuoc?.trim() || undefined,
       isXacNhan: values.isXacNhan ?? undefined,
+      maVatTu: values.maVatTu?.trim() || undefined,
     });
   };
 
@@ -169,6 +175,28 @@ const QuanLyDonTrongPhoi = () => {
     }
   };
 
+  const handleToggleLock = async (id: number) => {
+    try {
+      await DonTrongPhoiServiceApi.toggleLock(id);
+      fetchData(pagination.current, pagination.pageSize);
+    } catch {
+      message.error("Không thể thay đổi trạng thái khóa");
+    }
+  };
+
+  const handleSyncMaVatTu = async () => {
+    setSyncLoading(true);
+    try {
+      await DonTrongPhoiServiceApi.syncMaVatTu();
+      message.success("Đồng bộ mã vật tư thành công");
+      fetchData(pagination.current, pagination.pageSize);
+    } catch {
+      message.error("Không thể đồng bộ mã vật tư");
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
   const uploadProps: UploadProps = {
     accept: ".xlsx,.xls",
     showUploadList: false,
@@ -217,6 +245,19 @@ const QuanLyDonTrongPhoi = () => {
         render: (v: string | null) => v ?? "-",
       },
       {
+        title: "Mã Vật Tư",
+        dataIndex: "maVatTu",
+        key: "maVatTu",
+        width: 140,
+        render: (v: string | null) => v ?? "-",
+      },
+      {
+        title: "Tên Vật Tư",
+        dataIndex: "tenVatTu",
+        key: "tenVatTu",
+        render: (v: string | null) => v ?? "-",
+      },
+      {
         title: "Đơn trọng (kg)",
         dataIndex: "donTrong",
         key: "donTrong",
@@ -236,12 +277,27 @@ const QuanLyDonTrongPhoi = () => {
       {
         title: "Thao tác",
         key: "actions",
-        width: 140,
+        width: 190,
         render: (_: unknown, record: DonTrongPhoi) => (
           <Space>
             <Button size="small" type="link" icon={<EditOutlined />} onClick={() => openEditModal(record)}>
               Sửa
             </Button>
+            <Popconfirm
+              title={record.isLock === 1 ? "Mở khóa đơn trọng này?" : "Khóa đơn trọng này? Khi khóa sẽ không xuất hiện khi tạo phiếu."}
+              onConfirm={() => handleToggleLock(record.id)}
+              okText="Xác nhận"
+              cancelText="Hủy"
+            >
+              <Button
+                size="small"
+                type="link"
+                danger={record.isLock === 1}
+                icon={record.isLock === 1 ? <LockOutlined /> : <UnlockOutlined />}
+              >
+                {record.isLock === 1 ? "Đang khóa" : "Khóa"}
+              </Button>
+            </Popconfirm>
             <Popconfirm
               title="Xác nhận xóa bản ghi này?"
               onConfirm={() => handleDelete(record.id)}
@@ -266,6 +322,13 @@ const QuanLyDonTrongPhoi = () => {
         title="Quản lý Đơn trọng phôi"
         extra={
           <Space>
+            <Button
+              icon={<SyncOutlined />}
+              loading={syncLoading}
+              onClick={handleSyncMaVatTu}
+            >
+              Sync Mã Vật Tư
+            </Button>
             <Button
               icon={<DownloadOutlined />}
               loading={exportLoading}
@@ -300,6 +363,11 @@ const QuanLyDonTrongPhoi = () => {
             <Col xs={24} md={5}>
               <Form.Item label="Kích thước" name="kichThuoc">
                 <Input placeholder="Tìm theo kích thước..." allowClear />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={5}>
+              <Form.Item label="Mã Vật Tư" name="maVatTu">
+                <Input placeholder="Tìm theo mã vật tư..." allowClear />
               </Form.Item>
             </Col>
             <Col xs={24} md={4}>

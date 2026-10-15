@@ -543,7 +543,6 @@ export const phieuActionService = {
       : "Bạn có chắc chắn muốn lưu và gửi phiếu này?";
 
     // Quy tắc cho PKH hoặc user có quyền chốt: chỉ thấy Chốt/Hủy chốt ở trạng thái phù hợp
-    console.log(canChot, isPKH, allowedChotBmList, phieuMaBm);
     if (isPKH || canChot) {
       if (tinhTrang === TrangThaiPhieuConst.HoanThanh) {
         buttons.push({
@@ -628,13 +627,9 @@ export const phieuActionService = {
 
             // Chưa có idphieu, tạo mới (luôn gọi PhieuApi, thêm customPutApi nếu truyền)
             const res = await PhieuApi.postData(formDataParam);
-            // const resIdPhieu = (res as any)?.idphieu || (res as any)?.data?.idphieu;
-            // if (customPutApi && resIdPhieu) {
-            //   await customPutApi(resIdPhieu, formDataParam as Record<string, unknown>);
-            // }
-            const resData = res?.data as { soPhieu?: string } | undefined;
+            const resData = res as { idphieu?: string; soPhieu?: string } | undefined;
             message.success(`Tạo phiếu thành công: ${resData?.soPhieu || ""}`);
-            onSuccess?.();
+            onSuccess?.(resData?.idphieu ? { newPhieuId: String(resData.idphieu) } : undefined);
           } catch (error) {
             handleActionError(
               error,
@@ -677,7 +672,7 @@ export const phieuActionService = {
             message.success(
               `Tạo và gửi phiếu thành công: ${resData?.soPhieu || ""}`,
             );
-            onSuccess?.();
+            onSuccess?.(resData?.idphieu ? { newPhieuId: String(resData.idphieu) } : undefined);
           } catch (error) {
             handleActionError(
               error,

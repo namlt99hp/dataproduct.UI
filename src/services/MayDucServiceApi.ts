@@ -55,7 +55,8 @@ export const MayDucServiceApi = {
     await apiService.put(`/api/MayDuc/${id}`, payload);
   },
 
-  delete: async (id: number): Promise<void> => {
-    await apiService.delete(`/api/MayDuc/${id}`);
+  // Không có xóa cứng — Id máy đúc là scope của phiếu/quyền/mẻ, chỉ được khóa
+  lock: async (id: number): Promise<void> => {
+    await apiService.put(`/api/MayDuc/${id}/lock`);
   },
 };

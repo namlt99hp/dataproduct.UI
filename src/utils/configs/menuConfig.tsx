@@ -171,6 +171,20 @@ export const menuConfig = [
       },
       {
         key: "sub1-5",
+        label: "NM.TKVV",
+        children: [
+          {
+            key: "sub1-5-1",
+            label: (
+              <Tooltip title="Quản lý sản phẩm & Mapping TKVV">
+                <NavLink to="/quanlynvltkvv">Quản lý NVL & Mapping</NavLink>
+              </Tooltip>
+            ),
+          },
+        ],
+      },
+      {
+        key: "sub1-5",
         label: "Cân bằng NL",
         children: [
           {
@@ -442,7 +456,6 @@ export const menuConfig = [
         key: "sub2-7",
         label: "NM.HRC1",
         children: [
-          
           {
             key: "sub2-7-1",
             maBM: BM_CONFIG.HRC1.HRC1_BB_Sanluongphoi,
@@ -559,8 +572,43 @@ export const menuConfig = [
               </Tooltip>
             ),
           },
-        ]
-      }
+        ],
+      },
+      {
+        key: "sub2-tkvv",
+        label: "NM.TKVV",
+        children: [
+          {
+            key: "sub2-tkvv-1",
+            maBM: BM_CONFIG.TKVV.TKVV_BB_SanLuong,
+            label: (
+              <Tooltip title="Biên bản sản lượng">
+                <NavLink to="/sanluongtkvv">Biên bản sản lượng</NavLink>
+              </Tooltip>
+            ),
+          },
+          {
+            key: "sub2-tkvv-2",
+            maBM: BM_CONFIG.TKVV.TKVV_BC_SanLuongChiPhi,
+            label: (
+              <Tooltip title="Báo cáo sản lượng & chi phí sản xuất hàng ngày">
+                <NavLink to="/baocaoslcptkvv">
+                  Báo cáo sản lượng & chi phí
+                </NavLink>
+              </Tooltip>
+            ),
+          },
+          {
+            key: "sub2-tkvv-3",
+            maBM: BM_CONFIG.TKVV.TKVV_TonSilo,
+            label: (
+              <Tooltip title="Sổ theo dõi Xuất Nhập Tồn Silo">
+                <NavLink to="/tonsilotkvv">Sổ theo dõi XNT Silo</NavLink>
+              </Tooltip>
+            ),
+          },
+        ],
+      },
     ],
   },
   {
@@ -863,6 +911,45 @@ export const menuConfig = [
           },
         ],
       },
+      {
+        key: "sub3-tkvv",
+        label: "NM.TKVV",
+        children: [
+          {
+            key: "sub3-tkvv-1",
+            maBM: BM_CONFIG.TKVV.TKVV_BB_SanLuong,
+            label: (
+              <Tooltip title="Biên bản sản lượng">
+                <NavLink to="/viecdentoi/sanluongtkvv">
+                  Biên bản sản lượng
+                </NavLink>
+              </Tooltip>
+            ),
+          },
+          {
+            key: "sub3-tkvv-2",
+            maBM: BM_CONFIG.TKVV.TKVV_BC_SanLuongChiPhi,
+            label: (
+              <Tooltip title="Báo cáo sản lượng & chi phí sản xuất hàng ngày">
+                <NavLink to="/viecdentoi/baocaoslcptkvv">
+                  Báo cáo sản lượng & chi phí
+                </NavLink>
+              </Tooltip>
+            ),
+          },
+          {
+            key: "sub3-tkvv-3",
+            maBM: BM_CONFIG.TKVV.TKVV_TonSilo,
+            label: (
+              <Tooltip title="Sổ theo dõi Xuất Nhập Tồn Silo">
+                <NavLink to="/viecdentoi/tonsilotkvv">
+                  Sổ theo dõi XNT Silo
+                </NavLink>
+              </Tooltip>
+            ),
+          },
+        ],
+      },
     ],
   },
   {
@@ -1141,6 +1228,45 @@ export const menuConfig = [
           },
         ],
       },
+      {
+        key: "sub4-tkvv",
+        label: "NM.TKVV",
+        children: [
+          {
+            key: "sub4-tkvv-1",
+            maBM: BM_CONFIG.TKVV.TKVV_BB_SanLuong,
+            label: (
+              <Tooltip title="Biên bản sản lượng">
+                <NavLink to="/xemphieu/sanluongtkvv">
+                  Biên bản sản lượng
+                </NavLink>
+              </Tooltip>
+            ),
+          },
+          {
+            key: "sub4-tkvv-2",
+            maBM: BM_CONFIG.TKVV.TKVV_BC_SanLuongChiPhi,
+            label: (
+              <Tooltip title="Báo cáo sản lượng & chi phí sản xuất hàng ngày">
+                <NavLink to="/xemphieu/baocaoslcptkvv">
+                  Báo cáo sản lượng & chi phí
+                </NavLink>
+              </Tooltip>
+            ),
+          },
+          {
+            key: "sub4-tkvv-3",
+            maBM: BM_CONFIG.TKVV.TKVV_TonSilo,
+            label: (
+              <Tooltip title="Sổ theo dõi Xuất Nhập Tồn Silo">
+                <NavLink to="/xemphieu/tonsilotkvv">
+                  Sổ theo dõi XNT Silo
+                </NavLink>
+              </Tooltip>
+            ),
+          },
+        ],
+      },
     ],
   },
   {
@@ -1350,6 +1476,41 @@ export const menuConfig = [
             label: (
               <Tooltip title="Phân bổ dữ liệu (QHLC / CVH / Than cốc <10mm)">
                 <NavLink to="/phanbodulieu">Phân bổ dữ liệu</NavLink>
+              </Tooltip>
+            ),
+          },
+        ],
+      },
+      {
+        key: "sub5-tkvv",
+        label: "NM.TKVV",
+        children: [
+          {
+            key: "sub5-tkvv-1",
+            maBM: BM_CONFIG.TKVV.TKVV_BB_SanLuong,
+            label: (
+              <Tooltip title="Biên bản sản lượng">
+                <NavLink to="/sanluongtkvv">Biên bản sản lượng</NavLink>
+              </Tooltip>
+            ),
+          },
+          {
+            key: "sub5-tkvv-2",
+            maBM: BM_CONFIG.TKVV.TKVV_BC_SanLuongChiPhi,
+            label: (
+              <Tooltip title="Báo cáo sản lượng & chi phí sản xuất hàng ngày">
+                <NavLink to="/baocaoslcptkvv">
+                  Báo cáo sản lượng & chi phí
+                </NavLink>
+              </Tooltip>
+            ),
+          },
+          {
+            key: "sub5-tkvv-3",
+            maBM: BM_CONFIG.TKVV.TKVV_TonSilo,
+            label: (
+              <Tooltip title="Sổ theo dõi Xuất Nhập Tồn Silo">
+                <NavLink to="/tonsilotkvv">Sổ theo dõi XNT Silo</NavLink>
               </Tooltip>
             ),
           },

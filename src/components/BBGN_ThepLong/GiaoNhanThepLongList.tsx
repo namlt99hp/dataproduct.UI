@@ -6,13 +6,11 @@ import dayjs from "dayjs";
 import { useNavigate } from "react-router-dom";
 import PhieuFilterCard, { type FilterFieldConfig } from "../PhieuFilterCard";
 import { useMemo } from "react";
-import { useEffect, useState } from "react";
 import type { SearchPhieuResponseModel } from "../../models/Phieu";
 import { PHIEU_STATUS_CONFIG } from "../../utils/constants/TrangThaiPhieuDisplay";
 import { getThongTinUser } from "../../utils/constants/GetThongTinLocalStore";
-import { MayDucServiceApi } from "../../services/MayDucServiceApi";
-import type { NhaMayEnum } from "../../models/SiloModel";
 import { usePhieuSearchListHRC } from "../../hooks/usePhieuSearchListHRC";
+import { useMayDucOptions } from "../../hooks/useMayDucOptions";
 
 const CONFIG_MAP = {
   HRC1_BBGN_ThepLong: HRC1_BBGN_ThepLong,
@@ -42,36 +40,12 @@ const GiaoNhanThepLongList = ({
   const config = CONFIG_MAP[bieuMau];
   const navigate = useNavigate();
   const nhaMay = bieuMau === "HRC2_BBGN_ThepLong" ? 2 : 1;
-  const [mayDucOptions, setMayDucOptions] = useState<
-    Array<{ label: string; value: number }>
-  >([]);
+  // Gồm cả máy đã khóa — để cột "Máy đúc" của phiếu cũ vẫn hiện đúng tên
+  const { getTen: getTenMayDuc } = useMayDucOptions(nhaMay);
 
   const userStr = localStorage.getItem("user");
   const userObj = userStr ? JSON.parse(userStr) : {};
   const isAdmin = userObj?.role?.includes("admin") || false;
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await MayDucServiceApi.search({
-          nhaMay: nhaMay as NhaMayEnum,
-          isLock: false,
-          page: 1,
-          pageSize: 200,
-        });
-        if (cancelled) return;
-        setMayDucOptions(
-          (res.data || []).map((x) => ({ label: x.tenMayDuc, value: x.id })),
-        );
-      } catch (e) {
-        console.error(e);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [nhaMay]);
 
   const currentUserId = useMemo(() => {
     const user = getThongTinUser();
@@ -159,12 +133,8 @@ const GiaoNhanThepLongList = ({
       key: "scope",
       width: 130,
       ellipsis: true,
-      render: (value: number) => {
-        const match = mayDucOptions.find(
-          (x) => Number(x.value) === Number(value),
-        );
-        return match?.label ?? (value != null ? String(value) : "-");
-      },
+      render: (value: number, record: TableRecord) =>
+        record.tenScope || getTenMayDuc(value) || (value != null ? String(value) : "-"),
     },
     {
       title: "Người tạo",
@@ -230,7 +200,7 @@ const GiaoNhanThepLongList = ({
       key: "scope",
       label: "Máy đúc",
       type: "select",
-      // Lọc theo khu vực được phân quyền; mayDucOptions (API) vẫn dùng để hiển thị tên cột bảng
+      // Lọc theo khu vực được phân quyền — scope lấy động từ bảng MayDuc (bmQuyenConfig.scopeSource)
       options: getAllowedScopeOptions(config.code as string),
     },
   ], [getAllowedScopeOptions]);

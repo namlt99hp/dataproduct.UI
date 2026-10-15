@@ -1,0 +1,113 @@
+{
+  "code": "TKVV_BC_SanLuongChiPhi",
+  "prefix": "TKVV_BC_SLCP",
+  "title": "BÁO CÁO SẢN LƯỢNG & CHI PHÍ SẢN XUẤT HÀNG NGÀY",
+  "headerInfo": {
+    "company": "HÒA PHÁT DUNG QUẤT",
+    "subCompany": "CÔNG TY CỔ PHẦN THÉP"
+  },
+  "isoInfo": {
+    "code": "BM.02/QT.05.03",
+    "effectiveDate": "01/06/2023"
+  },
+
+  "headerFields": [],
+
+  "layout": [
+    {
+      "sectionType": "table",
+      "key": "table1",
+      "columns": [
+        {
+          "title": "Nguyên nhiên vật liệu đầu vào",
+          "dataIndex": "nguyenLieu",
+          "width": 200,
+          "readonly": true
+        },
+        {
+          "title": "KL ẩm (Tấn)",
+          "dataIndex": "klAm",
+          "width": 100,
+          "type": "float",
+          "align": "right",
+          "readonly": true
+        },
+        {
+          "title": "Độ ẩm (%)",
+          "dataIndex": "doAm",
+          "width": 90,
+          "type": "float",
+          "align": "right",
+          "readonly": true
+        },
+        {
+          "title": "Quy khô (Tấn)",
+          "dataIndex": "quyKho",
+          "width": 110,
+          "type": "float",
+          "align": "right",
+          "readonly": true
+        },
+        {
+          "title": "Vận chuyển",
+          "dataIndex": "thanhPham_Note",
+          "width": 130,
+          "type": "float",
+          "align": "right",
+          "readonly": true
+        },
+        {
+          "title": "Thành phẩm L1 (Tấn)",
+          "dataIndex": "thanhPhamL1",
+          "width": 130,
+          "type": "float",
+          "align": "right",
+          "readonly": true
+        },
+        {
+          "title": "Thành phẩm L2 (Tấn)",
+          "dataIndex": "thanhPhamL2",
+          "width": 130,
+          "type": "float",
+          "align": "right",
+          "readonly": true
+        },
+        {
+          "title": "Thành phẩm L3 (Tấn)",
+          "dataIndex": "thanhPhamL3",
+          "width": 130,
+          "type": "float",
+          "align": "right",
+          "readonly": true
+        },
+        { "title": "Ghi chú", "dataIndex": "ghiChu", "width": 160 }
+      ]
+    }
+  ],
+
+  "footerNotes": [
+    "Khối lượng nguyên nhiên vật liệu và thành phẩm được xác định qua cân băng tải/ cân bàn.",
+    "Báo cáo được lập thành 03 bản. Mỗi bên giữ một bản và giao phòng NS 01 bản có giá trị như nhau."
+  ],
+
+  "signatures": [
+    {
+      "label": "Người giao kíp",
+      "type": "selectNguoiKy",
+      "key": "nguoiKy_GiaoKip",
+      "maphongBan": "NM.TKVV",
+      "capDuyet": 0,
+      "isChon": true,
+      "required": true
+    },
+    {
+      "label": "Người nhận kíp",
+      "type": "selectNguoiKy",
+      "key": "nguoiKy_NhanKip",
+      "maphongBan": "NM.TKVV",
+      "capDuyet": 1,
+      "isChon": true,
+      "required": true
+    }
+  ]
+}

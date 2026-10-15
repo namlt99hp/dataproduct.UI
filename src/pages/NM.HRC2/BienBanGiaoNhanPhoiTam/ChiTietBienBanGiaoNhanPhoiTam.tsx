@@ -708,10 +708,27 @@ const ChiTietBienBanGiaoNhanPhoiTam = ({ readOnly = false }: { readOnly?: boolea
         dataIndex: "khoiLuong",
         width: 110,
         align: "right" as const,
-        render: (v: number) =>
-          v != null
-            ? Number(v).toLocaleString("vi-VN", { minimumFractionDigits: 3 })
-            : "-",
+        render: (v: number, r: HrcSlabItem) => {
+          const fmt = (x: number | null | undefined) =>
+            x != null ? Number(x).toLocaleString("vi-VN", { minimumFractionDigits: 3, maximumFractionDigits: 3 }) : "-";
+          if (r.khoiLuongManual == null) return fmt(v);
+          return (
+            <Tooltip
+              title={
+                <div>
+                  <div>KL nhà máy: <b>{fmt(r.khoiLuongGoc)}</b></div>
+                  <div>KL sửa tay: <b>{fmt(r.khoiLuongManual)}</b></div>
+                  <div>Lý do: {r.lyDoSua ?? "-"}</div>
+                  <div>Số BBSV: {r.soBBSV ?? "-"}</div>
+                  <div>Người sửa: {r.nguoiSuaKL ?? "-"}</div>
+                  <div>Lúc: {r.thoiDiemSuaKL ? dayjs(r.thoiDiemSuaKL).format("DD/MM/YYYY HH:mm:ss") : "-"}</div>
+                </div>
+              }
+            >
+              <span style={{ fontWeight: 600 }}>{fmt(v)}</span>
+            </Tooltip>
+          );
+        },
       },
       { title: "Chất lượng", dataIndex: "chatLuong", width: 90 },
       {
@@ -776,14 +793,23 @@ const ChiTietBienBanGiaoNhanPhoiTam = ({ readOnly = false }: { readOnly?: boolea
   // các dòng thuộc nhóm lệch ngày/ca so với phiếu — dùng onCell per-column vì rowSpan khiến ô
   // merge không nhận được style tô nền qua onRow (onRow chỉ style <tr>, không phủ được ô đang
   // span xuống từ dòng trước).
+  // Dòng có KL đã được KCS sửa tay: tô vàng cả dòng (ô KL đậm hơn), ưu tiên hơn nền xanh lệch ngày/ca —
+  // riêng cột "Ca SX" vẫn giữ xanh nếu lệch để không mất thông tin lệch ca.
   const MISMATCH_BG = "#f6ffed";
+  const KL_SUA_ROW_BG = "#fffbe6";
+  const KL_SUA_CELL_BG = "#ffe58f";
   const groupedDetailColumns = useMemo(
     () =>
       detailColumns.map((col) => ({
         ...col,
         onCell: (record: HrcSlabItem) => {
           const isMismatch = shiftGroupInfo.mismatchMap.get(record.id);
-          return { style: isMismatch ? { backgroundColor: MISMATCH_BG } : undefined };
+          const isSuaKL = record.khoiLuongManual != null;
+          let bg: string | undefined;
+          if (isSuaKL && col.dataIndex === "khoiLuong") bg = KL_SUA_CELL_BG;
+          else if (isMismatch && (!isSuaKL || col.dataIndex === "shiftName")) bg = MISMATCH_BG;
+          else if (isSuaKL) bg = KL_SUA_ROW_BG;
+          return { style: bg ? { backgroundColor: bg } : undefined };
         },
       })),
     [detailColumns, shiftGroupInfo],

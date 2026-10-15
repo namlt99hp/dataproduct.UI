@@ -1,0 +1,100 @@
+{
+  "code": "TKVV_BB_SanLuong",
+  "prefix": "TKVV_BB_SL",
+  "title": "BIÊN BẢN XÁC NHẬN SẢN LƯỢNG",
+  "headerInfo": {
+    "company": "HÒA PHÁT DUNG QUẤT",
+    "subCompany": "CÔNG TY CỔ PHẦN THÉP"
+  },
+  "isoInfo": {
+    "code": "BM.01/QT.05.03",
+    "effectiveDate": "01/06/2023"
+  },
+
+  "headerFields": [
+    {
+      "label": "Ca",
+      "type": "select",
+      "key": "ca",
+      "required": true,
+      "options": [
+        { "label": "Ca ngày", "value": 1 },
+        { "label": "Ca đêm", "value": 2 }
+      ]
+    },
+    {
+      "label": "Ngày sản xuất",
+      "type": "date",
+      "key": "NgaySX",
+      "required": true
+    },
+    {
+      "label": "Xưởng",
+      "type": "select",
+      "key": "scope",
+      "required": true,
+      "options": [
+        { "label": "NM.TKVV - Thiêu kết 1", "value": 1, "tenScope": "TK1" },
+        { "label": "NM.TKVV - Thiêu kết 2", "value": 2, "tenScope": "TK2" },
+        { "label": "NM.TKVV - Thiêu kết 3", "value": 3, "tenScope": "TK3" },
+        { "label": "NM.TKVV - Thiêu kết 4", "value": 4, "tenScope": "TK4" },
+        { "label": "NM.TKVV - Vê viên 1", "value": 5, "tenScope": "VV1" },
+        { "label": "NM.TKVV - Vê viên 2", "value": 6, "tenScope": "VV2" }
+      ]
+    }
+  ],
+
+  "layout": [
+    {
+      "sectionType": "table",
+      "key": "table1",
+
+      "dataSource": {
+        "type": "api",
+        "endpoint": "/api/TKVV_BBSL/get-dulieu-pivot",
+        "paramsMap": {
+          "scope": "scope",
+          "ngay": "NgaySX",
+          "ca": "ca"
+        }
+      },
+
+      "columns": [
+        { "title": "Thời gian", "dataIndex": "thoiGian", "width": 100, "align": "center", "type": "time","format":"HH:mm"},
+        { "title": "Sản lượng", "dataIndex": "tenSanPham", "width": 180 },
+        { "title": "ĐVT", "dataIndex": "donViTinh", "width": 70, "align": "center", "readonly": true },
+        { "title": "Loại 1", "dataIndex": "1", "width": 100, "type": "float", "align": "right" },
+        { "title": "Loại 2", "dataIndex": "2", "width": 100, "type": "float", "align": "right" },
+        { "title": "Loại 3", "dataIndex": "3", "width": 100, "type": "float", "align": "right" },
+        { "title": "Phế phẩm", "dataIndex": "4", "width": 100, "type": "float", "align": "right" },
+        { "title": "Ghi chú", "dataIndex": "ghiChu", "width": 160 }
+      ]
+    }
+  ],
+
+  "footerNotes": [
+    "Khối lượng giao nhận được xác định qua cân băng tải/ cân bàn.",
+    "Biên bản được lập thành 03 bản. Mỗi bên giữ một bản và giao phòng NS 01 bản có giá trị như nhau."
+  ],
+
+  "signatures": [
+    {
+      "label": "P.QLCL",
+      "type": "selectNguoiKy",
+      "key": "nguoiKy_QLCL",
+      "maphongBan": "P.QLCL",
+      "capDuyet": 1,
+      "isChon": true,
+      "required": true
+    },
+    {
+      "label": "NM.TKVV",
+      "type": "selectNguoiKy",
+      "key": "nguoiKy_TKVV",
+      "maphongBan": "NM.TKVV",
+      "capDuyet": 0,
+      "isChon": true,
+      "required": true
+    }
+  ]
+}

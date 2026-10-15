@@ -1,6 +1,6 @@
 import { Button, message, Modal, Tag } from "antd";
 import dayjs from "dayjs";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { FilterFieldConfig } from "../../../components/PhieuFilterCard";
 import ThongKePhieuCommon, {
@@ -12,8 +12,8 @@ import type { SearchPhieuRequest } from "../../../models/Phieu";
 import type { PhieuFilterValues } from "../../../components/PhieuFilterCard";
 import { getPhieuStatusConfig, PHOI_TAM_STATUS_CONFIG } from "../../../utils/constants/TrangThaiPhieuDisplay";
 import { BM_CONFIG } from "../../../utils/configs/BieuMauConst";
-import { MayDucServiceApi } from "../../../services/MayDucServiceApi";
-import type { NhaMayEnum } from "../../../models/SiloModel";
+import { NhaMayEnum } from "../../../services/MayDucServiceApi";
+import { useMayDucOptions } from "../../../hooks/useMayDucOptions";
 import { dlnmHRC2Api } from "../../../services/DLNMHRC2Api";
 
 // Map maBm -> route chi tiết
@@ -61,30 +61,8 @@ interface ThongKePhieuHRC2Props {
 const ThongKePhieuHRC2 = ({ type }: ThongKePhieuHRC2Props) => {
   const navigate = useNavigate();
   const [selectedLoaiBM, setSelectedLoaiBM] = useState<string[]>([]);
-  const [mayDucOptions, setMayDucOptions] = useState<Array<{ label: string; value: number }>>([]);
+  const { options: mayDucOptions } = useMayDucOptions(NhaMayEnum.HRC2);
   const [gangMetricsLoading, setGangMetricsLoading] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await MayDucServiceApi.search({
-          nhaMay: 2 as NhaMayEnum,
-          isLock: false,
-          page: 1,
-          pageSize: 200,
-        });
-        if (cancelled) return;
-        setMayDucOptions((res.data || []).map((x) => ({ label: x.tenMayDuc, value: x.id })));
-      } catch (error) {
-        console.error("Load máy đúc options failed:", error);
-        if (!cancelled) setMayDucOptions([]);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const transformFilters = useCallback((filters: PhieuFilterValues): Partial<SearchPhieuRequest> => {
     const loaiBMList = (filters.loaiBM as (string | number)[] | undefined) ?? [];

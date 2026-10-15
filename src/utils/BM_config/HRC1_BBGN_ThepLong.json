@@ -30,13 +30,7 @@
       "type": "select",
       "key": "scope",
       "required": true,
-      "options": [
-        { "label": "TSC 1", "value": 1 , "tenScope": "TSC 1"},
-        { "label": "TSC 2", "value": 2 , "tenScope": "TSC 2"},
-        { "label": "Đúc vuông 1", "value": 3 , "tenScope": "Đúc vuông 1"},
-        { "label": "Đúc vuông 2", "value": 4 , "tenScope": "Đúc vuông 2"},
-        { "label": "Đúc vuông 3", "value": 5 , "tenScope": "Đúc vuông 3"}
-      ]
+      "options": []
     }
   ],
 

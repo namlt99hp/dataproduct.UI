@@ -166,4 +166,26 @@ export const MenuDataDashboard = [
       },
     ],
   },
+  {
+    category: "NM.TKVV",
+    icon: "nmtkvv",
+    color: "#019221ff",
+    items: [
+      {
+        code: "sanluongtkvv",
+        title: "BIÊN BẢN SẢN LƯỢNG",
+        maBm: BM_CONFIG.TKVV.TKVV_BB_SanLuong,
+      },
+      {
+        code: "baocaoslcptkvv",
+        title: "BÁO CÁO SẢN LƯỢNG & CHI PHÍ",
+        maBm: BM_CONFIG.TKVV.TKVV_BC_SanLuongChiPhi,
+      },
+      {
+        code: "tonsilotkvv",
+        title: "BM.05/QT.05.03 SỔ THEO DÕI XUẤT NHẬP TỒN SILO",
+        maBm: BM_CONFIG.TKVV.TKVV_TonSilo,
+      },
+    ],
+  },
 ];

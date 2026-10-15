@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactNode } from "react";
+import React, { useState, useEffect, type ReactNode } from "react";
 import {
   Table,
   Button,
@@ -8,6 +8,7 @@ import {
   Space,
   Spin,
   Tag,
+  Tooltip,
 } from "antd";
 import { DeleteOutlined, CopyOutlined } from "@ant-design/icons";
 
@@ -19,6 +20,7 @@ export interface FormColumnDef {
   fixed?: "left" | "right";
   format?: string;
   type?: "text" | "number" | "float" | "index" | string;
+  min?: number;
   readonly?: boolean;
   editable?: boolean;
   sum?: boolean;
@@ -27,7 +29,12 @@ export interface FormColumnDef {
   /** Nested header groups — hỗ trợ đệ quy nhiều cấp */
   children?: FormColumnDef[];
   /** Override toàn bộ cell render cho cột này */
-  renderCell?: (record: any, idx: number, onChange: (val: any) => void, disabled: boolean) => ReactNode;
+  renderCell?: (
+    record: any,
+    idx: number,
+    onChange: (val: any) => void,
+    disabled: boolean,
+  ) => ReactNode;
 }
 
 interface CustomFormTableProps {
@@ -65,6 +72,18 @@ interface CustomFormTableProps {
   showCloneButton?: boolean;
   cloneRowButtonText?: string;
   showRowCloneButton?: boolean;
+  /** Trả về style bổ sung và tooltip cho một ô cụ thể. */
+  cellDecorator?: (
+    dataIndex: string,
+    record: any,
+  ) =>
+    | { style?: React.CSSProperties; tooltip?: string | null }
+    | null
+    | undefined;
+  /** Render nút hành động tùy chỉnh per-row, hiển thị ở cột "Thao tác" cuối bảng. */
+  rowActions?: (record: any, rowIndex: number) => React.ReactNode;
+  /** Trả về true nếu ô (dataIndex, record) là readonly — ưu tiên cao hơn col.readonly. */
+  readonlyCellGetter?: (dataIndex: string, record: any) => boolean;
 }
 
 export default function CustomFormTable({
@@ -96,11 +115,15 @@ export default function CustomFormTable({
   showCloneButton = false,
   cloneRowButtonText = "+ Nhân dòng trên",
   showRowCloneButton = false,
+  cellDecorator,
+  rowActions,
+  readonlyCellGetter,
 }: CustomFormTableProps) {
   // Validate và filter input theo type
   const validateAndFormatInput = (
     value: string,
     type?: "text" | "number" | "float",
+    min?: number,
   ): string => {
     if (!type || type === "text") return value;
 
@@ -112,15 +135,24 @@ export default function CustomFormTable({
     }
 
     if (type === "float") {
-      // Cho phép số với dấu thập phân, dấu âm, và dấu cách (sẽ xóa sau)
-      const normalized = value.replace(/\s+/g, ""); // Xóa dấu cách
-      const match = normalized.match(/^-?[\d.]*$/);
-      if (!match) return normalized.replace(/[^0-9.-]/g, "");
+      const allowNegative = min === undefined || min < 0;
+      const normalized = allowNegative
+        ? value.replace(/\s+/g, "")
+        : value.replace(/\s+/g, "").replace(/-/g, "");
+      const pattern = allowNegative ? /^-?[\d.]*$/ : /^[\d.]*$/;
+      const match = normalized.match(pattern);
+      if (!match)
+        return normalized.replace(allowNegative ? /[^0-9.-]/g : /[^0-9.]/g, "");
 
       // Chỉ cho phép một dấu chấm
       const parts = normalized.split(".");
       if (parts.length > 2) {
-        return (parts[0] || "0") + "." + parts.slice(1).join("");
+        return (parts[0] || "0") + "." + parts.slice(1).join("").slice(0, 3);
+      }
+
+      // Giới hạn tối đa 3 chữ số thập phân
+      if (parts.length === 2 && parts[1].length > 3) {
+        return parts[0] + "." + parts[1].slice(0, 3);
       }
 
       return normalized;
@@ -136,11 +168,25 @@ export default function CustomFormTable({
     const normalized = raw.replace(/\s+/g, "").replace(",", ".");
     const n = Number(normalized);
     if (!Number.isFinite(n)) return raw;
-    const sign = n < 0 ? "-" : "";
-    const abs = Math.abs(n);
-    const [intPartRaw, fracRaw] = String(abs).split(".");
+    const rounded = Math.round(n * 1000) / 1000;
+    const sign = rounded < 0 ? "-" : "";
+    const abs = Math.abs(rounded);
+    const [intPartRaw, fracRaw] = abs.toFixed(3).split(".");
     const intPart = intPartRaw.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-    return fracRaw ? `${sign}${intPart}.${fracRaw}` : `${sign}${intPart}`;
+    return `${sign}${intPart}.${fracRaw}`;
+  };
+
+  const formatFloat3dp = (value: unknown): string => {
+    if (value === null || value === undefined || value === "") return "";
+    const raw = String(value).trim();
+    if (!raw) return "";
+    const n = Number(raw.replace(",", "."));
+    if (!Number.isFinite(n)) return raw;
+    const rounded = Math.round(n * 1000) / 1000;
+    const sign = rounded < 0 ? "-" : "";
+    const abs = Math.abs(rounded);
+    const [intPart, fracPart] = abs.toFixed(3).split(".");
+    return `${sign}${intPart}.${fracPart}`;
   };
 
   const formatIfNeeded = (format: unknown, value: unknown): string => {
@@ -182,6 +228,31 @@ export default function CustomFormTable({
     }
 
     return style;
+  };
+
+  /** Wrap một phần tử cell với Tooltip + style bổ sung từ cellDecorator */
+  const wrapCell = (
+    node: React.ReactElement,
+    dataIndex: string,
+    record: any,
+    baseStyle: React.CSSProperties,
+  ): React.ReactElement => {
+    const deco = cellDecorator?.(dataIndex, record);
+    if (!deco) return node;
+    const decorated = deco.style
+      ? React.cloneElement(
+          node as React.ReactElement<{ style?: React.CSSProperties }>,
+          { style: { ...baseStyle, ...deco.style } },
+        )
+      : node;
+    if (deco.tooltip) {
+      return (
+        <Tooltip title={deco.tooltip} color="#faad14">
+          {decorated}
+        </Tooltip>
+      );
+    }
+    return decorated;
   };
 
   // Sync với initialData khi có thay đổi
@@ -303,67 +374,67 @@ export default function CustomFormTable({
           title: col.title,
           width: col.width,
           fixed: col.fixed,
-          children: col.children.map(
-            (child: FormColumnDef) => {
-              const key = child.dataIndex ?? "";
-              return {
-                title: child.title,
-                dataIndex: key,
-                width: child.width,
-                render: (_: any, record: any, idx: number) =>
-                  readonlyFields.includes(key) ? (
-                    <Input
-                      placeholder={child.title}
-                      value={formatIfNeeded(
-                        (child as any)?.format,
-                        record[key],
-                      )}
-                      readOnly
-                      style={getCellStyle(
-                        key,
-                        record[key],
-                        record,
-                        true,
-                      )}
-                    />
-                  ) : (child as any).options ? (
-                    <Select
-                      placeholder={child.title}
-                      value={record[key] ?? undefined}
-                      onChange={(value) => {
-                        handleCellChange(value, idx, key);
-                      }}
-                      options={(child as any).options}
-                      disabled={!editable}
-                      style={{ width: "100%" }}
-                    />
-                  ) : (
-                    <Input
-                      placeholder={child.title}
-                      value={record[key] ?? ""}
-                      onChange={(e) => {
-                        const validated = validateAndFormatInput(
-                          e.target.value,
-                          (child as any)?.type,
-                        );
-                        handleCellChange(
-                          validated,
-                          idx,
-                          key,
-                        );
-                      }}
-                      disabled={!editable}
-                      style={getCellStyle(
-                        key,
-                        record[key],
-                        record,
-                        false,
-                      )}
-                    />
-                  ),
-              };
-            },
-          ),
+          children: col.children.map((child: FormColumnDef) => {
+            const key = child.dataIndex ?? "";
+            return {
+              title: child.title,
+              dataIndex: key,
+              width: child.width,
+              render: (_: any, record: any, idx: number) =>
+                readonlyFields.includes(key) ? (
+                  <Input
+                    placeholder={child.title}
+                    value={
+                      (child as any)?.type === "float"
+                        ? formatFloat3dp(record[key])
+                        : formatIfNeeded((child as any)?.format, record[key])
+                    }
+                    readOnly
+                    style={getCellStyle(key, record[key], record, true)}
+                  />
+                ) : (child as any).options ? (
+                  <Select
+                    placeholder={child.title}
+                    value={record[key] ?? undefined}
+                    onChange={(value) => {
+                      handleCellChange(value, idx, key);
+                    }}
+                    options={(child as any).options}
+                    disabled={!editable}
+                    style={{ width: "100%" }}
+                  />
+                ) : (
+                  <Input
+                    placeholder={child.title}
+                    value={record[key] ?? ""}
+                    onChange={(e) => {
+                      const validated = validateAndFormatInput(
+                        e.target.value,
+                        (child as any)?.type,
+                        (child as any)?.min,
+                      );
+                      handleCellChange(validated, idx, key);
+                    }}
+                    onBlur={() => {
+                      if ((child as any)?.type === "float") {
+                        const v = record[key];
+                        if (v !== "" && v != null) {
+                          const n = Number(String(v).replace(",", "."));
+                          if (Number.isFinite(n))
+                            handleCellChange(
+                              (Math.round(n * 1000) / 1000).toFixed(3),
+                              idx,
+                              key,
+                            );
+                        }
+                      }
+                    }}
+                    disabled={!editable}
+                    style={getCellStyle(key, record[key], record, false)}
+                  />
+                ),
+            };
+          }),
         };
       }
 
@@ -396,7 +467,10 @@ export default function CustomFormTable({
       }
 
       const dataIndex = col.dataIndex as string;
-      const isReadonly = col.readonly === true || col.editable === false || readonlyFields.includes(String(dataIndex));
+      const isReadonly =
+        col.readonly === true ||
+        col.editable === false ||
+        readonlyFields.includes(String(dataIndex));
 
       return {
         title: col.title,
@@ -404,18 +478,38 @@ export default function CustomFormTable({
         width: col.width,
         fixed: col.fixed,
         render: (_: any, record: any, idx: number) => {
-          if (isReadonly) {
-            return (
+          const isCellReadonly =
+            isReadonly || readonlyCellGetter?.(dataIndex, record) === true;
+          const baseStyleRo = getCellStyle(
+            dataIndex,
+            record[dataIndex],
+            record,
+            true,
+          );
+          if (isCellReadonly) {
+            const displayVal =
+              col.type === "float"
+                ? formatFloat3dp(record[dataIndex])
+                : formatIfNeeded(col.format, record[dataIndex]);
+            return wrapCell(
               <Input
                 placeholder={col.title}
-                value={formatIfNeeded(col.format, record[dataIndex])}
+                value={displayVal}
                 readOnly
-                style={getCellStyle(dataIndex, record[dataIndex], record, true)}
-              />
+                style={baseStyleRo}
+              />,
+              dataIndex,
+              record,
+              baseStyleRo,
             );
           }
           if (col.renderCell) {
-            return col.renderCell(record, idx, (val) => handleCellChange(val, idx, dataIndex), !editable);
+            return col.renderCell(
+              record,
+              idx,
+              (val) => handleCellChange(val, idx, dataIndex),
+              !editable,
+            );
           }
           if (col.options) {
             return (
@@ -429,17 +523,44 @@ export default function CustomFormTable({
               />
             );
           }
-          return (
+          const baseStyle = getCellStyle(
+            dataIndex,
+            record[dataIndex],
+            record,
+            false,
+          );
+          return wrapCell(
             <Input
               placeholder={col.title}
               value={record[dataIndex] ?? ""}
               onChange={(e) => {
-                const validated = validateAndFormatInput(e.target.value, col.type as "number" | "text" | "float" | undefined);
+                const validated = validateAndFormatInput(
+                  e.target.value,
+                  col.type as "number" | "text" | "float" | undefined,
+                  col.min,
+                );
                 handleCellChange(validated, idx, dataIndex);
               }}
+              onBlur={() => {
+                if (col.type === "float") {
+                  const v = record[dataIndex];
+                  if (v !== "" && v != null) {
+                    const n = Number(String(v).replace(",", "."));
+                    if (Number.isFinite(n))
+                      handleCellChange(
+                        (Math.round(n * 1000) / 1000).toFixed(3),
+                        idx,
+                        dataIndex,
+                      );
+                  }
+                }
+              }}
               disabled={!editable}
-              style={getCellStyle(dataIndex, record[dataIndex], record, false)}
-            />
+              style={baseStyle}
+            />,
+            dataIndex,
+            record,
+            baseStyle,
           );
         },
       };
@@ -489,6 +610,17 @@ export default function CustomFormTable({
                 </Popconfirm>
               </Space>
             ),
+          },
+        ]
+      : []),
+    ...(rowActions
+      ? [
+          {
+            title: "Thao tác",
+            key: "rowActions",
+            width: 80,
+            render: (_: any, record: any, rowIndex: number) =>
+              rowActions(record, rowIndex),
           },
         ]
       : []),

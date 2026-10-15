@@ -30,14 +30,12 @@ const MainHeader = ({ collapsed, setCollapsed }: any) => {
 
   const handleMenuClick = ({ key }: { key: string }) => {
     if (key === "logout") {
-      // 1. Xoá localStorage
       localStorage.removeItem("token");
-      localStorage.removeItem("auth"); // nếu bạn lưu redux-persist
-
-      // 2. Reset redux state
+      localStorage.removeItem("user");
+      localStorage.removeItem("username");
+      localStorage.removeItem("userinfo");
+      localStorage.removeItem("bmQuyenXlList");
       dispatch(logout());
-
-      // 3. Chuyển hướng về login
       navigate("/login");
     }
 

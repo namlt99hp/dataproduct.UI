@@ -1,6 +1,6 @@
 import { Button, message, Tooltip } from "antd";
 import dayjs from "dayjs";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { FilterFieldConfig } from "../../../components/PhieuFilterCard";
 import ThongKePhieuCommon, {
@@ -15,8 +15,8 @@ import { PhieuApi } from "../../../services/PhieuApi";
 import { getPhieuStatusConfig, PHOI_TAM_STATUS_CONFIG } from "../../../utils/constants/TrangThaiPhieuDisplay";
 import { BM_CONFIG } from "../../../utils/configs/BieuMauConst";
 import { TrangThaiPhieuConst } from "../../../utils/constants/TrangThaiPhieuConstant";
-import { MayDucServiceApi } from "../../../services/MayDucServiceApi";
-import type { NhaMayEnum } from "../../../models/SiloModel";
+import { NhaMayEnum } from "../../../services/MayDucServiceApi";
+import { useMayDucOptions } from "../../../hooks/useMayDucOptions";
 import { HRC1Api } from "../../../services/HRC1_BBGNApi";
 import { Tag, Modal } from "antd";
 import { dlnmHRC1Api } from "../../../services/DLNMHRC1Api";
@@ -61,29 +61,10 @@ interface ThongKePhieuHRC1Props {
 const ThongKePhieuHRC1 = ({ type }: ThongKePhieuHRC1Props) => {
   const navigate = useNavigate();
   const [selectedLoaiBM, setSelectedLoaiBM] = useState<string[]>([]);
-  const [mayDucOptions, setMayDucOptions] = useState<Array<{ label: string; value: number }>>([]);
+  const { options: mayDucOptions } = useMayDucOptions(NhaMayEnum.HRC1);
   const [exportLoading, setExportLoading] = useState(false);
   const [gangMetricsLoading, setGangMetricsLoading] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await MayDucServiceApi.search({
-          nhaMay: 1 as NhaMayEnum,
-          isLock: false,
-          page: 1,
-          pageSize: 200,
-        });
-        if (cancelled) return;
-        setMayDucOptions((res.data || []).map((x) => ({ label: x.tenMayDuc, value: x.id })));
-      } catch (error) {
-        console.error("Load máy đúc options failed:", error);
-        if (!cancelled) setMayDucOptions([]);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
 
   const transformFilters = useCallback((filters: PhieuFilterValues): Partial<SearchPhieuRequest> => {
     const loaiBMList = (filters.loaiBM as (string | number)[] | undefined) ?? [];

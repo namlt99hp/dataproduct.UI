@@ -7,6 +7,10 @@ export interface DonTrongPhoi {
   mac?: string | null;
   kichThuoc?: string | null;
   isXacNhan?: number | null;
+  maVatTu?: string | null;
+  tenVatTu?: string | null;
+  isSync?: number | null;
+  isLock?: number | null;
 }
 
 export interface DonTrongPhoiPayload {
@@ -36,6 +40,7 @@ export const DonTrongPhoiServiceApi = {
     mac?: string;
     kichThuoc?: string;
     isXacNhan?: number | null;
+    maVatTu?: string;
     page?: number;
     pageSize?: number;
   }): Promise<DonTrongPhoiSearchResponse> => {
@@ -44,6 +49,7 @@ export const DonTrongPhoiServiceApi = {
     if (params.mac) q.mac = params.mac;
     if (params.kichThuoc) q.kichThuoc = params.kichThuoc;
     if (params.isXacNhan != null) q.isXacNhan = params.isXacNhan;
+    if (params.maVatTu) q.maVatTu = params.maVatTu;
     if (params.page) q.page = params.page;
     if (params.pageSize) q.pageSize = params.pageSize;
     const res = (await apiService.get("/api/DonTrongPhoi/search", { params: q })) as DonTrongPhoiSearchResponse;
@@ -55,8 +61,14 @@ export const DonTrongPhoiServiceApi = {
     };
   },
 
-  getAll: async (): Promise<DonTrongPhoi[]> => {
-    return (await apiService.get("/api/DonTrongPhoi")) as DonTrongPhoi[];
+  getAll: async (options?: { excludeLocked?: boolean }): Promise<DonTrongPhoi[]> => {
+    const params: Record<string, string> = {};
+    if (options?.excludeLocked) params.excludeLocked = "true";
+    return (await apiService.get("/api/DonTrongPhoi", { params })) as DonTrongPhoi[];
+  },
+
+  toggleLock: async (id: number): Promise<void> => {
+    await apiService.put(`/api/DonTrongPhoi/${id}/toggle-lock`, {});
   },
 
   create: async (payload: DonTrongPhoiPayload): Promise<DonTrongPhoi> => {
@@ -92,5 +104,9 @@ export const DonTrongPhoiServiceApi = {
       headers: { "Content-Type": "multipart/form-data" },
     })) as ImportDonTrongPhoiResult;
     return res;
+  },
+
+  syncMaVatTu: async (): Promise<void> => {
+    await apiService.post("/api/DonTrongPhoi/sync-ma-vat-tu", {});
   },
 };

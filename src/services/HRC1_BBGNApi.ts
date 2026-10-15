@@ -95,6 +95,7 @@ export interface HRC1_MeChoNhanQuery {
 export interface HRC1_MayDucOptionVm {
   id: number;
   tenMayDuc: string;
+  isLock: boolean;
 }
 
 export interface HRC1_PhieuDataVm {
@@ -103,6 +104,7 @@ export interface HRC1_PhieuDataVm {
   maBm?: string | null;
   congDoan?: string | null;
   scope?: number | null;
+  tenScope?: string | null;
   ngaySX?: string | null;
   ca?: number | null;
   kip?: string | null;
@@ -316,6 +318,11 @@ export const HRC1Api = {
     apiService.post(`/api/hrc1/lo-thoi/${meId}/bo-xac-nhan`, null, { headers: userHeaders() }),
   lamMoiLoThoi: (meId: number) =>
     apiService.post(`/api/hrc1/lo-thoi/${meId}/lam-moi`, null, { headers: userHeaders() }),
+  // Mẻ lên thẳng: chuyển/hủy chuyển routing mẻ sang phiếu Đúc ca trước/sau (ca lò thổi giữ nguyên)
+  chuyenCaDucLoThoi: (meId: number, huong: "truoc" | "sau") =>
+    apiService.post("/api/hrc1/lo-thoi/chuyen-ca-duc", { meId, huong }, { headers: userHeaders() }),
+  huyChuyenCaDucLoThoi: (meId: number) =>
+    apiService.post("/api/hrc1/lo-thoi/huy-chuyen-ca-duc", { meId }, { headers: userHeaders() }),
 
   // Tinh luyện
   getChoNhan: (): Promise<HRC1_ChoNhanMeVm[]> =>

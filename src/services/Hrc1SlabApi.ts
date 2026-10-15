@@ -195,8 +195,9 @@ export const Hrc1SlabApi = {
     return (await apiService.post(`${BASE}/chuyen-phoi`, { idSlabs, idPhieuNguon, huong, nguoiChuyen })) as WorkflowResult;
   },
 
-  xacNhan: async (idSlabs: number[], loaiXacNhan: "Duc" | "Can" | "C4" | "PKH", nguoiThucHien: number): Promise<WorkflowResult> => {
-    return (await apiService.post(`${BASE}/xac-nhan`, { idSlabs, loaiXacNhan, nguoiThucHien })) as WorkflowResult;
+  // idPhieu bắt buộc khi loaiXacNhan = "C4" — BE chỉ cho XN C4 trên phiếu cũ đang "dính" luồng C4
+  xacNhan: async (idSlabs: number[], loaiXacNhan: "Duc" | "Can" | "C4" | "PKH", nguoiThucHien: number, idPhieu?: string): Promise<WorkflowResult> => {
+    return (await apiService.post(`${BASE}/xac-nhan`, { idSlabs, loaiXacNhan, nguoiThucHien, idPhieu })) as WorkflowResult;
   },
 
   huyXacNhan: async (idSlabs: number[], loaiXacNhan: "Duc" | "Can" | "C4" | "PKH", nguoiThucHien: number): Promise<WorkflowResult> => {

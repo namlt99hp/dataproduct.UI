@@ -258,7 +258,9 @@ const PhieuListView = ({ type }: { type?: "taoMoi" | "viecdentoi" | "xemphieu" }
         <Space size={4} wrap>
           {renderXacNhanTag("Đúc", record.soLuongXNDuc as number | null | undefined, record.soLuongSlab as number | null | undefined)}
           {renderXacNhanTag("Cán", record.soLuongXNCan as number | null | undefined, record.soLuongSlab as number | null | undefined)}
-          {renderXacNhanTag("GĐ/PGĐ NM", record.soLuongXNC4 as number | null | undefined, record.soLuongSlab as number | null | undefined)}
+          {/* Luồng C4 đã bỏ cho phiếu mới — chỉ hiện với phiếu cũ đang dính C4 (có slab đã được C4 XN) */}
+          {((record.soLuongXNC4 as number | null | undefined) ?? 0) > 0 &&
+            renderXacNhanTag("GĐ/PGĐ NM", record.soLuongXNC4 as number | null | undefined, record.soLuongSlab as number | null | undefined)}
           {renderXacNhanTag("PKH", record.soLuongXNPKH as number | null | undefined, record.soLuongSlab as number | null | undefined)}
         </Space>
       ),

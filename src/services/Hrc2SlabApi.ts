@@ -33,6 +33,7 @@ export interface HrcSlabSearchRequest {
   isTrungIDSlab?: boolean | null;
   isDiffMacThep?: boolean | null;
   isSaiLotName?: boolean | null;
+  isSuaKL?: boolean | null;
   trangThaiKCS?: number | null;
   trangThaiDuc?: number | null;
   trangThaiKho?: number | null;
@@ -56,7 +57,16 @@ export interface HrcSlabItem {
   chieuDay?: number | null;
   chieuRong?: number | null;
   chieuDai?: number | null;
+  // KL hiệu lực = khoiLuongManual ?? khoiLuongGoc — dùng cho mọi hiển thị/cộng tổng
   khoiLuong?: number | null;
+  // KL gốc từ nhà máy (BKMIS)
+  khoiLuongGoc?: number | null;
+  // KL KCS sửa tay (null = chưa sửa)
+  khoiLuongManual?: number | null;
+  lyDoSua?: string | null;
+  soBBSV?: string | null;
+  nguoiSuaKL?: string | null;
+  thoiDiemSuaKL?: string | null;
   khoiLuongTinhToan?: number | null;
   chatLuongTPHH?: string | null;
   thongTinPhoi?: string | null;
@@ -199,6 +209,16 @@ export const Hrc2SlabApi = {
 
   thuHoi: async (idSlabs: number[], nguoiThucHien: number): Promise<WorkflowResult> => {
     return (await apiService.post(`${BASE}/thu-hoi`, { idSlabs, nguoiThucHien })) as WorkflowResult;
+  },
+
+  suaKhoiLuong: async (req: {
+    idSlab: number;
+    khoiLuong: number;
+    lyDoSua?: string | null;
+    soBBSV?: string | null;
+    nguoiThucHien: number;
+  }): Promise<{ isReset: boolean; message: string }> => {
+    return (await apiService.post(`${BASE}/sua-khoi-luong`, req)) as { isReset: boolean; message: string };
   },
 
   xacNhan: async (idSlabs: number[], loaiXacNhan: "KCS" | "Duc" | "Kho" | "PKH", nguoiThucHien: number): Promise<WorkflowResult> => {

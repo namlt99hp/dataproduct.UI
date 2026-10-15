@@ -635,7 +635,8 @@ const TaoSoTheoDoiSanXuat = () => {
       section.sectionType === "table" && section.key === "table2",
   );
 
-  // Khi macPhoi thay đổi → xóa kichThuoc nếu không còn hợp lệ
+  // Khi macPhoi thay đổi → xóa kichThuoc + maVatTu nếu không còn hợp lệ
+  // Khi kichThuoc thay đổi → tự đổ maVatTu từ danh mục
   const handleTable1CellChange = useCallback((rowIndex: number, dataIndex: string, _value: any, row: any) => {
     if (dataIndex === "macPhoi") {
       const validKichThuocs = donTrongPhoiData
@@ -644,9 +645,19 @@ const TaoSoTheoDoiSanXuat = () => {
         .filter(Boolean);
       if (row.kichThuoc && !validKichThuocs.includes(row.kichThuoc)) {
         setTable1Data((prev) =>
-          prev.map((r, i) => (i === rowIndex ? { ...r, kichThuoc: null } : r)),
+          prev.map((r, i) => (i === rowIndex ? { ...r, kichThuoc: null, maVatTu: null } : r)),
         );
       }
+    }
+    if (dataIndex === "kichThuoc") {
+      const match = donTrongPhoiData.find(
+        (d) => d.mac === row.macPhoi && d.kichThuoc === _value,
+      );
+      setTable1Data((prev) =>
+        prev.map((r, i) =>
+          i === rowIndex ? { ...r, maVatTu: match?.maVatTu ?? null } : r,
+        ),
+      );
     }
   }, [donTrongPhoiData]);
 
@@ -693,6 +704,18 @@ const TaoSoTheoDoiSanXuat = () => {
               />
             );
           },
+        };
+      }
+      if (col.dataIndex === "maVatTu") {
+        return {
+          ...col,
+          renderCell: (record: any) => (
+            <Input
+              value={record.maVatTu || ""}
+              disabled
+              style={{ color: "#000", backgroundColor: "#f5f5f5", cursor: "default" }}
+            />
+          ),
         };
       }
       return col;

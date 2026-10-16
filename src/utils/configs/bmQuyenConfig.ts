@@ -312,5 +312,24 @@ export const bmQuyenConfig = {
       nhom: "NM.HRC1",
     },
 
+    // ─── Kho dữ liệu (vung 5 — quyền XEM) ────────────────────────────────────
+    { maBm: BM_CONFIG.KDL.KDL_HRC1_SanLuong,  tenBm: "Sản lượng phôi HRC1",        nhom: "Kho dữ liệu" },
+    { maBm: BM_CONFIG.KDL.KDL_HRC1_PhuLieu,   tenBm: "Phụ liệu HRC1",              nhom: "Kho dữ liệu" },
+    { maBm: BM_CONFIG.KDL.KDL_NL_NguyenLieu,  tenBm: "Nguyên vật liệu NL",         nhom: "Kho dữ liệu" },
+    { maBm: BM_CONFIG.KDL.KDL_HRC2_LuyenThep, tenBm: "Dữ liệu luyện thép HRC2",   nhom: "Kho dữ liệu" },
+    { maBm: BM_CONFIG.KDL.KDL_HRC2_PhuLieu,   tenBm: "Phụ liệu HRC2",              nhom: "Kho dữ liệu" },
+    { maBm: BM_CONFIG.KDL.KDL_HRC2_Silo,      tenBm: "Silo nguyên liệu HRC2",      nhom: "Kho dữ liệu" },
+    { maBm: BM_CONFIG.KDL.KDL_LG_Silo,        tenBm: "Quản lý tồn silo lò cao",    nhom: "Kho dữ liệu" },
+    { maBm: BM_CONFIG.KDL.KDL_LG_NapLieu,     tenBm: "Quản lý nạp liệu lò cao",    nhom: "Kho dữ liệu" },
+    { maBm: BM_CONFIG.KDL.KDL_TKVV_NVL,       tenBm: "Quản lý NVL & Mapping TKVV", nhom: "Kho dữ liệu" },
+    { maBm: BM_CONFIG.KDL.KDL_CanBangNL,      tenBm: "Cân bằng nguyên liệu",       nhom: "Kho dữ liệu" },
+
+    // ─── Quản trị (vung 6 — quyền XULY) ──────────────────────────────────────
+    { maBm: BM_CONFIG.QTRI.QTRI_PhanQuyen,    tenBm: "Phân quyền biểu mẫu", nhom: "Quản trị" },
+    { maBm: BM_CONFIG.QTRI.QTRI_MacThep,      tenBm: "Mác thép",             nhom: "Quản trị" },
+    { maBm: BM_CONFIG.QTRI.QTRI_MayDuc,       tenBm: "Máy đúc",              nhom: "Quản trị" },
+    { maBm: BM_CONFIG.QTRI.QTRI_MaVatTu,      tenBm: "Mã vật tư",            nhom: "Quản trị" },
+    { maBm: BM_CONFIG.QTRI.QTRI_DonTrongPhoi, tenBm: "Đơn trọng phôi",       nhom: "Quản trị" },
+
   ] as BieuMauQuyenItem[],
 };

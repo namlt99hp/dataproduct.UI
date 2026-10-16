@@ -25,6 +25,10 @@ export interface MenuPermissionsResponse {
   chotPhieuForms?: string[];
   /** Raw quyền mở rộng (>= 6) — FE tự tra `bmQuyenConfig.ts` để biết thuộc vùng nào. */
   extraQuyens?: ExtraQuyenMenuItem[];
+  /** Kho dữ liệu (vung 5): mã KDL_* có quyền XEM. */
+  kdlForms?: string[];
+  /** Quản trị (vung 6): mã QTRI_* có quyền XULY. */
+  qtriForms?: string[];
 }
 
 export const BmQuyenXlApi = {
@@ -62,6 +66,8 @@ export const BmQuyenXlApi = {
         maBm: (r.maBm ?? r.MaBm ?? "") as string,
         quyenChucNang: Number(r.quyenChucNang ?? r.QuyenChucNang ?? 0),
       })),
+      kdlForms: (d?.kdlForms ?? d?.KdlForms ?? []) as string[],
+      qtriForms: (d?.qtriForms ?? d?.QtriForms ?? []) as string[],
     };
   },
 

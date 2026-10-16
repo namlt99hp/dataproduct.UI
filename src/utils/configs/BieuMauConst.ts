@@ -46,5 +46,24 @@ export const BM_CONFIG = {
         TKVV_BC_SanLuongChiPhi: 'TKVV_BC_SanLuongChiPhi',
         TKVV_TonSilo: 'TKVV_TONSILO',
     },
+    KDL: {
+        KDL_HRC1_SanLuong:  'KDL_HRC1_SanLuong',
+        KDL_HRC1_PhuLieu:   'KDL_HRC1_PhuLieu',
+        KDL_NL_NguyenLieu:  'KDL_NL_NguyenLieu',
+        KDL_HRC2_LuyenThep: 'KDL_HRC2_LuyenThep',
+        KDL_HRC2_PhuLieu:   'KDL_HRC2_PhuLieu',
+        KDL_HRC2_Silo:      'KDL_HRC2_Silo',
+        KDL_LG_Silo:        'KDL_LG_Silo',
+        KDL_LG_NapLieu:     'KDL_LG_NapLieu',
+        KDL_TKVV_NVL:       'KDL_TKVV_NVL',
+        KDL_CanBangNL:      'KDL_CanBangNL',
+    },
+    QTRI: {
+        QTRI_PhanQuyen:    'QTRI_PhanQuyen',
+        QTRI_MacThep:      'QTRI_MacThep',
+        QTRI_MayDuc:       'QTRI_MayDuc',
+        QTRI_MaVatTu:      'QTRI_MaVatTu',
+        QTRI_DonTrongPhoi: 'QTRI_DonTrongPhoi',
+    },
 }
 

@@ -119,7 +119,8 @@ const SidebarMenu = () => {
   const filteredMenu = useMemo(() => {
     if (!user) return [];
     const isAdmin = isAdminUser(user);
-    const showAll = isAdmin || menuPermissions === null;
+    const isPKH = user?.tenNgan === "P.KH";
+    const showAll = isAdmin || isPKH || menuPermissions === null;
 
     // vung 1 = xử lý, vung 2 = phê duyệt, vung 3 = chỉ xem — luôn là danh sách thật
     // (không wildcard), để các item `strictMaBM` vẫn kiểm tra được đúng quyền thật
@@ -129,6 +130,8 @@ const SidebarMenu = () => {
       2: new Set<string>(menuPermissions?.approvingForms ?? []),
       3: new Set<string>(menuPermissions?.viewingForms ?? []),
       4: new Set<string>(menuPermissions?.chotPhieuForms ?? []),
+      5: new Set<string>(menuPermissions?.kdlForms ?? []),
+      6: new Set<string>(menuPermissions?.qtriForms ?? []),
     };
 
     // Quyền mở rộng riêng theo BM (value >= 6, vd "Xác nhận PCN") — BE chỉ trả raw
@@ -156,9 +159,19 @@ const SidebarMenu = () => {
       return items
         .filter((item) => {
           const roles = item.roles as string[] | undefined;
-          if (Array.isArray(roles) && roles.includes("admin")) return isAdmin;
-          if (Array.isArray(roles) && roles.includes("PKH"))
-            return user?.tenNgan === "P.KH";
+          if (Array.isArray(roles)) {
+            const passesRoles =
+              (roles.includes("admin") && isAdmin) ||
+              (roles.includes("PKH") && user?.tenNgan === "P.KH");
+            if (passesRoles) return true;
+            // Fallback: nếu item có vung và user có quyền trong vung đó → vẫn cho xem parent
+            const vung = item.vung as number | undefined;
+            if (vung != null) {
+              const set = vungSets[vung];
+              return set != null && set.size > 0;
+            }
+            return false;
+          }
           return true;
         })
         .map((item) => {

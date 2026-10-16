@@ -36,6 +36,7 @@ export const menuConfig = [
   {
     key: "sub1",
     label: "Kho dữ liệu",
+    vung: 5,
     roles: ["admin", "PKH"],
     icon: <AppstoreOutlined />,
     children: [
@@ -45,6 +46,7 @@ export const menuConfig = [
         children: [
           {
             key: "sub1-1.1",
+            maBM: BM_CONFIG.KDL.KDL_HRC1_SanLuong,
             label: (
               <Tooltip title="Phôi thép">
                 <NavLink to="/sanluongphoi">Sản lượng phôi</NavLink>
@@ -53,6 +55,7 @@ export const menuConfig = [
           },
           {
             key: "sub1-1.2",
+            maBM: BM_CONFIG.KDL.KDL_HRC1_PhuLieu,
             label: (
               <Tooltip title="Quản lý danh mục phụ liệu HRC1">
                 <NavLink to="/hrc1-phulieu">Phụ liệu HRC1</NavLink>
@@ -105,14 +108,14 @@ export const menuConfig = [
         label: "NM.NL",
         children: [
           {
-            key: "sub1-1.2",
+            key: "sub1-2-1",
+            maBM: BM_CONFIG.KDL.KDL_NL_NguyenLieu,
             label: (
               <Tooltip title="Nguyên Vật liệu">
                 <NavLink to="/nguyennhienlieu">Nguyên vật liệu</NavLink>
               </Tooltip>
             ),
           },
-          // { key: "6", label: "Option 6" },
         ],
       },
       {
@@ -120,7 +123,8 @@ export const menuConfig = [
         label: "NM.HRC2",
         children: [
           {
-            key: "sub1-1.3",
+            key: "sub1-3-1",
+            maBM: BM_CONFIG.KDL.KDL_HRC2_LuyenThep,
             label: (
               <Tooltip title="HRC2 - Dữ liệu luyện thép">
                 <NavLink to="/dlnmhrc2luyenthep">
@@ -130,7 +134,8 @@ export const menuConfig = [
             ),
           },
           {
-            key: "sub1-1.4",
+            key: "sub1-3-2",
+            maBM: BM_CONFIG.KDL.KDL_HRC2_PhuLieu,
             label: (
               <Tooltip title="HRC2 - Phụ Liệu">
                 <NavLink to="/header-mapping">HRC2 - Phụ Liệu</NavLink>
@@ -138,7 +143,8 @@ export const menuConfig = [
             ),
           },
           {
-            key: "sub1-1.5",
+            key: "sub1-3-3",
+            maBM: BM_CONFIG.KDL.KDL_HRC2_Silo,
             label: (
               <Tooltip title="HRC2 - Silo Nguyên liệu">
                 <NavLink to="/silo">HRC2 - Silo Nguyên liệu</NavLink>
@@ -152,7 +158,8 @@ export const menuConfig = [
         label: "NM.LG",
         children: [
           {
-            key: "sub1-4-0",
+            key: "sub1-4-1",
+            maBM: BM_CONFIG.KDL.KDL_LG_Silo,
             label: (
               <Tooltip title="Quản lý biểu mẫu tồn silo">
                 <NavLink to="/silolocao">Quản lý biểu mẫu tồn silo</NavLink>
@@ -161,6 +168,7 @@ export const menuConfig = [
           },
           {
             key: "sub1-4-2",
+            maBM: BM_CONFIG.KDL.KDL_LG_NapLieu,
             label: (
               <Tooltip title="Quản lý biểu mẫu nạp liệu lò cao">
                 <NavLink to="/quanlysilonvl">Quản lý biểu mẫu nạp liệu</NavLink>
@@ -175,6 +183,7 @@ export const menuConfig = [
         children: [
           {
             key: "sub1-5-1",
+            maBM: BM_CONFIG.KDL.KDL_TKVV_NVL,
             label: (
               <Tooltip title="Quản lý sản phẩm & Mapping TKVV">
                 <NavLink to="/quanlynvltkvv">Quản lý NVL & Mapping</NavLink>
@@ -184,11 +193,12 @@ export const menuConfig = [
         ],
       },
       {
-        key: "sub1-5",
+        key: "sub1-6",
         label: "Cân bằng NL",
         children: [
           {
-            key: "sub1-5-1",
+            key: "sub1-6-1",
+            maBM: BM_CONFIG.KDL.KDL_CanBangNL,
             label: (
               <Tooltip title="Cân bằng nguyên liệu: đối chiếu dữ liệu giao nhận và dữ liệu vào lò">
                 <NavLink to="/canbangnl">Cân bằng nguyên liệu</NavLink>
@@ -1528,10 +1538,12 @@ export const menuConfig = [
     key: "sub-admin",
     label: "Quản trị",
     icon: <SettingOutlined />,
+    vung: 6,
     roles: ["admin"],
     children: [
       {
         key: "admin-1",
+        maBM: BM_CONFIG.QTRI.QTRI_PhanQuyen,
         icon: <SafetyCertificateOutlined />,
         label: (
           <Tooltip title="Phân quyền xử lý biểu mẫu theo khu vực">
@@ -1541,6 +1553,7 @@ export const menuConfig = [
       },
       {
         key: "admin-2",
+        maBM: BM_CONFIG.QTRI.QTRI_MacThep,
         icon: <SettingOutlined />,
         label: (
           <Tooltip title="Quản lý mác thép">
@@ -1550,6 +1563,7 @@ export const menuConfig = [
       },
       {
         key: "admin-3",
+        maBM: BM_CONFIG.QTRI.QTRI_MayDuc,
         icon: <SettingOutlined />,
         label: (
           <Tooltip title="Quản lý máy đúc">
@@ -1559,6 +1573,7 @@ export const menuConfig = [
       },
       {
         key: "admin-4",
+        maBM: BM_CONFIG.QTRI.QTRI_MaVatTu,
         icon: <SettingOutlined />,
         label: (
           <Tooltip title="Quản lý mã vật tư">
@@ -1568,6 +1583,7 @@ export const menuConfig = [
       },
       {
         key: "admin-5",
+        maBM: BM_CONFIG.QTRI.QTRI_DonTrongPhoi,
         icon: <SettingOutlined />,
         label: (
           <Tooltip title="Quản lý đơn trọng phôi">

@@ -20,7 +20,9 @@ import {
   Select,
   Space,
   Table,
+  Tabs,
 } from "antd";
+import BaiLieu1Tab from "./BaiLieu1Tab";
 import { DeleteTwoTone, EyeOutlined, SearchOutlined } from "@ant-design/icons";
 import { useEffect, useState } from "react";
 import dayjs from "dayjs";
@@ -255,7 +257,7 @@ const BKNguyenLieu = ({}: { type?: string }) => {
     },
   ];
 
-  return (
+  const nvlContent = (
     <div>
       <Card style={{ marginBottom: 16 }} title="Nguyên Vật liệu">
         <Row gutter={[16, 16]}>
@@ -391,6 +393,15 @@ const BKNguyenLieu = ({}: { type?: string }) => {
         </Form>
       </Modal>
     </div>
+  );
+
+  return (
+    <Tabs
+      items={[
+        { key: "nvl", label: "Nguyên vật liệu", children: nvlContent },
+        { key: "bai-lieu", label: "Bãi liệu 1", children: <BaiLieu1Tab /> },
+      ]}
+    />
   );
 };
 

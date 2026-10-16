@@ -91,7 +91,7 @@ const BaiLieu1Tab = () => {
     setLoading(true);
     try {
       const res = await nguyenlieuApi.getCanBangTai(date.format("YYYY-MM-DD"));
-      setData((res as CanBangTaiRow[]) ?? []);
+      setData((res as unknown as CanBangTaiRow[]) ?? []);
     } catch (err) {
       console.error("Lỗi tải dữ liệu bãi liệu:", err);
     } finally {

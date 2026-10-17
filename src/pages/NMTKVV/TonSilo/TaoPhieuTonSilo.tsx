@@ -148,18 +148,15 @@ const fromInitRecord = (item: TKVVTonSiloRowDto, idx: number): TableRow => ({
   ghiChu: item.ghiChu ?? "",
 });
 
-// Nhóm cùng silo ở gần nhau; trong cùng silo sort theo NVL; chưa gán NVL xuống dưới
+// Sort theo ThuTu từ mapping; dòng tách liệu cùng silo giữ nguyên thứ tự ID; chưa gán NVL xuống dưới
 const sortSiloRows = (rows: TableRow[]): TableRow[] => {
   const withNvl = rows.filter((r) => r.nguyenVatLieuID != null);
   const withoutNvl = rows.filter((r) => r.nguyenVatLieuID == null);
   withNvl.sort((a, b) => {
-    const siloCompare = String(a.maSilo ?? "").localeCompare(
-      String(b.maSilo ?? ""),
-      undefined,
-      { numeric: true },
-    );
-    if (siloCompare !== 0) return siloCompare;
-    return (a.nguyenVatLieuID as number) - (b.nguyenVatLieuID as number);
+    const thuTuA = a.thuTu ?? Number.MAX_SAFE_INTEGER;
+    const thuTuB = b.thuTu ?? Number.MAX_SAFE_INTEGER;
+    if (thuTuA !== thuTuB) return thuTuA - thuTuB;
+    return (a.id as number) - (b.id as number);
   });
   return [...withNvl, ...withoutNvl];
 };
@@ -504,15 +501,17 @@ const TaoPhieuTonSilo = () => {
       let isToday = true;
 
       if (source.length === 0) {
-        const nearest = await tkvvNvlSiloMappingApi.getNearest({
+        // Chưa có mapping cho (ngaySX, ca) → auto-clone từ ca gần nhất, lưu vào DB luôn
+        const ensured = await tkvvNvlSiloMappingApi.ensureMapping({
+          ngaySX: ngayStr,
+          ca: caValue,
           scope: scopeNum,
-          beforeDate: ngayStr,
         });
-        source = (nearest ?? []).filter((m) => m.ca === caValue);
+        source = (ensured ?? []).filter((m) => m.ca === caValue);
         fromDate = source[0]?.ngaySX
           ? String(source[0].ngaySX).slice(0, 10)
           : "";
-        isToday = false;
+        isToday = fromDate === ngayStr;
       }
 
       // Xây map override: siloID → nvlId (từ tách liệu ca trước)

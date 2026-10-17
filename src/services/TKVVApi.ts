@@ -222,6 +222,9 @@ export const tkvvNvlSiloMappingApi = {
   getNearest: (params: { maBM?: string; scope: string; beforeDate: string }): Promise<TKVVNvlSiloMappingDto[]> =>
     apiService.get("/api/TKVV_Silo/nvl-silo-mapping/nearest", { params }),
 
+  ensureMapping: (params: { ngaySX: string; ca: number; scope: string }): Promise<TKVVNvlSiloMappingDto[]> =>
+    apiService.get("/api/TKVV_Silo/nvl-silo-mapping/ensure", { params }),
+
   batchCreate: (dto: {
     maBM: string; scope: string; ngaySX: string;
     rows: { id?: number | null; maBM?: string | null; nguyenVatLieuID: number; siloID: number | null; ca: number; thuTu: number | null }[];

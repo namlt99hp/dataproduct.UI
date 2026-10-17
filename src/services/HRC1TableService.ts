@@ -6,6 +6,7 @@ import type {
 } from "../components/CustomTableHRC";
 import type { HeaderMappingRecord } from "../components/HeaderMapping";
 import { PhieuApi } from "./PhieuApi";
+import { STD_NXT_HRC1ServiceApi } from "./STD_NXT_HRC1ServiceApi";
 
 // Bản sao riêng cho HRC1 (BOF/LF), tách khỏi HRC2TableService.ts để sửa logic riêng cho HRC1
 // (vd merge dữ liệu bảng) mà không ảnh hưởng tới các trang HRC2 đang dùng file gốc.
@@ -589,5 +590,20 @@ export const hrc1TableService = {
   checkChotPhieuTieuHao: async (ngaySX: string, ca: number): Promise<boolean> => {
     const res = await PhieuApi.checkChotPhieuTieuHao(ngaySX, ca);
     return res.data === 2 ? true : false;
+  },
+
+  /**
+   * Chặn "Chốt" phiếu Tiêu hao (BOF/LF) nếu "Thống kê" (phụ liệu thực tế + phân bổ) của bất kỳ phụ
+   * liệu nào đang âm cho đúng công đoạn + Ngày/Ca của phiếu — xem cột Chênh lệch ở Sổ Xuất-Nhập-Tồn
+   * (SummaryTableSTD_HRC1.tsx) giờ cho phép phân bổ ra số âm. Mirror hrc2TableService.
+   */
+  checkNoNegativeThongKe: async (
+    ngaySX: string,
+    ca: number,
+    bieuMau: "BOF" | "LF"
+  ): Promise<{ ok: boolean; negativePhuLieus: string[] }> => {
+    const res = await STD_NXT_HRC1ServiceApi.checkNegativeThongKe({ NgaySX: ngaySX, Ca: ca, BieuMau: bieuMau });
+    const negativePhuLieus = (res as any)?.data ?? [];
+    return { ok: negativePhuLieus.length === 0, negativePhuLieus };
   },
 };

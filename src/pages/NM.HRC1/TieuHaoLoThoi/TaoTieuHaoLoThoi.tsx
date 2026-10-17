@@ -157,6 +157,7 @@ const TaoTieuHaoLoThoi = () => {
         variant: "adjust" as const,
         metaLabel: meta.headerKeyLabel ?? "Phân bổ",
         headerKeyId: meta.headerKeyId ?? null,
+        sum: true,
       }));
   }, [adjustColumnMetas]);
 
@@ -658,6 +659,16 @@ const TaoTieuHaoLoThoi = () => {
       nguoiTaoId: phieuInfo.nguoiTaoId ?? null,
       phieuPhongBanId: phieuInfo.idphongBan ?? null,
       pheDuyet: phieuInfo.pheDuyet ?? [],
+      preConfirmCheck: async () => {
+        const { ok, negativePhuLieus } = await hrc1TableService.checkNoNegativeThongKe(
+          dayjs(ngaySX).format("YYYY-MM-DD"), ca, "BOF"
+        );
+        if (!ok) {
+          message.error(`Thống kê phụ liệu ${negativePhuLieus.join(", ")} đang âm (phân bổ chênh lệch âm vượt quá lượng thực tế đã dùng). Vui lòng kiểm tra lại trước khi chốt.`);
+          return false;
+        }
+        return true;
+      },
       redirectToList,
       // Nhân bản riêng dòng Hrc1TieuHao/Hrc1PhuLieu cho phiếu clone "Đề nghị hiệu chỉnh" — BE tự no-op
       // nếu không phải phiếu clone, an toàn khi cũng bị gọi ở các lần Lưu bình thường.
@@ -670,7 +681,7 @@ const TaoTieuHaoLoThoi = () => {
 
     if (buttons.length === 0) return null;
     return phieuActionService.renderActionButtons(buttons, idphieu || "", getFormData);
-  }, [getUserInfo, idphieu, phieuInfo, getFormData, handleActionSuccess, redirectToList]);
+  }, [getUserInfo, idphieu, phieuInfo, getFormData, handleActionSuccess, redirectToList, ngaySX, ca]);
 
   return (
     <>

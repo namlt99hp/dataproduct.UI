@@ -1,9 +1,11 @@
 import type {
+  STD_NXT_CheckNegativeThongKeRequest,
   STD_NXT_HRC2_GetDetailResponse,
   STD_NXT_HRC2_KhongPhanBoDto,
   STD_NXT_HRC2_NhapXuatTonRow,
   STD_NXT_HRC2_NhapXuatTonSearchRequest,
   STD_NXT_HRC2_PhanBoDto,
+  STD_NXT_HRC2_ResetAllDto,
   STD_NXT_HRC2_UpsertDto,
   STD_NXT_RelatedPhieuStatusRequest,
   STD_NXT_RelatedPhieuStatusResponse,
@@ -21,6 +23,10 @@ export const STD_NXT_HRC2ServiceApi = {
     apiService.post<{ data: STD_NXT_RelatedPhieuStatusResponse }>("/api/STD_NXT_HRC2/related-phieu-statuses", data),
   khongPhanBo: (data: STD_NXT_HRC2_KhongPhanBoDto) =>
     apiService.post<{ data: boolean }>("/api/STD_NXT_HRC2/khong-phan-bo", data),
+  resetAllPhanBo: (data: STD_NXT_HRC2_ResetAllDto) =>
+    apiService.post<{ data: boolean }>("/api/STD_NXT_HRC2/reset-all-phan-bo", data),
+  checkNegativeThongKe: (data: STD_NXT_CheckNegativeThongKeRequest) =>
+    apiService.post<{ data: string[] }>("/api/STD_NXT_HRC2/check-negative-thongke", data),
   searchNhapXuatTon: (data: STD_NXT_HRC2_NhapXuatTonSearchRequest) =>
     apiService.post<{ data: STD_NXT_HRC2_NhapXuatTonRow[] }>(
       "/api/STD_NXT_HRC2/search-nhapxuatton",

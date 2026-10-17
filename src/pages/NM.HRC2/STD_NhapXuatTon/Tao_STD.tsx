@@ -133,7 +133,9 @@ const Tao_STD = () => {
       const summary: NXTSummaryDto[] = Object.keys(grouped).map((name) => {
         const g = grouped[name];
         const tongSuDung = g.tonDau + g.nhap - g.tonCuoi;
-        const chenh = Math.abs(tongSuDung - g.sdss);
+        // Giữ dấu (không abs) — phải khớp với công thức có dấu dùng ở SummaryTableSTD
+        // và payload gửi PhanBoAsync, nếu không BE sẽ luôn throw chenhLechDiff khi âm (abs vs có dấu).
+        const chenh = tongSuDung - g.sdss;
         return {
           Id_HeaderKey: g.id,
           TenNguyenLieu: name,
@@ -704,27 +706,14 @@ const Tao_STD = () => {
       if (!idphieu || rows.length === 0) return;
       setLoading(true);
       try {
-        await Promise.all(
-          rows.map((r) =>
-            r.IsPhanBo
-              ? STD_NXT_HRC2ServiceApi.thuHoiPhanBo({
-                  NgaySX: r.NgaySX,
-                  Ca: r.Ca,
-                  Id_HeaderKey: r.Id_HeaderKey,
-                  ChenhLech: r.ChenhLech,
-                  IdPhieu: idphieu,
-                  TyLeBOF: 0,
-                  TyLeTinhLuyen: 0,
-                  TyLeRH: 0,
-                })
-              : STD_NXT_HRC2ServiceApi.khongPhanBo({
-                  NgaySX: r.NgaySX,
-                  Ca: r.Ca,
-                  Id_HeaderKey: r.Id_HeaderKey,
-                  IdPhieu: idphieu,
-                })
-          )
-        );
+        // Gộp thành 1 request duy nhất (xử lý tuần tự trong 1 transaction ở BE) thay vì bắn song song
+        // N request thu-hoi-phan-bo/khong-phan-bo — tránh tranh lock SQL Server gây lỗi transient.
+        await STD_NXT_HRC2ServiceApi.resetAllPhanBo({
+          IdPhieu: idphieu,
+          NgaySX: rows[0].NgaySX,
+          Ca: rows[0].Ca,
+          Items: rows.map((r) => ({ Id_HeaderKey: r.Id_HeaderKey, IsPhanBo: r.IsPhanBo })),
+        });
         message.success(`Đã reset ${rows.length} phụ liệu về trạng thái ban đầu.`);
       } catch (err: any) {
         message.error(err?.message || "Reset tất cả thất bại. Vui lòng thử lại.");

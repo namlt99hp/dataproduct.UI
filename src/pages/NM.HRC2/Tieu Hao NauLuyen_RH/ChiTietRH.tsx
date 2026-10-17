@@ -370,6 +370,7 @@ const ChiTietTieuHaoNauLuyen_RH = () => {
         variant: "adjust" as const,
         metaLabel: meta.headerKeyLabel ?? "Phân bổ",
         headerKeyId: meta.headerKeyId ?? null,
+        sum: true,
       }));
 
     const adjustChildColumns: HRCChildColumn[] = adjustMetas
@@ -574,11 +575,18 @@ const ChiTietTieuHaoNauLuyen_RH = () => {
       pheDuyet: data.pheDuyet ?? [],
       preConfirmCheck: async () => {
         const isChot = await hrc2TableService.checkChotPhieuTieuHao(formData?.NgaySX, formData?.ca);
-        if (isChot) {
-          return true;
+        if (!isChot) {
+          message.error("Sổ theo dõi nhập xuất tồn chưa được chốt.");
+          return false;
         }
-        message.error("Sổ theo dõi nhập xuất tồn chưa được chốt.");
-        return false;
+        const { ok, negativePhuLieus } = await hrc2TableService.checkNoNegativeThongKe(
+          formData?.NgaySX, formData?.ca, "RH"
+        );
+        if (!ok) {
+          message.error(`Thống kê phụ liệu ${negativePhuLieus.join(", ")} đang âm (phân bổ chênh lệch âm vượt quá lượng thực tế đã dùng). Vui lòng kiểm tra lại trước khi chốt.`);
+          return false;
+        }
+        return true;
       },
       redirectToList,
       onSuccess: handleActionSuccess,

@@ -159,6 +159,28 @@ export interface STD_NXT_HRC2_KhongPhanBoDto{
   Id_HeaderKey: number;
 }
 
+/** 1 phụ liệu cần reset — IsPhanBo cho biết trạng thái hiện tại trước khi reset. */
+export interface STD_NXT_HRC2_ResetAllItemDto {
+  Id_HeaderKey: number;
+  IsPhanBo: boolean;
+}
+
+/** Payload gộp reset tất cả phụ liệu của 1 phiếu trong 1 request (thay cho gọi song song N request). */
+export interface STD_NXT_HRC2_ResetAllDto {
+  IdPhieu: string;
+  NgaySX: string;
+  Ca: number;
+  Items: STD_NXT_HRC2_ResetAllItemDto[];
+}
+
+/** Request kiểm tra "Thống kê" (phụ liệu thực tế + phân bổ) có đang âm không, cho đúng công đoạn
+ * (BieuMau: BOF/LF/RH) trong 1 Ngày/Ca — dùng khi "Chốt" phiếu Tiêu hao. */
+export interface STD_NXT_CheckNegativeThongKeRequest {
+  NgaySX: string;
+  Ca: number;
+  BieuMau: "BOF" | "LF" | "RH";
+}
+
 /**
  * Payload lọc "Nhập Xuất Tồn" (đối chiếu tồn cuối ca trước / tồn đầu ca sau) theo khoảng ngày.
  */

@@ -119,7 +119,7 @@ export default function SummaryTableSTD({
       const totalTonCuoiCa = rows.reduce((sum, r) => sum + (parseFloat(String(r.tonCuoiCa || 0)) || 0), 0);
       const totalSDTrongSoSach = rows.reduce((sum, r) => sum + (parseFloat(String(r.tongThucTe || 0)) || 0), 0);
       const totalSuDung = totalTonDauCa + totalNhapTrongCa - totalTonCuoiCa;
-      const totalChenhLech = Math.abs(totalSuDung - totalSDTrongSoSach);
+      const totalChenhLech = totalSuDung - totalSDTrongSoSach;
 
       // Công đoạn có sử dụng phụ liệu = có ít nhất 1 dòng khu vực thuộc công đoạn đó với tongThucTe != 0
       const isUsedAt = (bieuMau: string) =>
@@ -180,14 +180,21 @@ export default function SummaryTableSTD({
         baseRow.KLTK_LF = meta.kltK_LF ?? meta.kltk_LF ?? meta.KLTK_LF ?? null;
         baseRow.KLTK_RH = meta.kltK_RH ?? meta.kltk_RH ?? meta.KLTK_RH ?? null;
 
-        // Ưu tiên chênh lệch từ BE (sau khi phân bổ/thu hồi BE có thể cập nhật lại)
+        // Ưu tiên chênh lệch từ BE, nhưng chỉ khi dòng đã được xử lý (đã phân bổ/không phân bổ) —
+        // lúc đó BE có thể đã cập nhật lại ChenhLech theo số liệu đã chốt. Khi chưa xử lý, luôn
+        // dùng giá trị vừa tính từ table1Data hiện tại (có thể âm) để không hiển thị số liệu cũ/stale.
         const chenhLechFromServer =
           meta.totalChenhLech ??
           meta.TotalChenhLech ??
           meta.chenhLech ??
           meta.ChenhLech ??
           null;
-        if (chenhLechFromServer !== null && chenhLechFromServer !== undefined && chenhLechFromServer !== "") {
+        if (
+          baseRow.IsPhanBo !== null &&
+          chenhLechFromServer !== null &&
+          chenhLechFromServer !== undefined &&
+          chenhLechFromServer !== ""
+        ) {
           baseRow.totalChenhLech = chenhLechFromServer;
           baseRow._chenhLechFromServer = true;
         }
@@ -207,16 +214,16 @@ export default function SummaryTableSTD({
       // Nếu BE đã trả chênh lệch (đã chuẩn hoá), không tự tính lại để tránh lệch dữ liệu sau phân bổ
       if (row._chenhLechFromServer === true) {
         const num = parseFloat(String(row.totalChenhLech ?? 0)) || 0;
-        return { ...row, totalChenhLech: Math.abs(num) };
+        return { ...row, totalChenhLech: num };
       }
-      
+
       const suDung = typeof row.totalSuDung === "number" ? row.totalSuDung : parseFloat(String(row.totalSuDung || 0));
       const sdTrongSoSach = parseFloat(String(row.totalSDTrongSoSach || 0)) || 0;
       const chenhLech = suDung - sdTrongSoSach;
-      
+
       return {
         ...row,
-        totalChenhLech: Math.abs(chenhLech),
+        totalChenhLech: chenhLech,
       };
     });
   }, [summaryData]);
@@ -377,13 +384,8 @@ export default function SummaryTableSTD({
     onDataChange?.(updatedData);
   };
 
-  const formatNumber = (value: string | number, showNegativeInParentheses = false) => {
-    const formatted = formatVi(value);
-    if (!formatted) return "";
-    if (showNegativeInParentheses && String(value).startsWith("-")) {
-      return `(${formatted.replace("-", "")})`;
-    }
-    return formatted;
+  const formatNumber = (value: string | number) => {
+    return formatVi(value);
   };
 
   const renderCell = (record: any, col: any) => {
@@ -450,8 +452,13 @@ export default function SummaryTableSTD({
 
     if (isReadonly) {
       if (isNumberColumn && (value || value === 0)) {
-        const formatted = formatNumber(value, isChenhLechColumn);
-        return <span style={{ textAlign: "right", display: "block" }}>{formatted}</span>;
+        const formatted = formatNumber(value);
+        const isNegativeChenhLech = isChenhLechColumn && (parseFloat(String(value)) || 0) < 0;
+        return (
+          <span style={{ textAlign: "right", display: "block", color: isNegativeChenhLech ? "#cf1322" : undefined }}>
+            {formatted}
+          </span>
+        );
       }
       return <span>{value}</span>;
     }

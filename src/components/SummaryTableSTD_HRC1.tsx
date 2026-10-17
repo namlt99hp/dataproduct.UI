@@ -124,7 +124,7 @@ export default function SummaryTableSTD_HRC1({
       const totalTonCuoiCa = rows.reduce((sum, r) => sum + (parseFloat(String(r.tonCuoiCa || 0)) || 0), 0);
       const totalSDTrongSoSach = rows.reduce((sum, r) => sum + (parseFloat(String(r.tongThucTe || 0)) || 0), 0);
       const totalSuDung = totalTonDauCa + totalNhapTrongCa - totalTonCuoiCa;
-      const totalChenhLech = Math.abs(totalSuDung - totalSDTrongSoSach);
+      const totalChenhLech = totalSuDung - totalSDTrongSoSach;
 
       // Công đoạn có sử dụng phụ liệu = có ít nhất 1 dòng khu vực thuộc công đoạn đó với tongThucTe != 0
       const isUsedAt = (bieuMau: string) =>
@@ -178,13 +178,21 @@ export default function SummaryTableSTD_HRC1({
         baseRow.KLTK_BOF = meta.kltK_BOF ?? meta.kltk_BOF ?? meta.KLTK_BOF ?? null;
         baseRow.KLTK_LF = meta.kltK_LF ?? meta.kltk_LF ?? meta.KLTK_LF ?? null;
 
+        // Ưu tiên chênh lệch từ BE, nhưng chỉ khi dòng đã được xử lý (đã phân bổ/không phân bổ) —
+        // lúc đó BE có thể đã cập nhật lại ChenhLech theo số liệu đã chốt. Khi chưa xử lý, luôn
+        // dùng giá trị vừa tính từ table1Data hiện tại (có thể âm) để không hiển thị số liệu cũ/stale.
         const chenhLechFromServer =
           meta.totalChenhLech ??
           meta.TotalChenhLech ??
           meta.chenhLech ??
           meta.ChenhLech ??
           null;
-        if (chenhLechFromServer !== null && chenhLechFromServer !== undefined && chenhLechFromServer !== "") {
+        if (
+          baseRow.IsPhanBo !== null &&
+          chenhLechFromServer !== null &&
+          chenhLechFromServer !== undefined &&
+          chenhLechFromServer !== ""
+        ) {
           baseRow.totalChenhLech = chenhLechFromServer;
           baseRow._chenhLechFromServer = true;
         }
@@ -201,7 +209,7 @@ export default function SummaryTableSTD_HRC1({
       if (row._isTotalRow) return row;
       if (row._chenhLechFromServer === true) {
         const num = parseFloat(String(row.totalChenhLech ?? 0)) || 0;
-        return { ...row, totalChenhLech: Math.abs(num) };
+        return { ...row, totalChenhLech: num };
       }
 
       const suDung = typeof row.totalSuDung === "number" ? row.totalSuDung : parseFloat(String(row.totalSuDung || 0));
@@ -210,7 +218,7 @@ export default function SummaryTableSTD_HRC1({
 
       return {
         ...row,
-        totalChenhLech: Math.abs(chenhLech),
+        totalChenhLech: chenhLech,
       };
     });
   }, [summaryData]);
@@ -367,13 +375,8 @@ export default function SummaryTableSTD_HRC1({
     onDataChange?.(updatedData);
   };
 
-  const formatNumber = (value: string | number, showNegativeInParentheses = false) => {
-    const formatted = formatVi(value);
-    if (!formatted) return "";
-    if (showNegativeInParentheses && String(value).startsWith("-")) {
-      return `(${formatted.replace("-", "")})`;
-    }
-    return formatted;
+  const formatNumber = (value: string | number) => {
+    return formatVi(value);
   };
 
   const renderCell = (record: any, col: any) => {
@@ -439,8 +442,8 @@ export default function SummaryTableSTD_HRC1({
 
     if (isReadonly) {
       if (isNumberColumn && (value || value === 0)) {
-        const formatted = formatNumber(value, isChenhLechColumn);
-        const isNeg = NEGATIVE_HIGHLIGHT_COLS.includes(dataIndex) && isNegativeNumber(value);
+        const formatted = formatNumber(value);
+        const isNeg = (NEGATIVE_HIGHLIGHT_COLS.includes(dataIndex) || isChenhLechColumn) && isNegativeNumber(value);
         return (
           <span
             style={{
@@ -612,14 +615,15 @@ export default function SummaryTableSTD_HRC1({
       const isLoading = loadingMap[record.key];
       const isLocked = !!lockedTooltip;
       // Chặn Phân bổ/Không PB khi các cột tổng hợp tính toán (xem NEGATIVE_HIGHLIGHT_COLS) đang âm —
-      // dữ liệu chưa hợp lệ thì không nên cho xử lý phân bổ chênh lệch dựa trên số sai.
-      const hasNegativeSummary = NEGATIVE_HIGHLIGHT_COLS.some((col) => isNegativeNumber(record[col]));
+      // dữ liệu chưa hợp lệ thì không nên cho xử lý phân bổ chênh lệch dựa trên số sai. Chênh lệch tự
+      // nó được PHÉP âm (không chặn) — xem SummaryTableSTD.tsx/giải trình đổi logic cột chênh lệch.
+      const hasBlockingNegative = NEGATIVE_HIGHLIGHT_COLS.some((col) => isNegativeNumber(record[col]));
       const negativeTooltip = "Số liệu tổng hợp (tồn đầu/nhập/tồn cuối/tổng sử dụng) đang âm — vui lòng kiểm tra lại trước khi phân bổ.";
 
       const wrapLocked = (btn: React.ReactNode) =>
         isLocked ? <Tooltip title={lockedTooltip}><span style={{ display: "inline-block" }}>{btn}</span></Tooltip> : btn;
       const wrapNegative = (btn: React.ReactNode) =>
-        hasNegativeSummary ? <Tooltip title={negativeTooltip}><span style={{ display: "inline-block" }}>{btn}</span></Tooltip> : btn;
+        hasBlockingNegative ? <Tooltip title={negativeTooltip}><span style={{ display: "inline-block" }}>{btn}</span></Tooltip> : btn;
 
       let btnPhanBo: React.ReactNode;
       if (isPhanBo === true) {
@@ -637,7 +641,7 @@ export default function SummaryTableSTD_HRC1({
         // Không công đoạn nào có sử dụng (theo tongThucTe) -> không có chỗ nhận phân bổ, chỉ dùng "Không PB"
         const noCongDoanUsed = TY_LE_FIELDS.every((f) => isTyLeLocked(record, f));
         const wrapNoCongDoan = (btn: React.ReactNode) =>
-          noCongDoanUsed && isPhanBo === null && !isLocked && !hasNegativeSummary
+          noCongDoanUsed && isPhanBo === null && !isLocked && !hasBlockingNegative
             ? <Tooltip title={'Phụ liệu không sử dụng ở công đoạn nào (BOF/LF) trong ca. Dùng "Không PB" hoặc Làm mới số liệu.'}><span style={{ display: "inline-block" }}>{btn}</span></Tooltip>
             : btn;
         btnPhanBo = wrapLocked(wrapNegative(wrapNoCongDoan(
@@ -645,9 +649,9 @@ export default function SummaryTableSTD_HRC1({
             type="primary"
             size="small"
             loading={isLoading === 'phan-bo'}
-            disabled={isPhanBo === false || !editable || isLocked || hasNegativeSummary || (canPhanBo === false && isPhanBo === null) || noCongDoanUsed}
+            disabled={isPhanBo === false || !editable || isLocked || hasBlockingNegative || (canPhanBo === false && isPhanBo === null) || noCongDoanUsed}
             onClick={() => {
-              if (hasNegativeSummary) {
+              if (hasBlockingNegative) {
                 message.warning(negativeTooltip);
                 return;
               }
@@ -691,9 +695,9 @@ export default function SummaryTableSTD_HRC1({
               type="default"
               size="small"
               loading={isLoading === 'khong-phan-bo'}
-              disabled={!editable || isLocked || isPhanBo === true || hasNegativeSummary || (canPhanBo === false && isPhanBo === null)}
+              disabled={!editable || isLocked || isPhanBo === true || hasBlockingNegative || (canPhanBo === false && isPhanBo === null)}
               onClick={() => {
-                if (hasNegativeSummary) {
+                if (hasBlockingNegative) {
                   message.warning(negativeTooltip);
                   return;
                 }

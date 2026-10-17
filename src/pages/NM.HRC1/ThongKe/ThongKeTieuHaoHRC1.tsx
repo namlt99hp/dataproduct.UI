@@ -53,6 +53,9 @@ const renderPlCell = (cellData: PlCellData | null | unknown) => {
   const effectiveValue = isManual ? klPhuGia_Manual : klPhuGia;
   const displayValue = totalKLPhuGia ?? effectiveValue;
   const formatted = formatNumberVN(displayValue);
+  // Phân bổ chênh lệch có thể âm (xem SummaryTableSTD_HRC1.tsx) — nếu phân bổ âm vượt quá lượng phụ
+  // liệu thực tế, tổng thống kê (totalKLPhuGia) sẽ âm: cảnh báo đỏ, chặn chốt phiếu chi tiết liên quan.
+  const isNegative = displayValue != null && displayValue < 0;
 
   const hasPhanBo = klPhanBo != null;
   const hasManual = isManual === true || klPhuGia_Manual != null;
@@ -63,11 +66,28 @@ const renderPlCell = (cellData: PlCellData | null | unknown) => {
     if (klPhuGia_Manual != null) tooltipParts.push(`Chỉnh tay: ${formatNumberVN(klPhuGia_Manual)}`);
     else if (isManual) tooltipParts.push(`Chỉnh tay: (đã xóa)`);
     if (hasPhanBo) tooltipParts.push(`Phân bổ: ${formatNumberVN(klPhanBo)}`);
+    if (isNegative) tooltipParts.push("Tổng thống kê đang ÂM — cần kiểm tra lại trước khi chốt phiếu.");
 
     const bg = hasPhanBo && hasManual ? "#d4edda" : hasPhanBo ? "#d6f0ff" : "#fff7b3";
     return (
       <Tooltip title={tooltipParts.join(" | ")}>
-        <span style={{ backgroundColor: bg, display: "block", padding: "0 4px" }}>{formatted}</span>
+        <span
+          style={{
+            backgroundColor: bg,
+            display: "block",
+            padding: "0 4px",
+            ...(isNegative && { color: "#ff4d4f", fontWeight: 600 }),
+          }}
+        >
+          {formatted}
+        </span>
+      </Tooltip>
+    );
+  }
+  if (isNegative) {
+    return (
+      <Tooltip title="Tổng thống kê đang ÂM — cần kiểm tra lại trước khi chốt phiếu.">
+        <span style={{ color: "#ff4d4f", fontWeight: 600, display: "block" }}>{formatted}</span>
       </Tooltip>
     );
   }

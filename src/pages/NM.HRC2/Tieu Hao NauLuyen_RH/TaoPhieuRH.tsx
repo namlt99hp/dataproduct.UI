@@ -199,6 +199,7 @@ const TaoPhieuTieuHaoNauLuyen_RH = () => {
         variant: "adjust" as const,
         metaLabel: meta.headerKeyLabel ?? "Phân bổ",
         headerKeyId: meta.headerKeyId ?? null,
+        sum: true,
       }));
   }, [adjustColumnMetas]);
 
@@ -723,11 +724,18 @@ const TaoPhieuTieuHaoNauLuyen_RH = () => {
       pheDuyet: phieuInfo.pheDuyet ?? [],
       preConfirmCheck: async () => {
         const isChot = await hrc2TableService.checkChotPhieuTieuHao(dayjs(ngaySX).format("YYYY-MM-DD"), ca);
-        if (isChot) {
-          return true;
+        if (!isChot) {
+          message.error("Sổ theo dõi nhập xuất tồn chưa được chốt.");
+          return false;
         }
-        message.error("Sổ theo dõi nhập xuất tồn chưa được chốt.");
-        return false;
+        const { ok, negativePhuLieus } = await hrc2TableService.checkNoNegativeThongKe(
+          dayjs(ngaySX).format("YYYY-MM-DD"), ca, "RH"
+        );
+        if (!ok) {
+          message.error(`Thống kê phụ liệu ${negativePhuLieus.join(", ")} đang âm (phân bổ chênh lệch âm vượt quá lượng thực tế đã dùng). Vui lòng kiểm tra lại trước khi chốt.`);
+          return false;
+        }
+        return true;
       },
       redirectToList,
       onSuccess: handleActionSuccess,

@@ -278,6 +278,7 @@ const ChiTietTieuHaoLoThoi_BOF = () => {
         variant: "adjust" as const,
         metaLabel: meta.headerKeyLabel ?? "Phân bổ",
         headerKeyId: meta.headerKeyId ?? null,
+        sum: true,
       }));
 
     const adjustChildColumns: HRCChildColumn[] = adjustMetas
@@ -454,6 +455,16 @@ const ChiTietTieuHaoLoThoi_BOF = () => {
       nguoiTaoId: data.nguoiTaoId ?? null,
       phieuPhongBanId: data.idphongBan ?? null,
       pheDuyet: data.pheDuyet ?? [],
+      preConfirmCheck: async () => {
+        const { ok, negativePhuLieus } = await hrc1TableService.checkNoNegativeThongKe(
+          dayjs(formData?.NgaySX).format("YYYY-MM-DD"), formData?.ca, "BOF"
+        );
+        if (!ok) {
+          message.error(`Thống kê phụ liệu ${negativePhuLieus.join(", ")} đang âm (phân bổ chênh lệch âm vượt quá lượng thực tế đã dùng). Vui lòng kiểm tra lại trước khi chốt.`);
+          return false;
+        }
+        return true;
+      },
       redirectToList,
       onSuccess: handleActionSuccess,
       onError: (error) => {
@@ -468,7 +479,7 @@ const ChiTietTieuHaoLoThoi_BOF = () => {
     const filteredButtons = buttons.filter((btn) => !DETAIL_HIDDEN_BUTTON_KEYS.has(btn.key));
     if (filteredButtons.length === 0) return null;
     return phieuActionService.renderActionButtons(filteredButtons, idphieu || "");
-  }, [data, idphieu, config.code, getUserInfo, handleActionSuccess, redirectToList]);
+  }, [data, idphieu, config.code, getUserInfo, handleActionSuccess, redirectToList, formData?.NgaySX, formData?.ca]);
 
   return (
     <Card bordered style={{ padding: 24, background: "#fff" }} loading={loading}>

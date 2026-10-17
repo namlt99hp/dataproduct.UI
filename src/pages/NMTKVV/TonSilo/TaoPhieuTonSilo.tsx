@@ -118,7 +118,9 @@ const MA_BM = "TKVV_TONSILO";
 const fmt3 = (v: unknown): string => {
   if (v == null || v === "") return "";
   const n = Number(v);
-  return Number.isFinite(n) ? (Math.round(n * 1000) / 1000).toFixed(3) : String(v);
+  return Number.isFinite(n)
+    ? (Math.round(n * 1000) / 1000).toFixed(3)
+    : String(v);
 };
 
 const fromInitRecord = (item: TKVVTonSiloRowDto, idx: number): TableRow => ({
@@ -137,8 +139,8 @@ const fromInitRecord = (item: TKVVTonSiloRowDto, idx: number): TableRow => ({
   xuatAuto: fmt3(item.xuatAuto),
   tonCuoi: fmt3(
     item.isAdjusted || item.isTachLieu
-      ? item.tonCuoi ?? item.tonCuoiAuto
-      : item.tonCuoiAuto
+      ? (item.tonCuoi ?? item.tonCuoiAuto)
+      : item.tonCuoiAuto,
   ),
   tonCuoiAuto: fmt3(item.tonCuoiAuto),
   isAdjusted: item.isAdjusted ?? false,
@@ -339,7 +341,8 @@ const TaoPhieuTonSilo = () => {
 
           const tinhTrang = res.tinhTrang ?? 0;
           // Ưu tiên jsonData; fallback top-level PhieuDto fields (cho phiếu auto-created)
-          const ngaySXValue = data.ngaySX || data.NgaySX || res.ngaySX || res.NgaySX;
+          const ngaySXValue =
+            data.ngaySX || data.NgaySX || res.ngaySX || res.NgaySX;
           const caVal = data.ca ?? res.ca ?? null;
           const scopeVal =
             data.scope != null
@@ -367,8 +370,27 @@ const TaoPhieuTonSilo = () => {
               form.setFieldsValue(overrides);
           }
 
-          const siloRows = await tkvvTonSiloApi.getRowsByPhieu(idphieu);
-          setTableData(sortSiloRows(siloRows.map(fromInitRecord)));
+          // Phiếu đang chỉnh sửa → gọi initRows để luôn đồng bộ với mapping mới nhất
+          // Phiếu đã khóa (HoanThanh, DaChot...) → đọc row đã lưu, không thay đổi
+          const isEditable = [
+            TrangThaiPhieuConst.DangLuu,
+            TrangThaiPhieuConst.DaThuHoi,
+            TrangThaiPhieuConst.HieuChinh,
+          ].includes(tinhTrang);
+
+          if (isEditable && ngaySXValue && caVal != null && scopeVal != null) {
+            const rows = await tkvvTonSiloApi.initRows({
+              ngaySX: dayjs(ngaySXValue).format("YYYY-MM-DD"),
+              ca: caVal,
+              scope: Number(scopeVal),
+              currentUserId: currentUserInfo?.iD_TaiKhoan ?? null,
+              phieuID: idphieu ?? null,
+            });
+            setTableData(sortSiloRows(rows.map(fromInitRecord)));
+          } else {
+            const siloRows = await tkvvTonSiloApi.getRowsByPhieu(idphieu);
+            setTableData(sortSiloRows(siloRows.map(fromInitRecord)));
+          }
 
           setPhieuInfo({
             tinhTrang,
@@ -465,7 +487,11 @@ const TaoPhieuTonSilo = () => {
         tkvvNvlSiloMappingApi.getList({ scope: scopeNum, ngaySX: ngayStr }),
         tkvvNvlApi.getListnvlbyBM({ scope: scopeNum }),
         tkvvSiloApi.getList({ scope: scopeNum }),
-        tkvvTonSiloApi.getNvlOverride({ ngaySX: ngayStr, ca: caValue, scope: scopeValue }),
+        tkvvTonSiloApi.getNvlOverride({
+          ngaySX: ngayStr,
+          ca: caValue,
+          scope: scopeValue,
+        }),
       ]);
       setNvlList(nvls ?? []);
       setSiloList(silos ?? []);
@@ -925,7 +951,10 @@ const TaoPhieuTonSilo = () => {
       if (dataIndex !== "doAmText") return false;
       const xuat = record.xuat;
       const xuatHasValue =
-        xuat !== "" && xuat != null && !isNaN(parseFloat(String(xuat))) && parseFloat(String(xuat)) !== 0;
+        xuat !== "" &&
+        xuat != null &&
+        !isNaN(parseFloat(String(xuat))) &&
+        parseFloat(String(xuat)) !== 0;
       if (!xuatHasValue) return true;
       return !firstNvlRowKeySet.has(record.key);
     },
@@ -1328,14 +1357,19 @@ const TaoPhieuTonSilo = () => {
                       if (v !== "" && Number(v) < 0) return;
                       if (v.includes(".")) {
                         const [int, dec] = v.split(".");
-                        if (dec && dec.length > 3) v = int + "." + dec.slice(0, 3);
+                        if (dec && dec.length > 3)
+                          v = int + "." + dec.slice(0, 3);
                       }
                       updateTachRow(idx, f, v);
                     }}
                     onBlur={(e) => {
                       const v = e.target.value;
                       if (v !== "" && Number.isFinite(Number(v)))
-                        updateTachRow(idx, f, (Math.round(Number(v) * 1000) / 1000).toFixed(3));
+                        updateTachRow(
+                          idx,
+                          f,
+                          (Math.round(Number(v) * 1000) / 1000).toFixed(3),
+                        );
                     }}
                     style={{
                       width: "100%",
@@ -1415,7 +1449,7 @@ const TaoPhieuTonSilo = () => {
         }
         open={showSiloModal}
         onCancel={() => setShowSiloModal(false)}
-        width={760}
+        width={1200}
         footer={[
           <Button key="cancel" onClick={() => setShowSiloModal(false)}>
             Hủy
@@ -1477,7 +1511,7 @@ const TaoPhieuTonSilo = () => {
             {
               title: "Mã Silo",
               dataIndex: "siloID",
-              width: 200,
+              width: 360,
               render: (val, _, idx) => (
                 <Select
                   value={val}
@@ -1497,7 +1531,7 @@ const TaoPhieuTonSilo = () => {
             {
               title: "Thứ tự",
               dataIndex: "thuTu",
-              width: 80,
+              width: 100,
               render: (val, _, idx) => (
                 <input
                   type="number"

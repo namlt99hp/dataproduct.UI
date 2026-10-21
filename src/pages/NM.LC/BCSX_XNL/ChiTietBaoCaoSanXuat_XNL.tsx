@@ -44,6 +44,7 @@ const ChiTietBaoCaoSanXuat_XNL = () => {
         pheu: fd.table_pheu || [],
         thap: fd.table_thap || [],
         phanTich: fd.table_phanTich || [],
+        suCo: fd.table_suCo || [],
       });
     } catch (error) {
       console.error("Lỗi tải dữ liệu phiếu BCSX_XNL:", error);

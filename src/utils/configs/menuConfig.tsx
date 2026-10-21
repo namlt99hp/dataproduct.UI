@@ -182,6 +182,28 @@ export const menuConfig = [
             ),
           },
         ],
+      },
+      {
+        key: "sub1-6",
+        label: "NM.LC",
+        children: [
+          {
+            key: "sub1-6-1",
+            label: (
+              <Tooltip title="LC - Quản lý Silo than">
+                <NavLink to="/lc-silo">LC - Silo than</NavLink>
+              </Tooltip>
+            ),
+          },
+          {
+            key: "sub1-6-2",
+            label: (
+              <Tooltip title="LC - Quản lý Cụm tháp than">
+                <NavLink to="/lc-cumthap">LC - Cụm tháp than</NavLink>
+              </Tooltip>
+            ),
+          },
+        ],
       }
     ],
   },
@@ -600,7 +622,7 @@ export const menuConfig = [
         children: [
           {
             key: "sub2-lc-1",
-            maBM: BM_CONFIG.LC.BBBC_XNL_TP,
+            maBM: BM_CONFIG.LC.LC_BCSX_XNL_TP,
             label: (
               <Tooltip title="BBBC Xưởng Nguyên liệu">
                 <NavLink to="/baocaosanxuat_xnl">Sổ theo dõi XNT Silo</NavLink>
@@ -950,7 +972,7 @@ export const menuConfig = [
         children: [
           {
             key: "sub3-lc-1",
-            maBM: BM_CONFIG.LC.BBBC_XNL_TP,
+            maBM: BM_CONFIG.LC.LC_BCSX_XNL_TP,
             label: (
               <Tooltip title="BBBC Xưởng Nguyên liệu">
                 <NavLink to="/viecdentoi/baocaosanxuat_xnl">Sổ theo dõi XNT Silo</NavLink>
@@ -1276,7 +1298,7 @@ export const menuConfig = [
         children: [
           {
             key: "sub3-lc-1",
-            maBM: BM_CONFIG.LC.BBBC_XNL_TP,
+            maBM: BM_CONFIG.LC.LC_BCSX_XNL_TP,
             label: (
               <Tooltip title="BBBC Xưởng Nguyên liệu">
                 <NavLink to="/xemphieu/baocaosanxuat_xnl">Sổ theo dõi XNT Silo</NavLink>

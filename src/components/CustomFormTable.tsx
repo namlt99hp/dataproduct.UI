@@ -13,7 +13,7 @@ import {
 import { DeleteOutlined, CopyOutlined } from "@ant-design/icons";
 
 export interface FormColumnDef {
-  title: string;
+  title: ReactNode;
   dataIndex?: string;
   isLabel?: boolean;
   width?: number | string;
@@ -383,7 +383,7 @@ export default function CustomFormTable({
               render: (_: any, record: any, idx: number) =>
                 readonlyFields.includes(key) ? (
                   <Input
-                    placeholder={child.title}
+                    placeholder={typeof child.title === "string" ? child.title : undefined}
                     value={
                       (child as any)?.type === "float"
                         ? formatFloat3dp(record[key])
@@ -394,7 +394,7 @@ export default function CustomFormTable({
                   />
                 ) : (child as any).options ? (
                   <Select
-                    placeholder={child.title}
+                    placeholder={typeof child.title === "string" ? child.title : undefined}
                     value={record[key] ?? undefined}
                     onChange={(value) => {
                       handleCellChange(value, idx, key);
@@ -405,7 +405,7 @@ export default function CustomFormTable({
                   />
                 ) : (
                   <Input
-                    placeholder={child.title}
+                    placeholder={typeof child.title === "string" ? child.title : undefined}
                     value={record[key] ?? ""}
                     onChange={(e) => {
                       const validated = validateAndFormatInput(
@@ -414,20 +414,6 @@ export default function CustomFormTable({
                         (child as any)?.min,
                       );
                       handleCellChange(validated, idx, key);
-                    }}
-                    onBlur={() => {
-                      if ((child as any)?.type === "float") {
-                        const v = record[key];
-                        if (v !== "" && v != null) {
-                          const n = Number(String(v).replace(",", "."));
-                          if (Number.isFinite(n))
-                            handleCellChange(
-                              (Math.round(n * 1000) / 1000).toFixed(3),
-                              idx,
-                              key,
-                            );
-                        }
-                      }
                     }}
                     disabled={!editable}
                     style={getCellStyle(key, record[key], record, false)}
@@ -493,7 +479,7 @@ export default function CustomFormTable({
                 : formatIfNeeded(col.format, record[dataIndex]);
             return wrapCell(
               <Input
-                placeholder={col.title}
+                placeholder={typeof col.title === "string" ? col.title : undefined}
                 value={displayVal}
                 readOnly
                 style={baseStyleRo}
@@ -514,7 +500,7 @@ export default function CustomFormTable({
           if (col.options) {
             return (
               <Select
-                placeholder={col.title}
+                placeholder={typeof col.title === "string" ? col.title : undefined}
                 value={record[dataIndex] ?? undefined}
                 onChange={(value) => handleCellChange(value, idx, dataIndex)}
                 options={col.options}
@@ -531,7 +517,7 @@ export default function CustomFormTable({
           );
           return wrapCell(
             <Input
-              placeholder={col.title}
+              placeholder={typeof col.title === "string" ? col.title : undefined}
               value={record[dataIndex] ?? ""}
               onChange={(e) => {
                 const validated = validateAndFormatInput(
@@ -540,20 +526,6 @@ export default function CustomFormTable({
                   col.min,
                 );
                 handleCellChange(validated, idx, dataIndex);
-              }}
-              onBlur={() => {
-                if (col.type === "float") {
-                  const v = record[dataIndex];
-                  if (v !== "" && v != null) {
-                    const n = Number(String(v).replace(",", "."));
-                    if (Number.isFinite(n))
-                      handleCellChange(
-                        (Math.round(n * 1000) / 1000).toFixed(3),
-                        idx,
-                        dataIndex,
-                      );
-                  }
-                }
               }}
               disabled={!editable}
               style={baseStyle}

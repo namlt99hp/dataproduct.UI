@@ -47,7 +47,7 @@ export const BM_CONFIG = {
         TKVV_TonSilo: 'TKVV_TONSILO',
     },
     LC: {
-        BBBC_XNL_TP: 'BBBC_XNL_TP'
+        LC_BCSX_XNL_TP: 'LC_BCSX_XNL_TP'
     }
 }
 

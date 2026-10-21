@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import LC_BCSX_XNL from "../../../utils/BM_config/LC_BCSX_XNL.json";
-import { Card, Form, Input, Typography, message } from "antd";
+import { Button, Card, Form, Input, Popconfirm, Typography, message } from "antd";
 import dayjs from "dayjs";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import CustomFormItem from "../../../components/CustomFormItem";
@@ -10,6 +10,8 @@ import { phieuActionService, type PheDuyetItem } from "../../../services/PhieuAc
 import { TrangThaiPhieuConst } from "../../../utils/constants/TrangThaiPhieuConstant";
 import LcPhieuTabs from "../../../components/LC_BCSX_XNL/LcPhieuTabs";
 import { scopeToThanhPham, EMPTY_LC_PHIEU_TABLES, type LcPhieuTables } from "../../../components/LC_BCSX_XNL/lcTabsConfig";
+import { LcCapLieuSiloApi } from "../../../services/LcCapLieuSiloApi";
+import { LcPhoiTronApi } from "../../../services/LcPhoiTronApi";
 
 /**
  * Trang Tạo / thao tác phiếu "Báo cáo sản xuất Xưởng Nguyên liệu" — dùng chung TP1/TP2.
@@ -34,6 +36,7 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
     []
   );
   const [loading, setLoading] = useState(false);
+  const [refreshLoading, setRefreshLoading] = useState(false);
   const [soPhieu, setSoPhieu] = useState("");
   const [phieuInfo, setPhieuInfo] = useState<{
     tinhTrang?: number;
@@ -103,6 +106,30 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
         phanTich: data.table_phanTich || [],
       });
 
+      // Ghi đè bằng giá trị THẬT đã tính ở BE (TonDauKyQuyKho/LuyKeQuyKho/KhoiLuongKhoThucTe,
+      // kế thừa từ kíp trước) — bản trong DataJson chỉ là cái FE gửi lên lúc Lưu, không có
+      // các cột tính toán này (xem LcCapLieuSiloApi.ts). Không chặn load phiếu nếu lỗi.
+      const resIdPhieu = (res as any)?.idphieu;
+      if (resIdPhieu) {
+        try {
+          const authoritative = await LcCapLieuSiloApi.getByPhieu(resIdPhieu);
+          setTables((prev) => ({
+            ...prev,
+            capLieu: authoritative.capLieu,
+            coHatNghien1: authoritative.coHatNghien1,
+          }));
+        } catch (err) {
+          console.error("Không thể tải dữ liệu Cấp liệu & Silo (bảng quan hệ):", err);
+        }
+
+        try {
+          const phoiTronCards = await LcPhoiTronApi.getByPhieu(resIdPhieu);
+          setTables((prev) => ({ ...prev, phoiTron: phoiTronCards }));
+        } catch (err) {
+          console.error("Không thể tải dữ liệu Phối trộn (bảng quan hệ):", err);
+        }
+      }
+
       setPhieuInfo({
         tinhTrang: (res as any)?.tinhTrang ?? 0,
         nguoiTaoId: (res as any)?.nguoiTaoId ?? null,
@@ -156,9 +183,9 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
       tenScope: thanhPham ?? null,
       xuongId: userInfo.iD_PhanXuong ?? null,
       idphongBan: userInfo.iD_PhongBan ?? null,
-      table_capLieu: tables.capLieu,
-      table_coHatNghien1: tables.coHatNghien1,
-      table_phoiTron: tables.phoiTron,
+      // table_capLieu/table_coHatNghien1/table_phoiTron KHÔNG gửi qua DataJson nữa (rủi ro
+      // lệch dữ liệu) — lưu trực tiếp vào bảng quan hệ riêng qua LcCapLieuSiloApi.save /
+      // LcPhoiTronApi.save trong handleActionSuccess bên dưới.
       table_pheu: tables.pheu,
       table_thap: tables.thap,
       table_phanTich: tables.phanTich,
@@ -168,14 +195,63 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
 
   const handleActionSuccess = useCallback(
     async (context?: { newPhieuId?: string }) => {
+      const targetId = context?.newPhieuId || idphieu;
+      if (targetId) {
+        try {
+          await LcCapLieuSiloApi.save(targetId, {
+            capLieu: tables.capLieu,
+            coHatNghien1: tables.coHatNghien1,
+          });
+        } catch (err) {
+          console.error("Không thể lưu Cấp liệu & Silo:", err);
+          message.error("Đã lưu phiếu nhưng lưu dữ liệu Cấp liệu & Silo thất bại, vui lòng kiểm tra lại.");
+        }
+
+        try {
+          await LcPhoiTronApi.save(targetId, tables.phoiTron);
+        } catch (err) {
+          console.error("Không thể lưu Phối trộn:", err);
+          message.error("Đã lưu phiếu nhưng lưu dữ liệu Phối trộn thất bại, vui lòng kiểm tra lại.");
+        }
+      }
       if (context?.newPhieuId) {
         navigateToDetail(context.newPhieuId, "/taophieubaocaosanxuat_xnl");
         return;
       }
       await initData();
     },
-    [navigateToDetail, initData]
+    [navigateToDetail, initData, idphieu, tables]
   );
+
+  /**
+   * "Làm mới" — tính lại Tồn đầu/Lũy kế của tab Cấp liệu & Silo và tab Phối trộn theo dữ
+   * liệu MỚI NHẤT của kíp liền trước (trường hợp kíp trước đã tạo xong rồi mới bị sửa lại).
+   * Chỉ tính lại 2 cột dẫn xuất đó — KHÔNG gửi dữ liệu đang nhập ở FE lên, nên các ô khác
+   * (KL ẩm thực tế, độ ẩm, tỷ lệ phối...) không bị ảnh hưởng. Vì đọc lại từ DB, các thay đổi
+   * CHƯA LƯU ở chính 2 tab này sẽ bị nạp lại theo bản đã lưu gần nhất — đã cảnh báo ở Popconfirm.
+   */
+  const handleLamMoiTuCaTruoc = useCallback(async () => {
+    if (!idphieu) return;
+    setRefreshLoading(true);
+    try {
+      const [capLieuRes, phoiTronRes] = await Promise.all([
+        LcCapLieuSiloApi.refreshTuCaTruoc(idphieu),
+        LcPhoiTronApi.refreshTuCaTruoc(idphieu),
+      ]);
+      setTables((prev) => ({
+        ...prev,
+        capLieu: capLieuRes.capLieu,
+        coHatNghien1: capLieuRes.coHatNghien1,
+        phoiTron: phoiTronRes,
+      }));
+      message.success("Đã làm mới Tồn đầu/Lũy kế theo dữ liệu mới nhất của kíp liền trước.");
+    } catch (err: any) {
+      console.error("Làm mới từ kíp trước thất bại:", err);
+      message.error(err?.message || "Không thể làm mới dữ liệu từ kíp trước.");
+    } finally {
+      setRefreshLoading(false);
+    }
+  }, [idphieu]);
 
   const actionButtons = useMemo(() => {
     const userInfo = getUserInfo();
@@ -242,6 +318,20 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
             <CustomFormItem key={f.key || idx} field={f} idx={idx} disabled={hasExistingPhieu} />
           ))}
         </div>
+
+        {idphieu && !isFormLocked && (
+          <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
+            <Popconfirm
+              title="Làm mới từ kíp liền trước?"
+              description="Tồn đầu/Lũy kế của tab Cấp liệu & Silo và Phối trộn sẽ được nạp lại theo dữ liệu kíp trước MỚI NHẤT. Các thay đổi CHƯA LƯU ở 2 tab này sẽ bị mất."
+              okText="Làm mới"
+              cancelText="Hủy"
+              onConfirm={handleLamMoiTuCaTruoc}
+            >
+              <Button loading={refreshLoading}>Làm mới</Button>
+            </Popconfirm>
+          </div>
+        )}
 
         <div style={{ marginTop: 16 }}>
           <LcPhieuTabs

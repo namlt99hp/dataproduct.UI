@@ -48,8 +48,9 @@ const LcPhieuTabs = ({ thanhPham, editable, tables, onTablesChange }: LcPhieuTab
           <TabPhoiTron
             thanhPham={thanhPham}
             editable={editable}
-            rows={tables.phoiTron}
-            onChange={(rows) => onTablesChange({ phoiTron: rows })}
+            cards={tables.phoiTron}
+            onChange={(cards) => onTablesChange({ phoiTron: cards })}
+            capLieuRows={tables.capLieu}
           />
         );
         break;

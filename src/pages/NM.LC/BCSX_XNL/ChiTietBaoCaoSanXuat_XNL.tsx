@@ -10,6 +10,8 @@ import { DETAIL_HIDDEN_BUTTON_KEYS } from "../../../utils/constants/PhieuActionB
 import { getBmQuyenUiFlags } from "../../../utils/helpers/checkAdminRole";
 import LcPhieuTabs from "../../../components/LC_BCSX_XNL/LcPhieuTabs";
 import { scopeToThanhPham, EMPTY_LC_PHIEU_TABLES, type LcPhieuTables } from "../../../components/LC_BCSX_XNL/lcTabsConfig";
+import { LcCapLieuSiloApi } from "../../../services/LcCapLieuSiloApi";
+import { LcPhoiTronApi } from "../../../services/LcPhoiTronApi";
 
 const { Title, Text } = Typography;
 
@@ -45,6 +47,29 @@ const ChiTietBaoCaoSanXuat_XNL = () => {
         thap: fd.table_thap || [],
         phanTich: fd.table_phanTich || [],
       });
+
+      // Ghi đè bằng giá trị THẬT đã tính ở BE (TonDauKyQuyKho/LuyKeQuyKho/KhoiLuongKhoThucTe) —
+      // xem LcCapLieuSiloApi.ts. Không chặn load phiếu nếu lỗi.
+      const resIdPhieu = (res as any)?.idphieu;
+      if (resIdPhieu) {
+        try {
+          const authoritative = await LcCapLieuSiloApi.getByPhieu(resIdPhieu);
+          setTables((prev) => ({
+            ...prev,
+            capLieu: authoritative.capLieu,
+            coHatNghien1: authoritative.coHatNghien1,
+          }));
+        } catch (err) {
+          console.error("Không thể tải dữ liệu Cấp liệu & Silo (bảng quan hệ):", err);
+        }
+
+        try {
+          const phoiTronCards = await LcPhoiTronApi.getByPhieu(resIdPhieu);
+          setTables((prev) => ({ ...prev, phoiTron: phoiTronCards }));
+        } catch (err) {
+          console.error("Không thể tải dữ liệu Phối trộn (bảng quan hệ):", err);
+        }
+      }
     } catch (error) {
       console.error("Lỗi tải dữ liệu phiếu BCSX_XNL:", error);
       message.error("Không thể tải dữ liệu phiếu");
@@ -117,7 +142,7 @@ const ChiTietBaoCaoSanXuat_XNL = () => {
         </Descriptions.Item>
         <Descriptions.Item label="Ca / Kíp">
           {(formData?.ca == 1 ? "Ca ngày" : formData?.ca == 2 ? "Ca đêm" : "-") +
-            (formData?.kip ? ` / Kíp ${formData.kip}` : "")}
+            (data?.kip ? ` / Kíp ${data.kip}` : "")}
         </Descriptions.Item>
       </Descriptions>
 

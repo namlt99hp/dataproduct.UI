@@ -46,6 +46,7 @@ const ChiTietBaoCaoSanXuat_XNL = () => {
         pheu: fd.table_pheu || [],
         thap: fd.table_thap || [],
         phanTich: fd.table_phanTich || [],
+        suCo: fd.table_suCo || [],
       });
 
       // Ghi đè bằng giá trị THẬT đã tính ở BE (TonDauKyQuyKho/LuyKeQuyKho/KhoiLuongKhoThucTe) —

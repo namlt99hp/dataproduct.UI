@@ -104,6 +104,7 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
         pheu: data.table_pheu || [],
         thap: data.table_thap || [],
         phanTich: data.table_phanTich || [],
+        suCo: data.table_suCo || [],
       });
 
       // Ghi đè bằng giá trị THẬT đã tính ở BE (TonDauKyQuyKho/LuyKeQuyKho/KhoiLuongKhoThucTe,
@@ -189,6 +190,7 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
       table_pheu: tables.pheu,
       table_thap: tables.thap,
       table_phanTich: tables.phanTich,
+      table_suCo: tables.suCo,
       pheDuyet: pheDuyetFlow,
     };
   }, [getUserInfo, form, config, idphieu, phieuInfo, thanhPham, tables]);

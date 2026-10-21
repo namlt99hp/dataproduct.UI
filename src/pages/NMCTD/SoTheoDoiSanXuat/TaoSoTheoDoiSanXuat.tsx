@@ -196,7 +196,7 @@ const TaoSoTheoDoiSanXuat = () => {
   }, [initData]);
 
   useEffect(() => {
-    DonTrongPhoiServiceApi.getAll()
+    DonTrongPhoiServiceApi.getAll({ excludeLocked: true })
       .then(setDonTrongPhoiData)
       .catch(() => {});
   }, []);

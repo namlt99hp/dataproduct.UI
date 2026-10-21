@@ -22,7 +22,7 @@ export const LC_BCSX_XNL_TABS: LcTabDef[] = [
   { key: "thapPheu", label: "Tháp / Phễu", implemented: true },
   { key: "phanTich", label: "Phân tích", implemented: true },
   { key: "buiCoc", label: "Bụi cốc", implemented: false },
-  { key: "dapCoc", label: "Dập cốc & Sản lượng cốc", implemented: false },
+  { key: "dapCoc", label: "Sản lượng cốc", implemented: false },
   { key: "tonCoc", label: "Tồn cốc", implemented: false },
   {
     key: "xuatCapCoc",
@@ -32,7 +32,7 @@ export const LC_BCSX_XNL_TABS: LcTabDef[] = [
   },
   { key: "chatLuongCoc", label: "Cỡ hạt / Chất lượng cốc", implemented: false },
   { key: "tieuHao", label: "Tiêu hao", implemented: false },
-  { key: "suCo", label: "Sự cố", implemented: false },
+  { key: "suCo", label: "Sự cố", implemented: true },
   {
     key: "ghiChuCa",
     label: "5S & Bàn giao",
@@ -53,6 +53,7 @@ export interface LcPhieuTables {
   pheu: import("./TabThapPheu").PheuRow[];
   thap: import("./TabThapPheu").ThapRow[];
   phanTich: import("./TabPhanTich").PhanTichRow[];
+  suCo: import("./TabSuCo").SuCoRow[];
 }
 
 export const EMPTY_LC_PHIEU_TABLES: LcPhieuTables = {
@@ -62,6 +63,7 @@ export const EMPTY_LC_PHIEU_TABLES: LcPhieuTables = {
   pheu: [],
   thap: [],
   phanTich: [],
+  suCo: [],
 };
 
 export function getTabsForThanhPham(thanhPham: ThanhPham | null | undefined): LcTabDef[] {

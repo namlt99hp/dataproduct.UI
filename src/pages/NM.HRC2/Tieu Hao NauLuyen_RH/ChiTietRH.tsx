@@ -207,11 +207,16 @@ const ChiTietTieuHaoNauLuyen_RH = () => {
       const ngay = fd.NgaySX;
       const ca = fd.ca;
       const scope = fd.scope;
-      // Phiếu đã Chốt: dùng snapshot table1/table1DynamicColumns đã lưu, KHÔNG load lại từ NM
-      // theo config Header_Key hiện tại — tránh "mất" cột phụ liệu nếu sau này ai đó bỏ tick
-      // Excel/ThongKe cho header đã dùng trong phiếu Chốt (dữ liệu lịch sử phải cố định).
-      const isChot = payload?.tinhTrang === TrangThaiPhieuConst.DaChot;
-      if (isChot || !ngay || ca == null || scope == null) {
+      // Chỉ merge live dữ liệu NM khi phiếu còn ở trạng thái "đang soạn" (đang lưu/
+      // đã thu hồi/hiệu chỉnh). Từ DaGui trở đi PHẢI dùng snapshot table1 đã lưu —
+      // nếu không, job sync NM chạy mỗi 5 phút chèn thêm dòng vào DLNM_HRC2 sau khi
+      // phiếu đã gửi sẽ hiện ra như "dư/trùng dữ liệu" ngay trên phiếu đã gửi duyệt.
+      const tinhTrangPhieu = payload?.tinhTrang;
+      const canReloadFromNM =
+        tinhTrangPhieu === TrangThaiPhieuConst.DangLuu ||
+        tinhTrangPhieu === TrangThaiPhieuConst.DaThuHoi ||
+        tinhTrangPhieu === TrangThaiPhieuConst.HieuChinh;
+      if (!canReloadFromNM || !ngay || ca == null || scope == null) {
         setTable1DisplayRows(savedWithAdjust);
         setNmColumnsPack(null);
         return;

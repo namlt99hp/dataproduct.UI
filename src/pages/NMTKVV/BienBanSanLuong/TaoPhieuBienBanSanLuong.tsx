@@ -408,7 +408,33 @@ const TaoPhieuBienBanSanLuong = () => {
 
           const chiTiet = await tkvvChiTietApi.getByPhieu(idphieu);
 
-          setTableData(chiTietToRows(chiTiet || []));
+          let rows = chiTietToRows(chiTiet || []);
+
+          // Phiếu tạo tự động chưa có dòng chi tiết / dòng chưa có giờ →
+          // dựng sẵn khung giờ theo Ca như khi tạo phiếu mới (chỉ khi còn sửa được).
+          const isEditable =
+            tinhTrang === TrangThaiPhieuConst.DangLuu ||
+            tinhTrang === TrangThaiPhieuConst.DaThuHoi ||
+            tinhTrang === TrangThaiPhieuConst.HieuChinh;
+          const slots = CA_TIME_SLOTS[Number(headerFromPhieu.ca)];
+
+          if (isEditable) {
+            if (rows.length === 0) {
+              rows = Array.from({ length: SO_DONG_MAC_DINH }, (_, i) =>
+                buildBlankRow(i + 1),
+              );
+            }
+
+            if (slots) {
+              rows = rows.map((row, idx) =>
+                !row.thoiGian && slots[idx] !== undefined
+                  ? { ...row, thoiGian: slots[idx] }
+                  : row,
+              );
+            }
+          }
+
+          setTableData(rows);
 
           setPhieuInfo({
             tinhTrang,

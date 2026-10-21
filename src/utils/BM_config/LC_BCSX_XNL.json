@@ -1,5 +1,5 @@
 {
-  "code": "LC_BCSX_XNL",
+  "code": "LC_BCSX_XNL_TP",
   "prefix": "BCSX_XNL",
   "title": "BÁO CÁO SẢN XUẤT XƯỞNG NGUYÊN LIỆU LUYỆN CỐC",
   "isoInfo": {
@@ -33,17 +33,6 @@
       "options": [
         { "label": "Ca ngày", "value": 1 },
         { "label": "Ca đêm", "value": 2 }
-      ]
-    },
-    {
-      "label": "Kíp",
-      "type": "select",
-      "key": "kip",
-      "required": true,
-      "options": [
-        { "label": "Kíp A", "value": "A" },
-        { "label": "Kíp B", "value": "B" },
-        { "label": "Kíp C", "value": "C" }
       ]
     }
   ],

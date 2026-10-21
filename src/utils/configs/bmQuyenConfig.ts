@@ -311,6 +311,16 @@ export const bmQuyenConfig = {
       tenBm: "STD - Nhập xuất tồn HRC1",
       nhom: "NM.HRC1",
     },
+    {
+      maBm: BM_CONFIG.LC.LC_BCSX_XNL_TP,
+      tenBm: "Báo cáo sản xuất Xưởng Nguyên liệu (Luyện cốc)",
+      nhom: "NM.LC",
+      // "Thành phẩm" tái dùng field scope: 1 = TP1, 2 = TP2 — xem lcTabsConfig.ts THANH_PHAM_SCOPE_OPTIONS
+      scope: [
+        { maKhuVuc: "1", tenKhuVuc: "TP1" },
+        { maKhuVuc: "2", tenKhuVuc: "TP2" },
+      ]
+    },
 
   ] as BieuMauQuyenItem[],
 };

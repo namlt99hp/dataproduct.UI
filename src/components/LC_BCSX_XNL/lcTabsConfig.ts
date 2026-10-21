@@ -49,7 +49,7 @@ export interface LcPhieuTables {
   capLieu: import("./TabCapLieuSilo").CapLieuRow[];
   /** Cỡ hạt sau nghiền 1 — đúng 2 dòng cố định (≤1mm, ≤3mm). */
   coHatNghien1: import("./TabCapLieuSilo").CoHatNghien1Row[];
-  phoiTron: import("./TabPhoiTron").PhoiTronRow[];
+  phoiTron: import("./TabPhoiTron").PhoiTronCard[];
   pheu: import("./TabThapPheu").PheuRow[];
   thap: import("./TabThapPheu").ThapRow[];
   phanTich: import("./TabPhanTich").PhanTichRow[];

@@ -196,7 +196,7 @@ export const MenuDataDashboard = [
       {
         code: "baocaosanxuat_xnl",
         title: "BIÊN BẢN BÁO CÁO XƯỞNG NGUYÊN LIỆU THÀNH PHẨM",
-        maBm: BM_CONFIG.LC.BBBC_XNL_TP,
+        maBm: BM_CONFIG.LC.LC_BCSX_XNL_TP,
       },
     ]
   }

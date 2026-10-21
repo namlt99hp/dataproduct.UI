@@ -76,6 +76,8 @@ import BienBanSanLuongKCS from "../pages/NMCTD/BienBanSanLuongKCS/BienBanSanLuon
 import TaoPhieuBienBanSanLuongKCS from "../pages/NMCTD/BienBanSanLuongKCS/TaoPhieuBienBanSanLuongKCS";
 import ChiTietBienBanSanLuongKCS from "../pages/NMCTD/BienBanSanLuongKCS/ChiTietBienBanSanLuongKCS";
 import QuanLySilo from "../pages/KhoDuLieu/NM.HRC2/Silo";
+import QuanLyLcSilo from "../pages/KhoDuLieu/NM.LC/Silo";
+import QuanLyLcCumThap from "../pages/KhoDuLieu/NM.LC/CumThap";
 import ThongKeHRC2 from "../pages/NM.HRC2/ThongKe/ThongKeHRC2";
 import NapLieuLoCao from "../pages/NMLG/NapLieuLoCao/NapLieuLoCao";
 import TaoPhieuNapLieuLoCao from "../pages/NMLG/NapLieuLoCao/TaoPhieuNapLieuLoCao";
@@ -1264,6 +1266,26 @@ export const routes = [
           <RequireAuth>
             <RequireRole allowedRoles={["admin", "user"]}>
               <QuanLySilo />
+            </RequireRole>
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "lc-silo",
+        element: (
+          <RequireAuth>
+            <RequireRole allowedRoles={["admin", "user"]}>
+              <QuanLyLcSilo />
+            </RequireRole>
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "lc-cumthap",
+        element: (
+          <RequireAuth>
+            <RequireRole allowedRoles={["admin", "user"]}>
+              <QuanLyLcCumThap />
             </RequireRole>
           </RequireAuth>
         ),

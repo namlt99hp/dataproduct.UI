@@ -50,7 +50,7 @@
         },
         { "title": "Mác phôi", "dataIndex": "macPhoi", "width": 130 },
         { "title": "Kích thước", "dataIndex": "kichThuoc", "width": 150 },
-        { "title": "Mã vật tư", "dataIndex": "maVatTu", "width": 130 },
+        { "title": "Mã vật tư", "dataIndex": "maVatTu", "width": 200 },
         {
           "title": "Số phôi ra khỏi lò",
           "dataIndex": "soPhoiRaKhoiLo",

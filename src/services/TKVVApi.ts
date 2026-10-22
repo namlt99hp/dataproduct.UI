@@ -386,6 +386,9 @@ export const tkvvBcSlChiPhiApi = {
     currentUserId?: number | null;
   }): Promise<{ message: string }> =>
     apiService.post("/api/TKVV_BCSL_ChiPhi/refresh-bbgn-batch", request),
+
+  clearBbgn: (id: number): Promise<void> =>
+    apiService.post(`/api/TKVV_BCSL_ChiPhi/${id}/clear-bbgn`, {}),
 };
 
 // ─── Chi tiết sản lượng theo phiếu ────────────────────────────────────────────
@@ -604,9 +607,11 @@ export interface TaoBBGNRequestDto {
   ChiTiet: TaoBBGNChiTietDto[];
 }
 
+const BM11_BASE = import.meta.env.VITE_URL_V1 ?? "http://10.192.39.98:88";
+
 export const bm11Api = {
   taoPhieu: (request: TaoBBGNRequestDto): Promise<any> =>
-    apiService.post("http://10.192.39.98:88/api/BM_11/TaoPhieu", request),
+    apiService.post(`${BM11_BASE}/api/BM_11/TaoPhieu`, request),
 };
 
 // ─── TKVV_Scope_Xuong_Mapping — ánh xạ scope nội bộ → xưởng BBGN + NVL thành phẩm ──

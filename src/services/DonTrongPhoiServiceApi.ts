@@ -79,8 +79,9 @@ export const DonTrongPhoiServiceApi = {
     await apiService.put(`/api/DonTrongPhoi/${id}`, payload);
   },
 
-  delete: async (id: number): Promise<void> => {
-    await apiService.delete(`/api/DonTrongPhoi/${id}`);
+  delete: async (id: number, replacementId?: number): Promise<void> => {
+    const params = replacementId != null ? { replacementId } : {};
+    await apiService.delete(`/api/DonTrongPhoi/${id}`, { params });
   },
 
   exportExcel: async (): Promise<void> => {

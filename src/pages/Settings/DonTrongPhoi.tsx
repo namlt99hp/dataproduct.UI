@@ -59,6 +59,10 @@ const QuanLyDonTrongPhoi = () => {
   const [syncLoading, setSyncLoading] = useState(false);
   const [importResultVisible, setImportResultVisible] = useState(false);
   const [importResult, setImportResult] = useState<ImportDonTrongPhoiResult | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DonTrongPhoi | null>(null);
+  const [deleteReplacementId, setDeleteReplacementId] = useState<number | undefined>(undefined);
+  const [allItemsForReplace, setAllItemsForReplace] = useState<DonTrongPhoi[]>([]);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const fetchData = async (
     page = pagination.current,
@@ -151,15 +155,31 @@ const QuanLyDonTrongPhoi = () => {
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const openDeleteModal = async (record: DonTrongPhoi) => {
     try {
-      await DonTrongPhoiServiceApi.delete(id);
+      const all = await DonTrongPhoiServiceApi.getAll();
+      setAllItemsForReplace(all.filter(x => x.id !== record.id && x.isLock !== 1));
+    } catch {
+      setAllItemsForReplace([]);
+    }
+    setDeleteReplacementId(undefined);
+    setDeleteTarget(record);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      await DonTrongPhoiServiceApi.delete(deleteTarget.id, deleteReplacementId);
       message.success("Đã xóa Đơn trọng phôi");
+      setDeleteTarget(null);
       const nextPage =
         data.length === 1 && pagination.current > 1 ? pagination.current - 1 : pagination.current;
       fetchData(nextPage, pagination.pageSize);
     } catch {
       message.error("Không thể xóa Đơn trọng phôi");
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -298,16 +318,10 @@ const QuanLyDonTrongPhoi = () => {
                 {record.isLock === 1 ? "Đang khóa" : "Khóa"}
               </Button>
             </Popconfirm>
-            <Popconfirm
-              title="Xác nhận xóa bản ghi này?"
-              onConfirm={() => handleDelete(record.id)}
-              okText="Xóa"
-              cancelText="Hủy"
-            >
-              <Button size="small" type="link" danger icon={<DeleteOutlined />}>
-                Xóa
-              </Button>
-            </Popconfirm>
+            <Button size="small" type="link" danger icon={<DeleteOutlined />}
+              onClick={() => openDeleteModal(record)}>
+              Xóa
+            </Button>
           </Space>
         ),
       },
@@ -497,6 +511,43 @@ const QuanLyDonTrongPhoi = () => {
             )}
           </div>
         )}
+      </Modal>
+      {/* Modal xóa & thay thế đơn trọng */}
+      <Modal
+        title="Xóa Đơn trọng phôi"
+        open={deleteTarget !== null}
+        onOk={handleDeleteConfirm}
+        onCancel={() => setDeleteTarget(null)}
+        confirmLoading={deleteLoading}
+        okText="Xóa"
+        okButtonProps={{ danger: true, disabled: deleteReplacementId == null }}
+        cancelText="Hủy"
+        destroyOnClose
+      >
+        <p>
+          Bạn đang xóa:{" "}
+          <strong>
+            {deleteTarget?.macPhoi}
+            {deleteTarget?.mac ? ` | ${deleteTarget.mac}` : ""}
+            {deleteTarget?.kichThuoc ? ` | ${deleteTarget.kichThuoc}` : ""}
+          </strong>
+        </p>
+        <p style={{ marginBottom: 8 }}>
+          Chọn Đơn trọng phôi thay thế cho các bản ghi Sổ theo dõi đang dùng đơn trọng này:
+        </p>
+        <Select
+          style={{ width: "100%" }}
+          placeholder="Không thay thế (để trống)"
+          allowClear
+          showSearch
+          optionFilterProp="label"
+          value={deleteReplacementId}
+          onChange={(val) => setDeleteReplacementId(val)}
+          options={allItemsForReplace.map(x => ({
+            value: x.id,
+            label: `${x.macPhoi}${x.mac ? " | " + x.mac : ""}${x.kichThuoc ? " | " + x.kichThuoc : ""} — ${x.donTrong.toLocaleString("vi-VN", { minimumFractionDigits: 3 })} kg`,
+          }))}
+        />
       </Modal>
     </div>
   );

@@ -55,7 +55,7 @@ const { Title } = Typography;
 
 const MA_BM_OPTIONS = [
   {
-    label: "ALL - Tất cả BM TKVV",
+    label: "ALL - Tất cả BM TKVV (Tồn silo + BCSL&CP)",
     value: "ALL",
   },
   {
@@ -158,7 +158,7 @@ const NvlTab = ({
 
   const handleScopeChange = (values: string[]) => {
     const labels = values
-      .map((v) => TKVV_SCOPES.find((s) => s.scope.toString() === v)?.label ?? v)
+      .map((v) => TKVV_SCOPES.find((s) => s.scope.toString() === v)?.code ?? v)
       .join(", ");
     form.setFieldValue("tenScope", labels);
   };

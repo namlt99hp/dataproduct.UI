@@ -9,6 +9,7 @@ import {
   Input,
   InputNumber,
   Modal,
+  Popconfirm,
   Row,
   Select,
   Space,
@@ -19,6 +20,7 @@ import {
 } from "antd";
 import {
   CloudDownloadOutlined,
+  DeleteOutlined,
   DeploymentUnitOutlined,
   FileAddOutlined,
   PartitionOutlined,
@@ -118,7 +120,9 @@ const SCOPE_OPTIONS = TKVV_SCOPES.map((s) => ({
 const fmt3 = (v: unknown): string => {
   if (v == null || v === "") return "";
   const n = Number(v);
-  return Number.isFinite(n) ? (Math.round(n * 1000) / 1000).toFixed(3) : String(v);
+  return Number.isFinite(n)
+    ? (Math.round(n * 1000) / 1000).toFixed(3)
+    : String(v);
 };
 
 const calcQuyKho = (klAmRaw: any, doAmRaw: any): string => {
@@ -158,7 +162,8 @@ const fromDbRecord = (
   klAmAuto: fmt3(item.klAmAuto),
   isAdjusted: item.isAdjusted,
   doAm: fmt3(item.doAm),
-  quyKho: item.quyKho != null ? fmt3(item.quyKho) : calcQuyKho(item.klAm, item.doAm),
+  quyKho:
+    item.quyKho != null ? fmt3(item.quyKho) : calcQuyKho(item.klAm, item.doAm),
   thanhPhamL1: fmt3(item.thanhPhamL1),
   thanhPhamL2: fmt3(item.thanhPhamL2),
   thanhPham_Note: item.thanhPham_Note ?? "",
@@ -204,6 +209,7 @@ const TaoPhieuBaoCaoSanLuongChiPhi = () => {
   const [nvlList, setNvlList] = useState<TKVVNguyenVatLieuDto[]>([]);
   const [siloList, setSiloList] = useState<TKVVSiloDto[]>([]);
   const [loadingBatch, setLoadingBatch] = useState(false);
+  const [clearingBbgnId, setClearingBbgnId] = useState<number | null>(null);
 
   const [ngaySXFilter, setNgaySXFilter] = useState<dayjs.Dayjs | null>(dayjs());
   const [selectedScope, setSelectedScope] = useState<number | undefined>();
@@ -225,6 +231,9 @@ const TaoPhieuBaoCaoSanLuongChiPhi = () => {
   const [idTaiKhoanBG, setIdTaiKhoanBG] = useState<number | null>(null);
   const [bbgnIdVatTu, setBbgnIdVatTu] = useState<number | null>(null);
   const [bbgnTenVatTu, setBbgnTenVatTu] = useState<string | null>(null);
+  const [bbgnVatTuOptions, setBbgnVatTuOptions] = useState<
+    { value: string; label: string; id_VatTu: number | null }[]
+  >([]);
   const [userOptions, setUserOptions] = useState<
     { label: string; value: number }[]
   >([]);
@@ -280,6 +289,10 @@ const TaoPhieuBaoCaoSanLuongChiPhi = () => {
     currentTinhTrang === TrangThaiPhieuConst.DaThuHoi ||
     currentTinhTrang === TrangThaiPhieuConst.HieuChinh
   );
+
+  const canClearBbgnRow =
+    currentTinhTrang === TrangThaiPhieuConst.DangLuu ||
+    currentTinhTrang === TrangThaiPhieuConst.DaThuHoi;
 
   const getUserInfo = useCallback(() => getThongTinUser(), []);
 
@@ -894,7 +907,12 @@ const TaoPhieuBaoCaoSanLuongChiPhi = () => {
       });
     });
     const fmt = (n: number) =>
-      n ? n.toLocaleString("en-US", { minimumFractionDigits: 3, maximumFractionDigits: 3 }) : "";
+      n
+        ? n.toLocaleString("en-US", {
+            minimumFractionDigits: 3,
+            maximumFractionDigits: 3,
+          })
+        : "";
     return (
       <tr>
         <td style={{ fontWeight: 600, textAlign: "center" }}>TỔNG</td>
@@ -920,14 +938,37 @@ const TaoPhieuBaoCaoSanLuongChiPhi = () => {
     );
   }, []);
 
+  const handleClearBbgnRow = useCallback(async (record: TableRow) => {
+    if (!record.dbId) return;
+    setClearingBbgnId(record.dbId);
+    try {
+      await tkvvBcSlChiPhiApi.clearBbgn(record.dbId);
+      setBbgnEditRows((prev) => prev.filter((r) => r.dbId !== record.dbId));
+      setTableData((prev) =>
+        prev.map((r) =>
+          r.dbId === record.dbId
+            ? { ...r, thanhPhamL1: "", thanhPhamL2: "", thanhPhamL3: "", thanhPham_Note: "", id_CT_BBGN: null }
+            : r,
+        ),
+      );
+    } catch {
+      message.error("Lỗi khi xóa dữ liệu thành phẩm");
+    } finally {
+      setClearingBbgnId(null);
+    }
+  }, []);
+
   const handleOpenBBGN = useCallback(async () => {
     const rows = tableData.filter((r) => r.id_CT_BBGN != null);
     setBbgnEditRows(rows.map((r) => ({ ...r })));
     if (!bbgnTenVatTu && selectedScope) {
       try {
-        const mapping = await tkvvScopeXuongMappingApi.getByScope(selectedScope).catch(() => null);
+        const mapping = await tkvvScopeXuongMappingApi
+          .getByScope(selectedScope)
+          .catch(() => null);
         if (mapping?.tenVatTu) setBbgnTenVatTu(mapping.tenVatTu);
-        if (mapping?.idNvlBbgnThanhPham) setBbgnIdVatTu(mapping.idNvlBbgnThanhPham);
+        if (mapping?.idNvlBbgnThanhPham)
+          setBbgnIdVatTu(mapping.idNvlBbgnThanhPham);
       } catch {}
     }
     setShowBBGNModal(true);
@@ -963,6 +1004,25 @@ const TaoPhieuBaoCaoSanLuongChiPhi = () => {
         const tenNvlThanhPham = scopeMapping?.tenVatTu ?? null;
         setBbgnIdVatTu(idVatTuThanhPham);
         setBbgnTenVatTu(tenNvlThanhPham);
+        const MQTP_SCOPES = [1, 2, 3, 4];
+        const isTKScope =
+          selectedScope != null && MQTP_SCOPES.includes(selectedScope);
+        setBbgnVatTuOptions(
+          isTKScope
+            ? [
+                {
+                  value: "mapping",
+                  label: tenNvlThanhPham ?? "Thành phẩm",
+                  id_VatTu: idVatTuThanhPham,
+                },
+                {
+                  value: "mqtp",
+                  label: "Quặng thiêu kết (MQTP)",
+                  id_VatTu: 1659,
+                },
+              ]
+            : [],
+        );
         const userList: any[] = Array.isArray(users) ? users : [];
         const bgList: any[] = Array.isArray(bgUsers) ? bgUsers : [];
         const toOption = (u: any) => ({
@@ -1020,7 +1080,24 @@ const TaoPhieuBaoCaoSanLuongChiPhi = () => {
                 },
               ];
 
-        setTaoBBGNRows(initRows);
+        const mqtpRows: TaoBBGNChiTietRow[] = isTKScope
+          ? [
+              {
+                key: "mqtp",
+                tenNVL: "Quặng thiêu kết (MQTP)",
+                nguyenVatLieuID: undefined,
+                id_VatTu: 1659,
+                idTaiKhoanBG: null,
+                idTaiKhoan: null,
+                noiDungTrichYeu: "",
+                maLo: "",
+                doAm_W: 0,
+                khoiLuong_BG: null,
+                ghiChu: "",
+              },
+            ]
+          : [];
+        setTaoBBGNRows([...initRows, ...mqtpRows]);
         setShowTaoBBGNModal(true);
       } catch {
         message.error("Lỗi khi tải dữ liệu");
@@ -1038,6 +1115,19 @@ const TaoPhieuBaoCaoSanLuongChiPhi = () => {
       );
     },
     [],
+  );
+
+  const handleVatTuTypeChange = useCallback(
+    (idx: number, typeValue: string) => {
+      const opt = bbgnVatTuOptions.find((o) => o.value === typeValue);
+      if (!opt) return;
+      setTaoBBGNRows((prev) =>
+        prev.map((r, i) =>
+          i === idx ? { ...r, tenNVL: opt.label, id_VatTu: opt.id_VatTu } : r,
+        ),
+      );
+    },
+    [bbgnVatTuOptions],
   );
 
   const addTaoBBGNRow = useCallback(() => {
@@ -1265,7 +1355,10 @@ const TaoPhieuBaoCaoSanLuongChiPhi = () => {
           const auto = tongSanLuong.giaTriTuDong;
           const dc = tongThanhPhamDieuChinh;
           const fmt = (n: number) =>
-            n.toLocaleString("en-US", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+            n.toLocaleString("en-US", {
+              minimumFractionDigits: 3,
+              maximumFractionDigits: 3,
+            });
           const chenhlech =
             auto != null && dc != null
               ? parseFloat((dc - auto).toFixed(3))
@@ -1674,7 +1767,9 @@ const TaoPhieuBaoCaoSanLuongChiPhi = () => {
               dataIndex: "nguyenLieu",
               render: (val) => {
                 const name = bbgnTenVatTu ?? val;
-                return name || <Typography.Text type="secondary">—</Typography.Text>;
+                return (
+                  name || <Typography.Text type="secondary">—</Typography.Text>
+                );
               },
             },
             {
@@ -1717,6 +1812,31 @@ const TaoPhieuBaoCaoSanLuongChiPhi = () => {
                 </Typography.Text>
               ),
             },
+            ...(canClearBbgnRow
+              ? [
+                  {
+                    title: "",
+                    width: 60,
+                    render: (_: any, record: TableRow) => (
+                      <Popconfirm
+                        title="Xóa dữ liệu thành phẩm dòng này?"
+                        onConfirm={() => handleClearBbgnRow(record)}
+                        okText="Xóa"
+                        cancelText="Hủy"
+                        okButtonProps={{ danger: true }}
+                      >
+                        <Button
+                          size="small"
+                          danger
+                          type="text"
+                          icon={<DeleteOutlined />}
+                          loading={clearingBbgnId === record.dbId}
+                        />
+                      </Popconfirm>
+                    ),
+                  },
+                ]
+              : []),
           ]}
         />
         <div style={{ marginTop: 8, fontSize: 12, color: "#888" }}>
@@ -1745,7 +1865,7 @@ const TaoPhieuBaoCaoSanLuongChiPhi = () => {
         }
         open={showTaoBBGNModal}
         onCancel={() => setShowTaoBBGNModal(false)}
-        width={1300}
+        width={1500}
         footer={[
           <Button key="cancel" onClick={() => setShowTaoBBGNModal(false)}>
             Hủy
@@ -1802,9 +1922,21 @@ const TaoPhieuBaoCaoSanLuongChiPhi = () => {
             {
               title: "Vật tư giao nhận",
               dataIndex: "tenNVL",
-              width: 150,
-              render: (val) =>
-                val || <Typography.Text type="secondary">—</Typography.Text>,
+              width: 200,
+              render: (val, _, idx) =>
+                bbgnVatTuOptions.length > 0 ? (
+                  <Select
+                    style={{ width: "100%" }}
+                    options={bbgnVatTuOptions}
+                    value={
+                      bbgnVatTuOptions.find((o) => o.label === val)?.value ??
+                      bbgnVatTuOptions[0]?.value
+                    }
+                    onChange={(v) => handleVatTuTypeChange(idx, v)}
+                  />
+                ) : (
+                  val || <Typography.Text type="secondary">—</Typography.Text>
+                ),
             },
             {
               title: (

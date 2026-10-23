@@ -7,6 +7,8 @@ import TabPhoiTron from "./TabPhoiTron";
 import TabThapPheu from "./TabThapPheu";
 import TabPhanTich from "./TabPhanTich";
 import TabSuCo from "./TabSuCo";
+import TabTieuHao from "./TabTieuHao";
+import TabChatLuongCoc from "./TabChatLuongCoc";
 
 export type { LcPhieuTables };
 
@@ -82,6 +84,24 @@ const LcPhieuTabs = ({ thanhPham, editable, tables, onTablesChange }: LcPhieuTab
             editable={editable}
             rows={tables.suCo}
             onChange={(rows) => onTablesChange({ suCo: rows })}
+          />
+        );
+        break;
+      case "chatLuongCoc":
+        children = (
+          <TabChatLuongCoc
+            editable={editable}
+            rows={tables.chatLuongCoc}
+            onChange={(rows) => onTablesChange({ chatLuongCoc: rows })}
+          />
+        );
+        break;
+      case "tieuHao":
+        children = (
+          <TabTieuHao
+            editable={editable}
+            rows={tables.tieuHao}
+            onChange={(rows) => onTablesChange({ tieuHao: rows })}
           />
         );
         break;

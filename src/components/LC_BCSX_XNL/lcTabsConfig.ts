@@ -30,8 +30,8 @@ export const LC_BCSX_XNL_TABS: LcTabDef[] = [
     implemented: false,
     note: "Ngoài phạm vi hiện tại — chờ cấu trúc BBGN NVL (xem LC_02 mục 1.2 và 11).",
   },
-  { key: "chatLuongCoc", label: "Cỡ hạt / Chất lượng cốc", implemented: false },
-  { key: "tieuHao", label: "Tiêu hao", implemented: false },
+  { key: "chatLuongCoc", label: "Cỡ hạt / Chất lượng cốc", implemented: true },
+  { key: "tieuHao", label: "Tiêu hao", implemented: true },
   { key: "suCo", label: "Sự cố", implemented: true },
   {
     key: "ghiChuCa",
@@ -54,6 +54,10 @@ export interface LcPhieuTables {
   thap: import("./TabThapPheu").ThapRow[];
   phanTich: import("./TabPhanTich").PhanTichRow[];
   suCo: import("./TabSuCo").SuCoRow[];
+  /** Lưu ở bảng quan hệ LC_TP_TieuHao (LcTieuHaoApi), không qua DataJson. */
+  tieuHao: import("./TabTieuHao").TieuHaoRow[];
+  /** Lưu ở bảng quan hệ LC_TP_ChatLuongCocCa (LcChatLuongCocApi), không qua DataJson. */
+  chatLuongCoc: import("./TabChatLuongCoc").ChatLuongCocRow[];
 }
 
 export const EMPTY_LC_PHIEU_TABLES: LcPhieuTables = {
@@ -64,6 +68,8 @@ export const EMPTY_LC_PHIEU_TABLES: LcPhieuTables = {
   thap: [],
   phanTich: [],
   suCo: [],
+  tieuHao: [],
+  chatLuongCoc: [],
 };
 
 export function getTabsForThanhPham(thanhPham: ThanhPham | null | undefined): LcTabDef[] {

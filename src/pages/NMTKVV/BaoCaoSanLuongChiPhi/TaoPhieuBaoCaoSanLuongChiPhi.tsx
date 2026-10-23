@@ -76,6 +76,8 @@ interface TableRow {
   thanhPham_Note?: string;
   ghiChu?: string;
   id_CT_BBGN?: number | null;
+  isDonSilo?: boolean;
+  tiLePhanBo?: number | string;
   [key: string]: any;
 }
 
@@ -169,6 +171,8 @@ const fromDbRecord = (
   thanhPham_Note: item.thanhPham_Note ?? "",
   ghiChu: item.ghiChu ?? "",
   id_CT_BBGN: item.iD_CT_BBGN ?? null,
+  isDonSilo: item.isDonSilo,
+  tiLePhanBo: item.tiLePhanBo != null ? String(item.tiLePhanBo) : "",
 });
 
 const fromNearestMapping = (
@@ -393,15 +397,17 @@ const TaoPhieuBaoCaoSanLuongChiPhi = () => {
                 caSX: caValue,
               });
               if (freshData?.table?.length) {
-                const bbgnMap = new Map(
-                  freshData.table.map((r) => [r.id, r.iD_CT_BBGN]),
-                );
+                const freshMap = new Map(freshData.table.map((r) => [r.id, r]));
                 setTableData((prev) =>
-                  prev.map((r) =>
-                    r.dbId && bbgnMap.has(r.dbId)
-                      ? { ...r, id_CT_BBGN: bbgnMap.get(r.dbId) ?? null }
-                      : r,
-                  ),
+                  prev.map((r) => {
+                    const fresh = r.dbId ? freshMap.get(r.dbId) : null;
+                    if (!fresh) return r;
+                    return {
+                      ...r,
+                      id_CT_BBGN: fresh.iD_CT_BBGN ?? null,
+                      isDonSilo: fresh.isDonSilo,
+                    };
+                  }),
                 );
               }
               if (freshData?.tongSanLuong) {
@@ -735,6 +741,7 @@ const TaoPhieuBaoCaoSanLuongChiPhi = () => {
         thanhPhamL3: toNum(row.thanhPhamL3),
         thanhPham_Note: row.thanhPham_Note ?? null,
         ghiChu: row.ghiChu ?? null,
+        tiLePhanBo: toNum(row.tiLePhanBo),
       });
 
       // Chỉ lưu các dòng có dbId (đã được load từ DB) hoặc có nguyenVatLieuID hợp lệ
@@ -813,12 +820,17 @@ const TaoPhieuBaoCaoSanLuongChiPhi = () => {
     config.code,
   ]);
 
+  const tongXuatTron = useMemo(() => {
+    const firstDon = tableData.find((r) => r.isDonSilo && Number(r.klAmAuto) > 0);
+    return firstDon ? parseFloat(String(firstDon.klAmAuto)) || 0 : 0;
+  }, [tableData]);
+
   const tableColumns: FormColumnDef[] = useMemo(() => {
     const section = config.layout.find(
       (s: any) => s.sectionType === "table" && s.key === "table1",
     );
     const cols = (section?.columns || []) as FormColumnDef[];
-    return cols.map((col) => {
+    const mapped = cols.map((col) => {
       if (col.dataIndex === "nguyenLieu") {
         return {
           ...col,
@@ -827,7 +839,39 @@ const TaoPhieuBaoCaoSanLuongChiPhi = () => {
       }
       return col;
     });
-  }, [config, nvlList]);
+
+    if (selectedScope === 5 || selectedScope === 6) {
+      const tiLeCol: FormColumnDef = {
+        title: `Tỉ lệ PB (%) [Tổng trộn: ${tongXuatTron > 0 ? tongXuatTron.toLocaleString("en-US", { minimumFractionDigits: 3, maximumFractionDigits: 3 }) : "—"}]`,
+        dataIndex: "tiLePhanBo",
+        type: "number",
+        width: 210,
+        renderCell: (record: any, _idx: number, onChange: (val: any) => void, disabled: boolean) => {
+          if (!record.isDonSilo) return <Typography.Text type="secondary">—</Typography.Text>;
+          return (
+            <InputNumber
+              value={record.tiLePhanBo !== "" && record.tiLePhanBo != null ? Number(record.tiLePhanBo) : undefined}
+              onChange={(v) => onChange(v ?? "")}
+              precision={2}
+              min={0}
+              max={100}
+              style={{ width: "100%" }}
+              disabled={disabled}
+              placeholder="0.00"
+            />
+          );
+        },
+      };
+      const klAmIdx = mapped.findIndex((c) => c.dataIndex === "klAm");
+      if (klAmIdx >= 0) {
+        mapped.splice(klAmIdx, 0, tiLeCol);
+      } else {
+        mapped.push(tiLeCol);
+      }
+    }
+
+    return mapped;
+  }, [config, nvlList, selectedScope, tongXuatTron]);
 
   const bbgnCellReadonly = useCallback(
     (dataIndex: string, record: any) =>
@@ -868,6 +912,24 @@ const TaoPhieuBaoCaoSanLuongChiPhi = () => {
             return updated;
           });
         }
+        return;
+      }
+      if (dataIndex === "tiLePhanBo") {
+        setTableData((prev) => {
+          const tong = prev.find((r) => r.isDonSilo && Number(r.klAmAuto) > 0);
+          const tongVal = tong ? parseFloat(String(tong.klAmAuto)) || 0 : 0;
+          const tiLe = parseFloat(String(value));
+          const updated = [...prev];
+          updated[rowIndex] = {
+            ...updated[rowIndex],
+            tiLePhanBo: value,
+            klAm: !isNaN(tiLe) && tongVal > 0
+              ? (Math.round((tongVal * tiLe / 100) * 1000) / 1000).toFixed(3)
+              : updated[rowIndex].klAm,
+          };
+          updated[rowIndex].quyKho = calcQuyKho(updated[rowIndex].klAm, updated[rowIndex].doAm);
+          return updated;
+        });
         return;
       }
       if (dataIndex !== "klAm") return;

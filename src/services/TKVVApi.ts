@@ -311,6 +311,8 @@ export interface TKVVBaoCaoSanLuongChiPhiDto {
   isAdjusted: boolean;
   adjustedBy: number | null;
   adjustedDate: string | null;
+  tiLePhanBo: number | null;
+  isDonSilo: boolean;
   iD_CT_BBGN: number | null;
 }
 
@@ -348,6 +350,7 @@ export interface SaveBcSlRowDto {
   thanhPhamL1?: number | null;
   thanhPhamL2?: number | null;
   ghiChu?: string | null;
+  tiLePhanBo?: number | null;
 }
 
 export const tkvvBcSlChiPhiApi = {

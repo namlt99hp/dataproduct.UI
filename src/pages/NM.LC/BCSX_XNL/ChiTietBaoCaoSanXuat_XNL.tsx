@@ -14,6 +14,8 @@ import { LcCapLieuSiloApi } from "../../../services/LcCapLieuSiloApi";
 import { LcPhoiTronApi } from "../../../services/LcPhoiTronApi";
 import { LcSiloCocTonApi } from "../../../services/LcSiloCocTonApi";
 import { LcXuatCapApi } from "../../../services/LcXuatCapApi";
+import { LcTieuHaoApi } from "../../../services/LcTieuHaoApi";
+import { LcChatLuongCocApi } from "../../../services/LcChatLuongCocApi";
 
 const { Title, Text } = Typography;
 
@@ -51,6 +53,8 @@ const ChiTietBaoCaoSanXuat_XNL = () => {
         suCo: fd.table_suCo || [],
         tonCoc: [],
         xuatCapCoc: [],
+        tieuHao: [],
+        chatLuongCoc: [],
       });
 
       // Ghi đè bằng giá trị THẬT đã tính ở BE (TonDauKyQuyKho/LuyKeQuyKho/KhoiLuongKhoThucTe) —
@@ -87,6 +91,26 @@ const ChiTietBaoCaoSanXuat_XNL = () => {
           setTables((prev) => ({ ...prev, xuatCapCoc: xuatCapRows }));
         } catch (err) {
           console.error("Không thể tải dữ liệu Xuất/Cấp cốc (bảng quan hệ):", err);
+        }
+
+        try {
+          const tieuHaoScope = Number(fd.scope);
+          if (tieuHaoScope) {
+            const tieuHaoRows = await LcTieuHaoApi.getByPhieu(resIdPhieu, tieuHaoScope);
+            setTables((prev) => ({ ...prev, tieuHao: tieuHaoRows }));
+          }
+        } catch (err) {
+          console.error("Không thể tải dữ liệu Tiêu hao (bảng quan hệ):", err);
+        }
+
+        try {
+          const chatLuongScope = Number(fd.scope);
+          if (chatLuongScope) {
+            const chatLuongRows = await LcChatLuongCocApi.getByPhieu(resIdPhieu, chatLuongScope);
+            setTables((prev) => ({ ...prev, chatLuongCoc: chatLuongRows }));
+          }
+        } catch (err) {
+          console.error("Không thể tải dữ liệu Chất lượng cốc (bảng quan hệ):", err);
         }
       }
     } catch (error) {

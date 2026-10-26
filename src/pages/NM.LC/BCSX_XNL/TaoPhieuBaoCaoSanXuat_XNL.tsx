@@ -9,11 +9,13 @@ import { usePhieuNavigation } from "../../../hooks/usePhieuNavigation";
 import { phieuActionService, type PheDuyetItem } from "../../../services/PhieuActionService";
 import { TrangThaiPhieuConst } from "../../../utils/constants/TrangThaiPhieuConstant";
 import LcPhieuTabs from "../../../components/LC_BCSX_XNL/LcPhieuTabs";
-import { scopeToThanhPham, EMPTY_LC_PHIEU_TABLES, type LcPhieuTables } from "../../../components/LC_BCSX_XNL/lcTabsConfig";
+import { scopeToThanhPham, thanhPhamToScope, EMPTY_LC_PHIEU_TABLES, type LcPhieuTables } from "../../../components/LC_BCSX_XNL/lcTabsConfig";
 import { LcCapLieuSiloApi } from "../../../services/LcCapLieuSiloApi";
 import { LcPhoiTronApi } from "../../../services/LcPhoiTronApi";
 import { LcSiloCocTonApi } from "../../../services/LcSiloCocTonApi";
 import { LcXuatCapApi } from "../../../services/LcXuatCapApi";
+import { LcTieuHaoApi } from "../../../services/LcTieuHaoApi";
+import { LcChatLuongCocApi } from "../../../services/LcChatLuongCocApi";
 
 /**
  * Trang Tạo / thao tác phiếu "Báo cáo sản xuất Xưởng Nguyên liệu" — dùng chung TP1/TP2.
@@ -112,6 +114,8 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
         suCo: data.table_suCo || [],
         tonCoc: [],
         xuatCapCoc: [],
+        tieuHao: [],
+        chatLuongCoc: [],
       });
 
       // Ghi đè bằng giá trị THẬT đã tính ở BE (TonDauKyQuyKho/LuyKeQuyKho/KhoiLuongKhoThucTe,
@@ -149,6 +153,26 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
           setTables((prev) => ({ ...prev, xuatCapCoc: xuatCapRows }));
         } catch (err) {
           console.error("Không thể tải dữ liệu Xuất/Cấp cốc (bảng quan hệ):", err);
+        }
+
+        try {
+          const tieuHaoScope = Number(data.scope);
+          if (tieuHaoScope) {
+            const tieuHaoRows = await LcTieuHaoApi.getByPhieu(resIdPhieu, tieuHaoScope);
+            setTables((prev) => ({ ...prev, tieuHao: tieuHaoRows }));
+          }
+        } catch (err) {
+          console.error("Không thể tải dữ liệu Tiêu hao (bảng quan hệ):", err);
+        }
+
+        try {
+          const chatLuongScope = Number(data.scope);
+          if (chatLuongScope) {
+            const chatLuongRows = await LcChatLuongCocApi.getByPhieu(resIdPhieu, chatLuongScope);
+            setTables((prev) => ({ ...prev, chatLuongCoc: chatLuongRows }));
+          }
+        } catch (err) {
+          console.error("Không thể tải dữ liệu Chất lượng cốc (bảng quan hệ):", err);
         }
       }
 
@@ -270,6 +294,25 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
             message.error("Đã lưu phiếu nhưng lưu dữ liệu Xuất/Cấp cốc thất bại, vui lòng kiểm tra lại.");
           }
         }
+
+        try {
+          const tieuHaoScope = thanhPhamToScope(thanhPham);
+          if (tieuHaoScope) await LcTieuHaoApi.save(targetId, tieuHaoScope, tables.tieuHao);
+        } catch (err) {
+          console.error("Không thể lưu Tiêu hao:", err);
+          message.error("Đã lưu phiếu nhưng lưu dữ liệu Tiêu hao thất bại, vui lòng kiểm tra lại.");
+        }
+
+        try {
+          const chatLuongScope = thanhPhamToScope(thanhPham);
+          if (chatLuongScope) await LcChatLuongCocApi.save(targetId, chatLuongScope, tables.chatLuongCoc);
+        } catch (err: any) {
+          console.error("Không thể lưu Chất lượng cốc:", err);
+          message.error(
+            err?.response?.data?.message ||
+              "Đã lưu phiếu nhưng lưu dữ liệu Chất lượng cốc thất bại, vui lòng kiểm tra lại."
+          );
+        }
       }
       if (context?.newPhieuId) {
         navigateToDetail(context.newPhieuId, "/taophieubaocaosanxuat_xnl");
@@ -277,7 +320,7 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
       }
       await initData();
     },
-    [navigateToDetail, initData, idphieu, tables]
+    [navigateToDetail, initData, idphieu, tables, thanhPham]
   );
 
   /**

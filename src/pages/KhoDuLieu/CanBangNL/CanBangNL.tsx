@@ -25,7 +25,7 @@ const CO_AM_OPTIONS = [
 ];
 const LO_CAO_OPTIONS = [1, 2, 3, 4, 5, 6].map((v) => ({ label: `Lò Cao ${v}`, value: v }));
 
-type FormValues = { ngay: Dayjs; ca: number; coAm: boolean; idLoCao?: number };
+type FormValues = { dateRange: [Dayjs, Dayjs]; ca: number; coAm: boolean; idLoCao?: number };
 
 type RowType = "item" | "total" | "loss" | "rate";
 
@@ -65,7 +65,7 @@ const sum = (items: BalanceItem[]) => items.reduce((s, i) => s + (i.value ?? 0),
 const summarize = (m: MaterialBalance): MaterialSummary => {
   const totalGen = sum(m.generators);
   const totalCons = sum(m.consumers);
-  const loss = totalGen - totalCons;
+  const loss = totalCons - totalGen;
   const lossRate = totalGen ? (loss / totalGen) * 100 : null;
   return {
     totalGen,
@@ -142,8 +142,11 @@ const CanBangNL = () => {
 
   const fetchData = async () => {
     const v = form.getFieldsValue();
+    const today = dayjs();
+    const [from, to] = v.dateRange ?? [today, today];
     const f: CanBangNLFilter = {
-      ngay: (v.ngay ?? dayjs()).format("YYYY-MM-DD"),
+      tuNgay: from.format("YYYY-MM-DD"),
+      denNgay: to.format("YYYY-MM-DD"),
       ca: v.ca || undefined,
       coAm: v.coAm ?? true,
       idLoCao: v.idLoCao || undefined,
@@ -253,7 +256,7 @@ const CanBangNL = () => {
             onCell: (r) => ({ ...bg(r), colSpan: r.type === "item" ? 1 : r.type === "total" ? 2 : 3 }),
             render: (_, r) => {
               if (r.type === "item") return r.cons?.name;
-              if (r.type === "loss") return <Text type="secondary">= Total Generator − Total Consumer</Text>;
+              if (r.type === "loss") return <Text type="secondary">= Total Consumer − Total Generator</Text>;
               if (r.type === "rate")
                 return (
                   <Space>
@@ -314,13 +317,13 @@ const CanBangNL = () => {
         <Form
           form={form}
           layout="vertical"
-          initialValues={{ ngay: dayjs(), ca: 1, coAm: true }}
+          initialValues={{ dateRange: [dayjs(), dayjs()], ca: 1, coAm: true }}
           onFinish={fetchData}
         >
           <Row gutter={16} align="bottom">
-            <Col xs={24} sm={12} md={5}>
-              <Form.Item label="Ngày" name="ngay">
-                <DatePicker format="DD/MM/YYYY" allowClear={false} style={{ width: "100%" }} />
+            <Col xs={24} sm={24} md={8}>
+              <Form.Item label="Từ ngày - Đến ngày" name="dateRange">
+                <DatePicker.RangePicker format="DD/MM/YYYY" allowClear={false} style={{ width: "100%" }} />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12} md={4}>
@@ -355,7 +358,7 @@ const CanBangNL = () => {
         <Alert
           type="info"
           showIcon
-          message="So sánh khối lượng Giao nhận (Generator) với khối lượng Vào lò (Consumer). Balance loss = Generator − Consumer; Loss rate = Balance loss / Generator."
+          message="So sánh khối lượng Giao nhận (Generator) với khối lượng Vào lò (Consumer). Balance loss = Consumer − Generator; Loss rate = Balance loss / Generator."
         />
       </Card>
 

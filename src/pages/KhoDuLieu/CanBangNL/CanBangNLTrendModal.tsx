@@ -144,7 +144,7 @@ const CanBangNLTrendModal = ({ open, onClose, filter, mat }: Props) => {
     if (!open) return;
     setLoading(true);
     canBangNLApi
-      .getTrend({ ...filter, material: mat.key, soNgay })
+      .getTrend({ ngay: filter.denNgay, ca: filter.ca, coAm: filter.coAm, idLoCao: filter.idLoCao, material: mat.key, soNgay })
       .then(setData)
       .catch(() => setData([]))
       .finally(() => setLoading(false));

@@ -8,10 +8,20 @@
 import apiService from "./ApiService";
 
 export type CanBangNLFilter = {
-  ngay: string; // YYYY-MM-DD
-  ca?: number; // 1: Ca ngày, 2: Ca đêm, undefined: cả ngày
-  coAm: boolean; // true: khối lượng ẩm, false: khô
+  tuNgay: string;  // YYYY-MM-DD
+  denNgay: string; // YYYY-MM-DD
+  ca?: number;     // 1: Ca ngày, 2: Ca đêm, undefined: cả ngày
+  coAm: boolean;   // true: khối lượng ẩm, false: khô
   idLoCao?: number; // undefined: tất cả lò cao
+};
+
+export type CanBangNLTrendParams = {
+  ngay: string; // YYYY-MM-DD — ngày kết thúc của trend lookback
+  ca?: number;
+  coAm: boolean;
+  idLoCao?: number;
+  material: string;
+  soNgay: number;
 };
 
 export type BalanceItem = {
@@ -59,7 +69,7 @@ export const canBangNLApi = {
   getCanBang: (filter: CanBangNLFilter) =>
     apiService.get("/api/CanBangNL", { params: filter }) as unknown as Promise<MaterialBalance[]>,
 
-  /** material = key của MaterialBalance (mã rule) */
-  getTrend: (filter: CanBangNLFilter & { material: string; soNgay: number }) =>
-    apiService.get("/api/CanBangNL/trend", { params: filter }) as unknown as Promise<TrendPoint[]>,
+  /** material = key của MaterialBalance (mã rule); ngay = ngày kết thúc trend lookback */
+  getTrend: (params: CanBangNLTrendParams) =>
+    apiService.get("/api/CanBangNL/trend", { params }) as unknown as Promise<TrendPoint[]>,
 };

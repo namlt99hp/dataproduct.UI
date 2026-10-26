@@ -1,7 +1,7 @@
 import apiService from "./ApiService";
 import type { CapLieuRow, CoHatNghien1Row } from "../components/LC_BCSX_XNL/TabCapLieuSilo";
 
-// Đọc/lưu trực tiếp bảng quan hệ (LC_CapLieu/LC_TonSilo/LC_KetQuaPhanTich) cho tab Cấp liệu
+// Đọc/lưu trực tiếp bảng quan hệ (LC_CapLieu/LC_CapLieuTonSilo/LC_KetQuaPhanTich) cho tab Cấp liệu
 // & Silo — KHÔNG qua BmPhieu.DataJson (quyết định 2026-10-19: lưu JSON rủi ro lệch dữ liệu).
 // Xem Repositories/NM.LC/LC_CapLieuSiloRepository.cs.
 

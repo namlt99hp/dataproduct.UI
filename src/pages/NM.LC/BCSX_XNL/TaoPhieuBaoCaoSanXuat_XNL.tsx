@@ -12,6 +12,8 @@ import LcPhieuTabs from "../../../components/LC_BCSX_XNL/LcPhieuTabs";
 import { scopeToThanhPham, EMPTY_LC_PHIEU_TABLES, type LcPhieuTables } from "../../../components/LC_BCSX_XNL/lcTabsConfig";
 import { LcCapLieuSiloApi } from "../../../services/LcCapLieuSiloApi";
 import { LcPhoiTronApi } from "../../../services/LcPhoiTronApi";
+import { LcSiloCocTonApi } from "../../../services/LcSiloCocTonApi";
+import { LcXuatCapApi } from "../../../services/LcXuatCapApi";
 
 /**
  * Trang Tạo / thao tác phiếu "Báo cáo sản xuất Xưởng Nguyên liệu" — dùng chung TP1/TP2.
@@ -48,6 +50,9 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
 
   const scope = Form.useWatch("scope", form);
   const thanhPham = useMemo(() => scopeToThanhPham(scope), [scope]);
+  const ngaySXWatch = Form.useWatch("NgaySX", form);
+  const ngaySXStr = useMemo(() => (ngaySXWatch ? ngaySXWatch.format("YYYY-MM-DD") : null), [ngaySXWatch]);
+  const caWatch = Form.useWatch("ca", form);
 
   const currentTinhTrang = phieuInfo.tinhTrang ?? TrangThaiPhieuConst.DangLuu;
   const isSignatureReadonly = [
@@ -105,6 +110,8 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
         thap: data.table_thap || [],
         phanTich: data.table_phanTich || [],
         suCo: data.table_suCo || [],
+        tonCoc: [],
+        xuatCapCoc: [],
       });
 
       // Ghi đè bằng giá trị THẬT đã tính ở BE (TonDauKyQuyKho/LuyKeQuyKho/KhoiLuongKhoThucTe,
@@ -128,6 +135,20 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
           setTables((prev) => ({ ...prev, phoiTron: phoiTronCards }));
         } catch (err) {
           console.error("Không thể tải dữ liệu Phối trộn (bảng quan hệ):", err);
+        }
+
+        try {
+          const tonCocRows = await LcSiloCocTonApi.getByPhieu(resIdPhieu);
+          setTables((prev) => ({ ...prev, tonCoc: tonCocRows }));
+        } catch (err) {
+          console.error("Không thể tải dữ liệu Tồn cốc silo (bảng quan hệ):", err);
+        }
+
+        try {
+          const xuatCapRows = await LcXuatCapApi.getByPhieu(resIdPhieu);
+          setTables((prev) => ({ ...prev, xuatCapCoc: xuatCapRows }));
+        } catch (err) {
+          console.error("Không thể tải dữ liệu Xuất/Cấp cốc (bảng quan hệ):", err);
         }
       }
 
@@ -184,9 +205,10 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
       tenScope: thanhPham ?? null,
       xuongId: userInfo.iD_PhanXuong ?? null,
       idphongBan: userInfo.iD_PhongBan ?? null,
-      // table_capLieu/table_coHatNghien1/table_phoiTron KHÔNG gửi qua DataJson nữa (rủi ro
-      // lệch dữ liệu) — lưu trực tiếp vào bảng quan hệ riêng qua LcCapLieuSiloApi.save /
-      // LcPhoiTronApi.save trong handleActionSuccess bên dưới.
+      // table_capLieu/table_coHatNghien1/table_phoiTron/table_tonCoc KHÔNG gửi qua DataJson
+      // nữa (rủi ro lệch dữ liệu) — lưu trực tiếp vào bảng quan hệ riêng qua
+      // LcCapLieuSiloApi.save / LcPhoiTronApi.save / LcSiloCocTonApi.save trong
+      // handleActionSuccess bên dưới.
       table_pheu: tables.pheu,
       table_thap: tables.thap,
       table_phanTich: tables.phanTich,
@@ -198,22 +220,55 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
   const handleActionSuccess = useCallback(
     async (context?: { newPhieuId?: string }) => {
       const targetId = context?.newPhieuId || idphieu;
+      const isCreatingNew = Boolean(context?.newPhieuId);
       if (targetId) {
-        try {
-          await LcCapLieuSiloApi.save(targetId, {
-            capLieu: tables.capLieu,
-            coHatNghien1: tables.coHatNghien1,
-          });
-        } catch (err) {
-          console.error("Không thể lưu Cấp liệu & Silo:", err);
-          message.error("Đã lưu phiếu nhưng lưu dữ liệu Cấp liệu & Silo thất bại, vui lòng kiểm tra lại.");
+        // Lúc mới tạo phiếu, nếu người dùng chưa đụng vào tab nào đó thì state FE của tab
+        // đó vẫn đang rỗng (initData chỉ nạp capLieu/phoiTron/tonCoc THẬT từ server khi đã
+        // có idphieu — tức là SAU lần tạo này). Gọi save với mảng rỗng sẽ bị SaveTabAsync
+        // hiểu là "không còn dòng nào" và xoá sạch dữ liệu mặc định mà Initializer backend
+        // vừa copy-forward/khởi tạo lúc tạo phiếu (BE-xxx: LC_BCSX_XNL_TPInitializer). Nên
+        // chỉ gọi save cho tab nào người dùng đã thực sự nhập liệu (mảng không rỗng), hoặc
+        // khi đây là lần Lưu cập nhật phiếu đã tồn tại (tables lúc đó đã được nạp thật).
+        if (!isCreatingNew || tables.capLieu.length > 0 || tables.coHatNghien1.length > 0) {
+          try {
+            await LcCapLieuSiloApi.save(targetId, {
+              capLieu: tables.capLieu,
+              coHatNghien1: tables.coHatNghien1,
+            });
+          } catch (err) {
+            console.error("Không thể lưu Cấp liệu & Silo:", err);
+            message.error("Đã lưu phiếu nhưng lưu dữ liệu Cấp liệu & Silo thất bại, vui lòng kiểm tra lại.");
+          }
         }
 
-        try {
-          await LcPhoiTronApi.save(targetId, tables.phoiTron);
-        } catch (err) {
-          console.error("Không thể lưu Phối trộn:", err);
-          message.error("Đã lưu phiếu nhưng lưu dữ liệu Phối trộn thất bại, vui lòng kiểm tra lại.");
+        if (!isCreatingNew || tables.phoiTron.length > 0) {
+          try {
+            await LcPhoiTronApi.save(targetId, tables.phoiTron);
+          } catch (err) {
+            console.error("Không thể lưu Phối trộn:", err);
+            message.error("Đã lưu phiếu nhưng lưu dữ liệu Phối trộn thất bại, vui lòng kiểm tra lại.");
+          }
+        }
+
+        if (!isCreatingNew || tables.tonCoc.length > 0) {
+          try {
+            await LcSiloCocTonApi.save(targetId, tables.tonCoc);
+          } catch (err) {
+            console.error("Không thể lưu Tồn cốc silo:", err);
+            message.error("Đã lưu phiếu nhưng lưu dữ liệu Tồn cốc silo thất bại, vui lòng kiểm tra lại.");
+          }
+        }
+
+        if (!isCreatingNew || tables.xuatCapCoc.length > 0) {
+          try {
+            await LcXuatCapApi.save(
+              targetId,
+              tables.xuatCapCoc.map((s) => ({ id: s.id, khoiLuongAm: s.khoiLuongAm, doAm: s.doAm, tyKhoi: s.tyKhoi, ghiChu: s.ghiChu }))
+            );
+          } catch (err) {
+            console.error("Không thể lưu Xuất/Cấp cốc:", err);
+            message.error("Đã lưu phiếu nhưng lưu dữ liệu Xuất/Cấp cốc thất bại, vui lòng kiểm tra lại.");
+          }
         }
       }
       if (context?.newPhieuId) {
@@ -341,6 +396,9 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
             editable={!isFormLocked}
             tables={tables}
             onTablesChange={handleTablesChange}
+            idPhieu={idphieu}
+            ngaySX={ngaySXStr}
+            caPhieu={caWatch}
           />
         </div>
 

@@ -203,6 +203,22 @@ export const menuConfig = [
               </Tooltip>
             ),
           },
+          {
+            key: "sub1-6-3",
+            label: (
+              <Tooltip title="LC - Quản lý Silo tồn + setup công thức">
+                <NavLink to="/lc-siloton">LC - Silo tồn</NavLink>
+              </Tooltip>
+            ),
+          },
+          {
+            key: "sub1-6-4",
+            label: (
+              <Tooltip title="LC - Quản lý Nơi nhận vùng Cấp cốc">
+                <NavLink to="/lc-xuatcapdanhmuc">LC - Nơi nhận Cấp cốc</NavLink>
+              </Tooltip>
+            ),
+          },
         ],
       }
     ],

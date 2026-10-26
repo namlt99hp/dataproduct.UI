@@ -15,9 +15,9 @@ import { VatTuAutoCompleteCell, MaLoAutoCompleteCell, useMaLoBatchCache, type Va
  * do như trước đây (Excel không có nút thêm dòng ở vùng này). Có dòng "Tổng" ở cuối, và
  * bảng phụ "Cỡ hạt sau nghiền 1" (đúng 2 dòng ≤1mm/≤3mm) bên dưới.
  *
- * DB tương ứng (LC_03_Prompt_ThietKe_CSDL.md mục 3.3): #7 LC_CapLieu + #9 LC_TonSilo —
+ * DB tương ứng (LC_03_Prompt_ThietKe_CSDL.md mục 3.3): #7 LC_CapLieu + #9 LC_CapLieuTonSilo —
  * ở Excel 2 bảng này gộp làm 1 theo silo nên UI cũng gộp lại cho khớp; khi có backend,
- * 1 dòng UI sẽ tách thành 1 bản ghi LC_CapLieu + 1 bản ghi LC_TonSilo cùng SiloId.
+ * 1 dòng UI sẽ tách thành 1 bản ghi LC_CapLieu + 1 bản ghi LC_CapLieuTonSilo cùng SiloId.
  *
  * Các cột CALCULATED: "KL khô thực tế" (F01), "KL ẩm tồn cuối" (F05a, chỉ TP1), "KL khô tồn
  * cuối" (F01 áp lại cho KL ẩm tồn cuối + Độ ẩm silo) đều có PREVIEW tính NGAY ở FE (bắt sự
@@ -91,7 +91,7 @@ const PASTE_COLUMNS = new Set([
   "doAmSilo",
 ]);
 
-/** Các cột thuộc về SILO VẬT LÝ (bảng LC_TonSilo, đo 1 lần/silo bằng radar) — khi 1 silo có
+/** Các cột thuộc về SILO VẬT LÝ (bảng LC_CapLieuTonSilo, đo 1 lần/silo bằng radar) — khi 1 silo có
  *  nhiều lớp liệu (tách liệu), các cột này chỉ cho nhập ở lớp Stt=1, khoá ở các lớp còn lại
  *  (không nhân theo lớp, tránh nhập trùng/lệch 1 giá trị vật lý duy nhất). */
 const TONSILO_FIELDS = new Set(["amSiloCuoiKy", "klAmTonCuoi", "doAmSilo", "klTonCuoiQuyKho"]);

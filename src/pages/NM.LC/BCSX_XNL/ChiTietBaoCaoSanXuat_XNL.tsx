@@ -12,6 +12,8 @@ import LcPhieuTabs from "../../../components/LC_BCSX_XNL/LcPhieuTabs";
 import { scopeToThanhPham, EMPTY_LC_PHIEU_TABLES, type LcPhieuTables } from "../../../components/LC_BCSX_XNL/lcTabsConfig";
 import { LcCapLieuSiloApi } from "../../../services/LcCapLieuSiloApi";
 import { LcPhoiTronApi } from "../../../services/LcPhoiTronApi";
+import { LcSiloCocTonApi } from "../../../services/LcSiloCocTonApi";
+import { LcXuatCapApi } from "../../../services/LcXuatCapApi";
 
 const { Title, Text } = Typography;
 
@@ -47,6 +49,8 @@ const ChiTietBaoCaoSanXuat_XNL = () => {
         thap: fd.table_thap || [],
         phanTich: fd.table_phanTich || [],
         suCo: fd.table_suCo || [],
+        tonCoc: [],
+        xuatCapCoc: [],
       });
 
       // Ghi đè bằng giá trị THẬT đã tính ở BE (TonDauKyQuyKho/LuyKeQuyKho/KhoiLuongKhoThucTe) —
@@ -69,6 +73,20 @@ const ChiTietBaoCaoSanXuat_XNL = () => {
           setTables((prev) => ({ ...prev, phoiTron: phoiTronCards }));
         } catch (err) {
           console.error("Không thể tải dữ liệu Phối trộn (bảng quan hệ):", err);
+        }
+
+        try {
+          const tonCocRows = await LcSiloCocTonApi.getByPhieu(resIdPhieu);
+          setTables((prev) => ({ ...prev, tonCoc: tonCocRows }));
+        } catch (err) {
+          console.error("Không thể tải dữ liệu Tồn cốc silo (bảng quan hệ):", err);
+        }
+
+        try {
+          const xuatCapRows = await LcXuatCapApi.getByPhieu(resIdPhieu);
+          setTables((prev) => ({ ...prev, xuatCapCoc: xuatCapRows }));
+        } catch (err) {
+          console.error("Không thể tải dữ liệu Xuất/Cấp cốc (bảng quan hệ):", err);
         }
       }
     } catch (error) {
@@ -153,6 +171,9 @@ const ChiTietBaoCaoSanXuat_XNL = () => {
           editable={false}
           tables={tables}
           onTablesChange={() => {}}
+          idPhieu={idphieu}
+          ngaySX={formData?.NgaySX ? dayjs(formData.NgaySX).format("YYYY-MM-DD") : null}
+          caPhieu={formData?.ca ?? null}
         />
       </div>
 

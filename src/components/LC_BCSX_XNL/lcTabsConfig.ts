@@ -23,12 +23,12 @@ export const LC_BCSX_XNL_TABS: LcTabDef[] = [
   { key: "phanTich", label: "Phân tích", implemented: true },
   { key: "buiCoc", label: "Bụi cốc", implemented: false },
   { key: "dapCoc", label: "Sản lượng cốc", implemented: false },
-  { key: "tonCoc", label: "Tồn cốc", implemented: false },
+  { key: "tonCoc", label: "Tồn cốc", implemented: true },
   {
     key: "xuatCapCoc",
     label: "Xuất / Cấp cốc",
-    implemented: false,
-    note: "Ngoài phạm vi hiện tại — chờ cấu trúc BBGN NVL (xem LC_02 mục 1.2 và 11).",
+    implemented: true,
+    note: "Layout cố định theo TP, nguồn BBGN gán tay — xem .claude/LuyenCoc/PhanTich_TabCapCoc.md §9.",
   },
   { key: "chatLuongCoc", label: "Cỡ hạt / Chất lượng cốc", implemented: false },
   { key: "tieuHao", label: "Tiêu hao", implemented: false },
@@ -54,6 +54,8 @@ export interface LcPhieuTables {
   thap: import("./TabThapPheu").ThapRow[];
   phanTich: import("./TabPhanTich").PhanTichRow[];
   suCo: import("./TabSuCo").SuCoRow[];
+  tonCoc: import("./TabCocTonSilo").CocTonCum[];
+  xuatCapCoc: import("./TabXuatCapCoc").XuatCapSlot[];
 }
 
 export const EMPTY_LC_PHIEU_TABLES: LcPhieuTables = {
@@ -64,6 +66,8 @@ export const EMPTY_LC_PHIEU_TABLES: LcPhieuTables = {
   thap: [],
   phanTich: [],
   suCo: [],
+  tonCoc: [],
+  xuatCapCoc: [],
 };
 
 export function getTabsForThanhPham(thanhPham: ThanhPham | null | undefined): LcTabDef[] {

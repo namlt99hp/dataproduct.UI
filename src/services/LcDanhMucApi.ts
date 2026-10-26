@@ -1,5 +1,13 @@
 import apiService from "./ApiService";
-import type { LcSilo, LcSiloPayload, LcCumThap, LcCumThapPayload } from "../models/LcDanhMucModel";
+import type {
+  LcSilo,
+  LcSiloPayload,
+  LcCumThap,
+  LcCumThapPayload,
+  LcSiloTon,
+  LcSiloTonPayload,
+  TestCongThucResult,
+} from "../models/LcDanhMucModel";
 
 // Backend trả PascalCase hoặc camelCase tùy serializer — map linh hoạt cả hai.
 interface BackendLcSilo {
@@ -40,6 +48,31 @@ const toCumThapModel = (x: BackendLcCumThap): LcCumThap => ({
   ngayTao: x.ngayTao ?? x.NgayTao ?? null,
 });
 
+interface BackendLcSiloTon {
+  id?: number; Id?: number;
+  scope?: number; Scope?: number;
+  tenSilo?: string; TenSilo?: string;
+  loaiLieu?: string; LoaiLieu?: string;
+  tenNhapLieu?: string; TenNhapLieu?: string;
+  congThuc?: string; CongThuc?: string;
+  ngayTao?: string | null; NgayTao?: string | null;
+}
+
+interface BackendTestCongThucResult {
+  ketQua?: number | null; KetQua?: number | null;
+  loi?: string | null; Loi?: string | null;
+}
+
+const toSiloTonModel = (x: BackendLcSiloTon): LcSiloTon => ({
+  id: x.id ?? x.Id ?? 0,
+  scope: x.scope ?? x.Scope ?? 0,
+  tenSilo: x.tenSilo ?? x.TenSilo ?? "",
+  loaiLieu: (x.loaiLieu ?? x.LoaiLieu ?? "MM_10_80") as LcSiloTon["loaiLieu"],
+  tenNhapLieu: x.tenNhapLieu ?? x.TenNhapLieu ?? "Chiều cao",
+  congThuc: x.congThuc ?? x.CongThuc ?? "",
+  ngayTao: x.ngayTao ?? x.NgayTao ?? null,
+});
+
 export const LcSiloApi = {
   search: async (scope?: number | null): Promise<LcSilo[]> => {
     const params = scope != null ? { scope } : undefined;
@@ -73,5 +106,33 @@ export const LcCumThapApi = {
   },
   delete: async (id: number): Promise<void> => {
     await apiService.delete(`/api/LC_CumThap/${id}`);
+  },
+};
+
+export const LcSiloTonApi = {
+  search: async (scope?: number | null): Promise<LcSiloTon[]> => {
+    const params = scope != null ? { scope } : undefined;
+    const response = (await apiService.get("/api/LC_SiloTon", { params })) as BackendLcSiloTon[];
+    return Array.isArray(response) ? response.map(toSiloTonModel) : [];
+  },
+  create: async (payload: LcSiloTonPayload): Promise<LcSiloTon> => {
+    const response = (await apiService.post("/api/LC_SiloTon", payload)) as BackendLcSiloTon;
+    return toSiloTonModel(response);
+  },
+  update: async (id: number, payload: LcSiloTonPayload): Promise<void> => {
+    await apiService.put(`/api/LC_SiloTon/${id}`, payload);
+  },
+  delete: async (id: number): Promise<void> => {
+    await apiService.delete(`/api/LC_SiloTon/${id}`);
+  },
+  testCongThuc: async (congThuc: string, giaTriNhap: number): Promise<TestCongThucResult> => {
+    const res = (await apiService.post("/api/LC_SiloTon/test-cong-thuc", {
+      congThuc,
+      giaTriNhap,
+    })) as BackendTestCongThucResult;
+    return {
+      ketQua: res.ketQua ?? res.KetQua ?? null,
+      loi: res.loi ?? res.Loi ?? null,
+    };
   },
 };

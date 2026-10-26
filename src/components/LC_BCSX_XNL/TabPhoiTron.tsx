@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button, Card, Col, Divider, Input, InputNumber, Modal, Popconfirm, Row, Select, Table, Typography } from "antd";
 import { DeleteOutlined, PlusOutlined, SnippetsOutlined } from "@ant-design/icons";
 import CustomFormTable, { type FormColumnDef } from "../CustomFormTable";
@@ -135,15 +135,40 @@ const renderChiTietSummary = (data: readonly PhoiTronChiTietRow[]) => {
         <Table.Summary.Cell index={4} align="right">
           {sum("tyLeThucTe")}
         </Table.Summary.Cell>
-        <Table.Summary.Cell index={5} align="right">
+        <Table.Summary.Cell index={5} />
+        <Table.Summary.Cell index={6} align="right">
           {sum("klQuyKho")}
         </Table.Summary.Cell>
-        <Table.Summary.Cell index={6} />
         <Table.Summary.Cell index={7} />
+        <Table.Summary.Cell index={8} />
       </Table.Summary.Row>
     </Table.Summary>
   );
 };
+
+/**
+ * Cột "Khối lượng cân 2A/Độ ẩm/Khối lượng quy khô cân" (khớp layout Excel TP1.xlsx): 1 cột
+ * duy nhất, merge (rowSpan) toàn bộ số dòng silo của thẻ thành 3 khối xếp dọc — khối 1 = KL
+ * cân 2A (nhập tay), khối 2 = Độ ẩm (nhập tay), khối 3 = KL quy khô cân (CALCULATED F01,
+ * highlight vàng cam). Tỷ lệ chia khối xấp xỉ theo bản Excel gốc (3 giá trị không liên quan gì
+ * tới từng dòng silo — thuần cosmetic để tái hiện đúng layout).
+ */
+const CAN_DO_AM_BLOCK_WEIGHTS: [number, number, number] = [1, 2, 3];
+
+function splitCanDoAmRows(n: number): [number, number, number] {
+  if (n <= 0) return [0, 0, 0];
+  if (n < 3) return [n, 0, 0];
+  const sum = CAN_DO_AM_BLOCK_WEIGHTS[0] + CAN_DO_AM_BLOCK_WEIGHTS[1] + CAN_DO_AM_BLOCK_WEIGHTS[2];
+  const s1 = Math.max(1, Math.round((n * CAN_DO_AM_BLOCK_WEIGHTS[0]) / sum));
+  let s2 = Math.max(1, Math.round((n * CAN_DO_AM_BLOCK_WEIGHTS[1]) / sum));
+  let s3 = n - s1 - s2;
+  if (s3 < 1) {
+    const deficit = 1 - s3;
+    s2 = Math.max(1, s2 - deficit);
+    s3 = n - s1 - s2;
+  }
+  return [s1, s2, s3];
+}
 
 const TabPhoiTron = ({ thanhPham, editable, cards, onChange, capLieuRows }: TabPhoiTronProps) => {
   const cardsRef = useRef(cards);
@@ -322,6 +347,92 @@ const TabPhoiTron = ({ thanhPham, editable, cards, onChange, capLieuRows }: TabP
     [editable]
   );
 
+  /** Một "khối" trong cột merge — label nhỏ phía trên + nội dung (input hoặc giá trị). */
+  const canDoAmField = (label: string, content: ReactNode, highlight?: boolean) => (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 4,
+        width: "100%",
+        padding: "4px 10px",
+        backgroundColor: highlight ? "#ffc000" : undefined,
+        borderRadius: highlight ? 4 : undefined,
+      }}
+    >
+      <Typography.Text strong={highlight} style={{ fontSize: 11, textAlign: "center", lineHeight: 1.2 }}>
+        {label}
+      </Typography.Text>
+      {content}
+    </div>
+  );
+
+  const buildCanDoAmColumn = useCallback(
+    (card: PhoiTronCard): FormColumnDef => ({
+      title: "Khối lượng cân 2A, (tấn)",
+      dataIndex: "__canDoAmQuyKho",
+      width: 200,
+      align: "center",
+      onCell: (_record, rowIndex) => {
+        const n = card.chiTiet.length;
+        const [s1, s2] = splitCanDoAmRows(n);
+        if (n < 3) return rowIndex === 0 ? { rowSpan: n } : { rowSpan: 0 };
+        if (rowIndex === 0) return { rowSpan: s1 };
+        if (rowIndex === s1) return { rowSpan: s2 };
+        if (rowIndex === s1 + s2) return { rowSpan: n - s1 - s2 };
+        return { rowSpan: 0 };
+      },
+      renderCell: (_record, idx) => {
+        const n = card.chiTiet.length;
+        const [s1, s2] = splitCanDoAmRows(n);
+
+        const canAm = canDoAmField(
+          "Khối lượng cân 2A, (tấn)",
+          <InputNumber
+            style={{ width: "100%" }}
+            value={toNum(card.klCanAm)}
+            disabled={!editable}
+            onChange={(v) => updateCard(card.cumThapMa, card.loaiPhoiTron, card.thuTu, { klCanAm: v })}
+          />
+        );
+        const doAm = canDoAmField(
+          "Độ ẩm, (W%) — Nhập tay",
+          <InputNumber
+            style={{ width: "100%" }}
+            min={0}
+            value={toNum(card.doAm)}
+            disabled={!editable}
+            onChange={(v) => updateCard(card.cumThapMa, card.loaiPhoiTron, card.thuTu, { doAm: v })}
+          />
+        );
+        const klQuyKhoCan = canDoAmField(
+          "Khối lượng quy khô cân 2A, (tấn)",
+          <Typography.Text strong style={{ fontSize: 13 }}>
+            {card.klQuyKhoCan ?? "—"}
+          </Typography.Text>,
+          true
+        );
+
+        if (n < 3) {
+          if (idx !== 0) return null;
+          return (
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              {canAm}
+              {doAm}
+              {klQuyKhoCan}
+            </div>
+          );
+        }
+        if (idx === 0) return canAm;
+        if (idx === s1) return doAm;
+        if (idx === s1 + s2) return klQuyKhoCan;
+        return null;
+      },
+    }),
+    [editable, updateCard]
+  );
+
   const buildChiTietColumns = useCallback(
     (card: PhoiTronCard): FormColumnDef[] => [
       sttColumn(),
@@ -343,11 +454,12 @@ const TabPhoiTron = ({ thanhPham, editable, cards, onChange, capLieuRows }: TabP
         min: 0,
         align: "right",
       },
+      buildCanDoAmColumn(card),
       { title: "KL quy khô (tấn)", dataIndex: "klQuyKho", width: 120, align: "right", readonly: true },
       { title: "Lũy kế quy khô (tấn)", dataIndex: "luyKeQuyKho", width: 140, align: "right", readonly: true },
       { title: "Ghi chú", dataIndex: "ghiChu", width: 160 },
     ],
-    [renderPasteableTitle]
+    [renderPasteableTitle, buildCanDoAmColumn]
   );
 
   // Tên than luôn lấy LIVE theo capLieuRows (không dùng snapshot đã lưu) — tránh lệch khi
@@ -424,7 +536,7 @@ const TabPhoiTron = ({ thanhPham, editable, cards, onChange, capLieuRows }: TabP
                 }
               >
                 <Row gutter={12}>
-                  <Col span={4}>
+                  <Col span={6}>
                     <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                       Loại
                     </Typography.Text>
@@ -436,7 +548,7 @@ const TabPhoiTron = ({ thanhPham, editable, cards, onChange, capLieuRows }: TabP
                       onChange={(v) => updateCard(card.cumThapMa, card.loaiPhoiTron, card.thuTu, { loaiPhoiTron: v })}
                     />
                   </Col>
-                  <Col span={card.loaiPhoiTron === "THU_NGHIEM" ? 5 : 8}>
+                  <Col span={card.loaiPhoiTron === "THU_NGHIEM" ? 9 : 18}>
                     <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                       Số phiếu yêu cầu
                     </Typography.Text>
@@ -448,7 +560,7 @@ const TabPhoiTron = ({ thanhPham, editable, cards, onChange, capLieuRows }: TabP
                     />
                   </Col>
                   {card.loaiPhoiTron === "THU_NGHIEM" && (
-                    <Col span={5}>
+                    <Col span={9}>
                       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                         Mã mẫu thử nghiệm
                       </Typography.Text>
@@ -461,35 +573,6 @@ const TabPhoiTron = ({ thanhPham, editable, cards, onChange, capLieuRows }: TabP
                       />
                     </Col>
                   )}
-                  <Col span={3}>
-                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                      KL cân 2A (tấn)
-                    </Typography.Text>
-                    <InputNumber
-                      style={{ width: "100%" }}
-                      value={toNum(card.klCanAm)}
-                      disabled={!editable}
-                      onChange={(v) => updateCard(card.cumThapMa, card.loaiPhoiTron, card.thuTu, { klCanAm: v })}
-                    />
-                  </Col>
-                  <Col span={3}>
-                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                      Độ ẩm (%)
-                    </Typography.Text>
-                    <InputNumber
-                      style={{ width: "100%" }}
-                      min={0}
-                      value={toNum(card.doAm)}
-                      disabled={!editable}
-                      onChange={(v) => updateCard(card.cumThapMa, card.loaiPhoiTron, card.thuTu, { doAm: v })}
-                    />
-                  </Col>
-                  <Col span={3}>
-                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                      KL quy khô cân 2A (tấn)
-                    </Typography.Text>
-                    <Input value={card.klQuyKhoCan ?? "—"} readOnly style={{ backgroundColor: "#fffbe6" }} />
-                  </Col>
                 </Row>
 
                 <Divider style={{ margin: "10px 0" }} />

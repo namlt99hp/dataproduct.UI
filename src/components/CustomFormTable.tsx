@@ -35,6 +35,8 @@ export interface FormColumnDef {
     onChange: (val: any) => void,
     disabled: boolean,
   ) => ReactNode;
+  /** Custom onCell — dùng kèm renderCell để merge nhiều dòng (rowSpan/colSpan). */
+  onCell?: (record: any, rowIndex: number) => { rowSpan?: number; colSpan?: number };
 }
 
 interface CustomFormTableProps {
@@ -463,6 +465,9 @@ export default function CustomFormTable({
         dataIndex,
         width: col.width,
         fixed: col.fixed,
+        onCell: col.onCell
+          ? (record: any, idx?: number) => col.onCell!(record, idx ?? 0)
+          : undefined,
         render: (_: any, record: any, idx: number) => {
           const isCellReadonly =
             isReadonly || readonlyCellGetter?.(dataIndex, record) === true;

@@ -7,6 +7,8 @@ import TabPhoiTron from "./TabPhoiTron";
 import TabThapPheu from "./TabThapPheu";
 import TabPhanTich from "./TabPhanTich";
 import TabSuCo from "./TabSuCo";
+import TabCocTonSilo from "./TabCocTonSilo";
+import TabXuatCapCoc from "./TabXuatCapCoc";
 
 export type { LcPhieuTables };
 
@@ -24,9 +26,12 @@ export interface LcPhieuTabsProps {
   editable: boolean;
   tables: LcPhieuTables;
   onTablesChange: (patch: Partial<LcPhieuTables>) => void;
+  idPhieu?: string;
+  ngaySX?: string | null;
+  caPhieu?: number | null;
 }
 
-const LcPhieuTabs = ({ thanhPham, editable, tables, onTablesChange }: LcPhieuTabsProps) => {
+const LcPhieuTabs = ({ thanhPham, editable, tables, onTablesChange, idPhieu, ngaySX, caPhieu }: LcPhieuTabsProps) => {
   const tabs = useMemo(() => getTabsForThanhPham(thanhPham), [thanhPham]);
 
   const items = tabs.map((tab) => {
@@ -82,6 +87,29 @@ const LcPhieuTabs = ({ thanhPham, editable, tables, onTablesChange }: LcPhieuTab
             editable={editable}
             rows={tables.suCo}
             onChange={(rows) => onTablesChange({ suCo: rows })}
+          />
+        );
+        break;
+      case "tonCoc":
+        children = (
+          <TabCocTonSilo
+            editable={editable}
+            thanhPham={thanhPham}
+            cums={tables.tonCoc}
+            onChange={(cums) => onTablesChange({ tonCoc: cums })}
+          />
+        );
+        break;
+      case "xuatCapCoc":
+        children = (
+          <TabXuatCapCoc
+            editable={editable}
+            thanhPham={thanhPham}
+            idPhieu={idPhieu}
+            ngaySX={ngaySX}
+            caPhieu={caPhieu}
+            slots={tables.xuatCapCoc}
+            onChange={(slots) => onTablesChange({ xuatCapCoc: slots })}
           />
         );
         break;

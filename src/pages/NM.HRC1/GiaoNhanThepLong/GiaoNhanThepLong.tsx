@@ -436,6 +436,20 @@ const GiaoNhanThepLong = ({ type, maBmFilter }: { type?: string; maBmFilter?: st
       ),
     },
     {
+      title: "Đúc đã xác nhận",
+      key: "xacNhanDuc",
+      width: 130,
+      align: "center" as const,
+      render: (_: unknown, r: TableRecord) => {
+        if (r.maBm !== BM_CONFIG.HRC1.HRC1_BBGN_ThepLong) return null;
+        const total = r.soLuongMe;
+        if (total == null || total === 0) return "-";
+        const xn = r.soLuongXNDuc ?? 0;
+        const color = xn === 0 ? "orange" : xn >= total ? "green" : "blue";
+        return <Tag color={color}>{xn}/{total}</Tag>;
+      },
+    },
+    {
       title: "Thao tác",
       key: "action",
       width: 90,
@@ -504,10 +518,10 @@ const GiaoNhanThepLong = ({ type, maBmFilter }: { type?: string; maBmFilter?: st
             onClick: () => handleNavigate(record),
             style: { cursor: "pointer" },
           })}
-          scroll={{ x: 1250 }}
+          scroll={{ x: 1380 }}
           summary={() => (
             <Table.Summary.Row>
-              <Table.Summary.Cell index={0} colSpan={10} align="right">
+              <Table.Summary.Cell index={0} colSpan={11} align="right">
                 <span style={{ fontWeight: 500 }}>
                   Tổng: {pagination.total} Phiếu
                 </span>

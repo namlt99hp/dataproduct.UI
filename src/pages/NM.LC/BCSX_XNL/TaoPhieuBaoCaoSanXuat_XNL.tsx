@@ -287,7 +287,7 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
           try {
             await LcXuatCapApi.save(
               targetId,
-              tables.xuatCapCoc.map((s) => ({ id: s.id, khoiLuongAm: s.khoiLuongAm, doAm: s.doAm, tyKhoi: s.tyKhoi, ghiChu: s.ghiChu }))
+              tables.xuatCapCoc.map((s) => ({ idDanhMucChiTiet: s.idDanhMucChiTiet, khoiLuongAm: s.khoiLuongAm, doAm: s.doAm, tyKhoi: s.tyKhoi, ghiChu: s.ghiChu }))
             );
           } catch (err) {
             console.error("Không thể lưu Xuất/Cấp cốc:", err);

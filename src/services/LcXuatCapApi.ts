@@ -4,7 +4,11 @@ import type { XuatCapNguonBbgn, XuatCapSlot } from "../components/LC_BCSX_XNL/Ta
 // Đọc/lưu trực tiếp bảng quan hệ LC_XuatCap (+ LC_XuatCapNguon) cho tab "Xuất/Cấp cốc"
 // (`xuatCapCoc`, TabXuatCapCoc.tsx) — KHÔNG qua BmPhieu.DataJson, cùng nguyên tắc với
 // LcSiloCocTonApi/LcPhoiTronApi. Xem Repositories/NM.LC/LC_XuatCapRepository.cs,
-// .claude/LuyenCoc/PhanTich_TabCapCoc.md §9.
+// .claude/LuyenCoc/PhanTich_TabCapCoc.md §10/§11.
+//
+// SỬA 2026-10-26: KHÔNG còn Initializer — `GetByPhieu` trả FULL layout (mọi Nơi nhận×Chi tiết
+// của Scope) ghép với dữ liệu đã có của phiếu; slot chưa ai nhập/gán có `id=0` (ảo). Khoá dùng để
+// Lưu/Gán là `idDanhMucChiTiet` (ổn định), KHÔNG còn dùng `id`.
 
 interface BackendNguon {
   id?: number; Id?: number;
@@ -16,6 +20,7 @@ interface BackendNguon {
 
 interface BackendSlot {
   id?: number; Id?: number;
+  idDanhMucChiTiet?: number; IdDanhMucChiTiet?: number;
   thuTu?: number; ThuTu?: number;
   tenCan?: string; TenCan?: string;
   noiNhan?: string; NoiNhan?: string;
@@ -25,6 +30,11 @@ interface BackendSlot {
   idPhongBan?: number | null; IdPhongBan?: number | null;
   tenPhongBan?: string | null; TenPhongBan?: string | null;
   idDanhMucCum?: number | null; IdDanhMucCum?: number | null;
+  idCum?: number | null; IdCum?: number | null;
+  maCum?: string | null; MaCum?: string | null;
+  tenCum?: string | null; TenCum?: string | null;
+  idLoaiNhan?: number | null; IdLoaiNhan?: number | null;
+  tenLoaiNhan?: string | null; TenLoaiNhan?: string | null;
   khoiLuongAm?: number | null; KhoiLuongAm?: number | null;
   doAm?: number | null; DoAm?: number | null;
   tyKhoi?: number | null; TyKhoi?: number | null;
@@ -67,6 +77,7 @@ const toNguon = (x: BackendNguon) => ({
 
 const toSlot = (x: BackendSlot): XuatCapSlot => ({
   id: x.id ?? x.Id ?? 0,
+  idDanhMucChiTiet: x.idDanhMucChiTiet ?? x.IdDanhMucChiTiet ?? 0,
   thuTu: x.thuTu ?? x.ThuTu ?? 0,
   tenCan: x.tenCan ?? x.TenCan ?? "",
   noiNhan: x.noiNhan ?? x.NoiNhan ?? "",
@@ -76,6 +87,11 @@ const toSlot = (x: BackendSlot): XuatCapSlot => ({
   idPhongBan: x.idPhongBan ?? x.IdPhongBan ?? null,
   tenPhongBan: x.tenPhongBan ?? x.TenPhongBan ?? null,
   idDanhMucCum: x.idDanhMucCum ?? x.IdDanhMucCum ?? null,
+  idCum: x.idCum ?? x.IdCum ?? null,
+  maCum: x.maCum ?? x.MaCum ?? null,
+  tenCum: x.tenCum ?? x.TenCum ?? null,
+  idLoaiNhan: x.idLoaiNhan ?? x.IdLoaiNhan ?? null,
+  tenLoaiNhan: x.tenLoaiNhan ?? x.TenLoaiNhan ?? null,
   khoiLuongAm: x.khoiLuongAm ?? x.KhoiLuongAm ?? null,
   doAm: x.doAm ?? x.DoAm ?? null,
   tyKhoi: x.tyKhoi ?? x.TyKhoi ?? null,
@@ -94,6 +110,7 @@ const toNguonBbgn = (x: BackendNguonBbgn): XuatCapNguonBbgn => ({
   ca: x.ca ?? x.Ca ?? null,
   kip: x.kip ?? x.Kip ?? null,
   idXuongBn: x.idXuongBn ?? x.IdXuongBn ?? null,
+  idPhongBanBn: x.idPhongBanBn ?? x.IdPhongBanBn ?? null,
   tenXuongBn: x.tenXuongBn ?? x.TenXuongBn ?? null,
   tenPhongBanBn: x.tenPhongBanBn ?? x.TenPhongBanBn ?? null,
   idVatTu: x.idVatTu ?? x.IdVatTu ?? null,
@@ -107,7 +124,7 @@ const toNguonBbgn = (x: BackendNguonBbgn): XuatCapNguonBbgn => ({
 });
 
 export interface LcXuatCapSaveSlotBody {
-  id: number;
+  idDanhMucChiTiet: number;
   khoiLuongAm: number | null;
   doAm: number | null;
   tyKhoi: number | null;
@@ -132,7 +149,14 @@ export const LcXuatCapApi = {
     return Array.isArray(res) ? res.map(toNguonBbgn) : [];
   },
 
-  gan: async (req: { idXuatCap: number; idBbgn: number; idCtBbgn: number; khoiLuongGan: number | null; doAmGan: number | null }): Promise<XuatCapSlot> => {
+  gan: async (req: {
+    idPhieu: string;
+    idDanhMucChiTiet: number;
+    idBbgn: number;
+    idCtBbgn: number;
+    khoiLuongGan: number | null;
+    doAmGan: number | null;
+  }): Promise<XuatCapSlot> => {
     const res = (await apiService.post(`/api/LC_XuatCap/gan`, req)) as BackendSlot;
     return toSlot(res);
   },

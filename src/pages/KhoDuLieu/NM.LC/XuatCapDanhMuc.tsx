@@ -24,6 +24,8 @@ import type {
   LcXuatCapDanhMucCumPayload,
   LcXuatCapDanhMucChiTiet,
   LcPhongBanOption,
+  LcXuatCapCumOption,
+  LcXuatCapLoaiOption,
 } from "../../../models/LcXuatCapDanhMucModel";
 import { ThanhPhamEnum } from "../../../models/LcDanhMucModel";
 
@@ -33,13 +35,17 @@ const getErrMsg = (err: unknown, fallback: string): string =>
     : fallback;
 
 /**
- * Quản lý danh mục "Cụm nhận" (CHA) + "Chi tiết" (CON) vùng Cấp cốc (LcTabXuatCap,
- * LC_BCSX_XNL_TP) — THAY THẾ layout hardcode trước đây.
+ * Quản lý danh mục "Nơi nhận" (CHA) + "Chi tiết" (CON) vùng Cấp cốc (LcTabXuatCap,
+ * LC_BCSX_XNL_TP). Xem .claude/LuyenCoc/PhanTich_TabCapCoc.md §10/§11 (sửa lại 2026-10-26 — tên
+ * cũ "Cụm nhận" bị nhầm, đây thực chất là "Nơi nhận"; "Cụm" THẬT (Cụm 1,2,3,4/5/6-7) là 1 danh
+ * mục riêng, quản lý mở rộng qua `idCum`).
  *
- * 1 Cụm (vd 'LG1-CDQ') là đơn vị GÁN (nguồn BBGN nhiều khi chỉ biết tới mức thô 'LG1' — người
- * dùng phải tự chọn đúng Cụm CDQ/Ướt khi gán) và cũng là đơn vị tính Trong ca/Lũy kế chính. Mỗi
- * Cụm có N Chi tiết con (vd 'LC1'..'LC4'). Mỗi phiếu Cấp cốc MỚI TẠO sinh slot từ đúng danh sách
- * này theo Scope — sửa ở đây có hiệu lực ngay cho phiếu tạo SAU, không ảnh hưởng phiếu cũ.
+ * 1 Nơi nhận (vd 'LG1-CDQ') thuộc đúng 1 Cụm + 1 Loại cốc, là đơn vị GÁN (nguồn BBGN nhiều khi
+ * chỉ biết tới mức thô 'LG1' — người dùng phải tự chọn đúng Nơi nhận CDQ/Ướt khi gán) và cũng là
+ * đơn vị tính Trong ca/Lũy kế chính. Mỗi Nơi nhận có N Chi tiết con (vd 'LC1'..'LC4'), mỗi con có
+ * thể mang 1 Loại nhận riêng (vd TP2 "NMLG-CDQ" có con LC5/LC6 × CDQ/ƯỚT/TN/xả ôtô). Danh sách
+ * này là nguồn DUY NHẤT để sinh slot LAZY khi người dùng nhập/gán trên 1 phiếu Cấp cốc (xem
+ * LC_XuatCapRepository.EnsureSlotAsync) — sửa ở đây có hiệu lực ngay cho mọi phiếu từ lúc đó.
  */
 const QuanLyLcXuatCapDanhMuc = () => {
   const [cumForm] = Form.useForm();
@@ -47,6 +53,9 @@ const QuanLyLcXuatCapDanhMuc = () => {
   const [loading, setLoading] = useState(false);
   const [cums, setCums] = useState<LcXuatCapDanhMucCum[]>([]);
   const [phongBanOptions, setPhongBanOptions] = useState<LcPhongBanOption[]>([]);
+  const [cumOptions, setCumOptions] = useState<LcXuatCapCumOption[]>([]);
+  const [loaiCocOptions, setLoaiCocOptions] = useState<LcXuatCapLoaiOption[]>([]);
+  const [loaiNhanOptions, setLoaiNhanOptions] = useState<LcXuatCapLoaiOption[]>([]);
   const [scopeFilter, setScopeFilter] = useState<number>(ThanhPhamEnum.TP1);
 
   const [cumModalOpen, setCumModalOpen] = useState(false);
@@ -64,7 +73,7 @@ const QuanLyLcXuatCapDanhMuc = () => {
       setCums(res);
     } catch (err) {
       console.error("Failed to load LC_XuatCapDanhMucCum:", err);
-      message.error("Không thể tải danh mục Cụm nhận");
+      message.error("Không thể tải danh mục Nơi nhận");
     } finally {
       setLoading(false);
     }
@@ -72,11 +81,15 @@ const QuanLyLcXuatCapDanhMuc = () => {
 
   useEffect(() => {
     fetchData(scopeFilter);
-    LcXuatCapDanhMucApi.getPhongBanOptions()
-      .then(setPhongBanOptions)
-      .catch((err) => console.error("Không thể tải danh sách Phòng ban:", err));
+    LcXuatCapDanhMucApi.getPhongBanOptions().then(setPhongBanOptions).catch((err) => console.error("Không thể tải danh sách Phòng ban:", err));
+    LcXuatCapDanhMucApi.getLoaiCocOptions().then(setLoaiCocOptions).catch((err) => console.error("Không thể tải danh sách Loại cốc:", err));
+    LcXuatCapDanhMucApi.getLoaiNhanOptions().then(setLoaiNhanOptions).catch((err) => console.error("Không thể tải danh sách Loại nhận:", err));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    LcXuatCapDanhMucApi.getCumOptions(scopeFilter).then(setCumOptions).catch((err) => console.error("Không thể tải danh sách Cụm:", err));
+  }, [scopeFilter]);
 
   const handleFilterScope = (value: number) => {
     setScopeFilter(value);
@@ -87,8 +100,21 @@ const QuanLyLcXuatCapDanhMuc = () => {
     () => phongBanOptions.map((p) => ({ value: p.idPhongBan, label: p.tenNgan || p.tenPhongBan || `#${p.idPhongBan}` })),
     [phongBanOptions]
   );
+  const cumOptionItems = useMemo(() => cumOptions.map((c) => ({ value: c.id, label: `${c.ten} (${c.ma})` })), [cumOptions]);
+  const loaiCocOptionItems = useMemo(() => loaiCocOptions.map((l) => ({ value: l.id, label: l.ten })), [loaiCocOptions]);
+  const loaiNhanOptionItems = useMemo(() => loaiNhanOptions.map((l) => ({ value: l.id, label: l.ten })), [loaiNhanOptions]);
 
-  // ─── Cụm (cha) ───────────────────────────────────────────────────────────
+  // Nhóm theo Cụm THẬT (tầng ngoài cùng đúng layout Excel — xem §10/§11), giữ thứ tự ThuTu của Nơi nhận.
+  const groupsByCum = useMemo(() => {
+    const byCum = new Map<number, { tenCumThat: string; maCum: string; items: LcXuatCapDanhMucCum[] }>();
+    for (const c of cums) {
+      if (!byCum.has(c.idCum)) byCum.set(c.idCum, { tenCumThat: c.tenCumThat, maCum: c.maCum, items: [] });
+      byCum.get(c.idCum)!.items.push(c);
+    }
+    return Array.from(byCum.values());
+  }, [cums]);
+
+  // ─── Nơi nhận (cha) ──────────────────────────────────────────────────────
   const openCreateCum = () => {
     setEditingCum(null);
     cumForm.resetFields();
@@ -100,10 +126,11 @@ const QuanLyLcXuatCapDanhMuc = () => {
     setEditingCum(cum);
     cumForm.setFieldsValue({
       scope: cum.scope,
+      idCum: cum.idCum,
       thuTu: cum.thuTu,
       tenCan: cum.tenCan,
-      tenCum: cum.tenCum,
-      loaiCoc: cum.loaiCoc,
+      noiNhan: cum.noiNhan,
+      idLoaiCoc: cum.idLoaiCoc,
       nhomTongHop: cum.nhomTongHop,
       idPhongBan: cum.idPhongBan ?? undefined,
     });
@@ -121,27 +148,28 @@ const QuanLyLcXuatCapDanhMuc = () => {
       const values = await cumForm.validateFields();
       const payload: LcXuatCapDanhMucCumPayload = {
         scope: values.scope,
+        idCum: values.idCum,
         thuTu: values.thuTu,
         tenCan: values.tenCan.trim(),
-        tenCum: values.tenCum.trim(),
-        loaiCoc: values.loaiCoc.trim(),
+        noiNhan: values.noiNhan.trim(),
+        idLoaiCoc: values.idLoaiCoc,
         nhomTongHop: values.nhomTongHop.trim(),
         idPhongBan: values.idPhongBan ?? null,
       };
       setCumModalLoading(true);
       if (editingCum) {
         await LcXuatCapDanhMucApi.updateCum(editingCum.id, payload);
-        message.success("Cập nhật Cụm nhận thành công");
+        message.success("Cập nhật Nơi nhận thành công");
       } else {
         await LcXuatCapDanhMucApi.createCum(payload);
-        message.success("Tạo mới Cụm nhận thành công");
+        message.success("Tạo mới Nơi nhận thành công");
       }
       closeCumModal();
       fetchData();
     } catch (error: unknown) {
       if (typeof error === "object" && error !== null && "errorFields" in error) return;
       console.error("Failed to save LC_XuatCapDanhMucCum:", error);
-      message.error(getErrMsg(error, "Không thể lưu Cụm nhận"));
+      message.error(getErrMsg(error, "Không thể lưu Nơi nhận"));
     } finally {
       setCumModalLoading(false);
     }
@@ -150,11 +178,11 @@ const QuanLyLcXuatCapDanhMuc = () => {
   const handleDeleteCum = async (id: number) => {
     try {
       await LcXuatCapDanhMucApi.deleteCum(id);
-      message.success("Đã xoá Cụm nhận (và toàn bộ Chi tiết con)");
+      message.success("Đã xoá Nơi nhận (và toàn bộ Chi tiết con)");
       fetchData();
     } catch (err) {
       console.error("Failed to delete LC_XuatCapDanhMucCum:", err);
-      message.error("Không thể xoá Cụm nhận");
+      message.error("Không thể xoá Nơi nhận");
     }
   };
 
@@ -169,7 +197,7 @@ const QuanLyLcXuatCapDanhMuc = () => {
   const openEditChiTiet = (cum: LcXuatCapDanhMucCum, ct: LcXuatCapDanhMucChiTiet) => {
     setChiTietModalCum(cum);
     setEditingChiTiet(ct);
-    chiTietForm.setFieldsValue({ thuTu: ct.thuTu, chiTietLo: ct.chiTietLo });
+    chiTietForm.setFieldsValue({ thuTu: ct.thuTu, chiTietLo: ct.chiTietLo, idLoaiNhan: ct.idLoaiNhan ?? undefined });
   };
 
   const closeChiTietModal = () => {
@@ -183,12 +211,13 @@ const QuanLyLcXuatCapDanhMuc = () => {
     try {
       const values = await chiTietForm.validateFields();
       const chiTietLo = values.chiTietLo?.trim() || null;
+      const idLoaiNhan = values.idLoaiNhan ?? null;
       setChiTietModalLoading(true);
       if (editingChiTiet) {
-        await LcXuatCapDanhMucApi.updateChiTiet(editingChiTiet.id, { thuTu: values.thuTu, chiTietLo });
+        await LcXuatCapDanhMucApi.updateChiTiet(editingChiTiet.id, { thuTu: values.thuTu, chiTietLo, idLoaiNhan });
         message.success("Cập nhật Chi tiết thành công");
       } else {
-        await LcXuatCapDanhMucApi.createChiTiet({ idCum: chiTietModalCum.id, thuTu: values.thuTu, chiTietLo });
+        await LcXuatCapDanhMucApi.createChiTiet({ idNoiNhan: chiTietModalCum.id, thuTu: values.thuTu, chiTietLo, idLoaiNhan });
         message.success("Thêm Chi tiết thành công");
       }
       closeChiTietModal();
@@ -214,8 +243,9 @@ const QuanLyLcXuatCapDanhMuc = () => {
   };
 
   const chiTietColumns = (cum: LcXuatCapDanhMucCum) => [
-    { title: "Thứ tự", dataIndex: "thuTu", key: "thuTu", width: 80 },
+    { title: "Thứ tự", dataIndex: "thuTu", key: "thuTu", width: 70 },
     { title: "Chi tiết (con)", dataIndex: "chiTietLo", key: "chiTietLo", render: (v: string | null) => v ?? <span style={{ color: "#bbb" }}>(không có)</span> },
+    { title: "Loại nhận", dataIndex: "tenLoaiNhan", key: "tenLoaiNhan", width: 110, render: (v: string | null) => v ?? <span style={{ color: "#bbb" }}>—</span> },
     {
       title: "Thao tác",
       key: "actions",
@@ -234,10 +264,10 @@ const QuanLyLcXuatCapDanhMuc = () => {
   return (
     <div>
       <Card
-        title="Quản lý Cụm nhận — Cấp cốc (Luyện cốc)"
+        title="Quản lý Nơi nhận — Cấp cốc (Luyện cốc)"
         extra={
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreateCum}>
-            Thêm Cụm nhận
+            Thêm Nơi nhận
           </Button>
         }
         style={{ marginBottom: 16 }}
@@ -257,49 +287,56 @@ const QuanLyLcXuatCapDanhMuc = () => {
         </Row>
       </Card>
 
-      {cums.length === 0 && !loading && <Empty description="Chưa có Cụm nhận nào cho Thành phẩm này" />}
+      {cums.length === 0 && !loading && <Empty description="Chưa có Nơi nhận nào cho Thành phẩm này" />}
 
       <Space direction="vertical" style={{ width: "100%" }} size={16}>
-        {cums.map((cum) => (
-          <Card
-            key={cum.id}
-            size="small"
-            title={
-              <Space>
-                <Tag color="blue">#{cum.thuTu}</Tag>
-                <b>{cum.tenCum}</b>
-                <Typography.Text type="secondary">({cum.tenCan})</Typography.Text>
-                {cum.tenPhongBan && <Tag>{cum.tenPhongBan}</Tag>}
-              </Space>
-            }
-            extra={
-              <Space>
-                <Typography.Text type="secondary">
-                  {cum.loaiCoc} · Nhóm: {cum.nhomTongHop}
-                </Typography.Text>
-                <Button size="small" icon={<EditOutlined />} onClick={() => openEditCum(cum)}>
-                  Sửa Cụm
-                </Button>
-                <Popconfirm title="Xoá cả Cụm và Chi tiết con?" onConfirm={() => handleDeleteCum(cum.id)} okText="Xoá" cancelText="Hủy">
-                  <Button size="small" danger icon={<DeleteOutlined />} />
-                </Popconfirm>
-              </Space>
-            }
-          >
-            {cum.chiTiet.length === 0 ? (
-              <Empty description="Chưa có Chi tiết con nào" />
-            ) : (
-              <Table columns={chiTietColumns(cum)} dataSource={cum.chiTiet} rowKey="id" pagination={false} size="small" bordered />
-            )}
-            <Button type="link" icon={<PlusOutlined />} onClick={() => openAddChiTiet(cum)} style={{ marginTop: 8, paddingLeft: 0 }}>
-              Thêm Chi tiết (con)
-            </Button>
+        {groupsByCum.map((grp) => (
+          <Card key={grp.maCum} size="small" title={<Tag color="purple">{grp.tenCumThat}</Tag>}>
+            <Space direction="vertical" style={{ width: "100%" }} size={12}>
+              {grp.items.map((cum) => (
+                <Card
+                  key={cum.id}
+                  size="small"
+                  type="inner"
+                  title={
+                    <Space>
+                      <Tag color="blue">#{cum.thuTu}</Tag>
+                      <b>{cum.noiNhan}</b>
+                      <Typography.Text type="secondary">({cum.tenCan})</Typography.Text>
+                      {cum.tenPhongBan && <Tag>{cum.tenPhongBan}</Tag>}
+                    </Space>
+                  }
+                  extra={
+                    <Space>
+                      <Typography.Text type="secondary">
+                        {cum.tenLoaiCoc} · Nhóm: {cum.nhomTongHop}
+                      </Typography.Text>
+                      <Button size="small" icon={<EditOutlined />} onClick={() => openEditCum(cum)}>
+                        Sửa
+                      </Button>
+                      <Popconfirm title="Xoá cả Nơi nhận và Chi tiết con?" onConfirm={() => handleDeleteCum(cum.id)} okText="Xoá" cancelText="Hủy">
+                        <Button size="small" danger icon={<DeleteOutlined />} />
+                      </Popconfirm>
+                    </Space>
+                  }
+                >
+                  {cum.chiTiet.length === 0 ? (
+                    <Empty description="Chưa có Chi tiết con nào" />
+                  ) : (
+                    <Table columns={chiTietColumns(cum)} dataSource={cum.chiTiet} rowKey="id" pagination={false} size="small" bordered />
+                  )}
+                  <Button type="link" icon={<PlusOutlined />} onClick={() => openAddChiTiet(cum)} style={{ marginTop: 8, paddingLeft: 0 }}>
+                    Thêm Chi tiết (con)
+                  </Button>
+                </Card>
+              ))}
+            </Space>
           </Card>
         ))}
       </Space>
 
       <Modal
-        title={editingCum ? "Cập nhật Cụm nhận" : "Thêm Cụm nhận"}
+        title={editingCum ? "Cập nhật Nơi nhận" : "Thêm Nơi nhận"}
         open={cumModalOpen}
         onCancel={closeCumModal}
         onOk={handleSaveCum}
@@ -323,18 +360,26 @@ const QuanLyLcXuatCapDanhMuc = () => {
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="tenCan" label="Tên cân" rules={[{ required: true, message: "Vui lòng nhập tên cân" }]}>
+          <Form.Item
+            name="idCum"
+            label="Cụm"
+            rules={[{ required: true, message: "Vui lòng chọn Cụm" }]}
+            extra="Cụm là tầng header thật trong Excel (vd 'Cụm 1,2,3,4') — quản lý ở danh mục riêng, có thể mở rộng khi phát sinh Cụm mới."
+          >
+            <Select options={cumOptionItems} placeholder="Chọn Cụm" />
+          </Form.Item>
+          <Form.Item name="tenCan" label="Tên cân (tham khảo hiển thị)" rules={[{ required: true, message: "Vui lòng nhập tên cân" }]}>
             <Input placeholder="VD: Cân BTC8,17 – NM.LC" />
           </Form.Item>
           <Row gutter={12}>
             <Col span={12}>
-              <Form.Item name="tenCum" label="Tên Cụm (Nơi nhận)" rules={[{ required: true, message: "Vui lòng nhập tên Cụm" }]}>
+              <Form.Item name="noiNhan" label="Nơi nhận" rules={[{ required: true, message: "Vui lòng nhập tên Nơi nhận" }]}>
                 <Input placeholder="VD: LG1-CDQ, LG1-Ướt" />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="loaiCoc" label="Loại cốc" rules={[{ required: true, message: "Vui lòng nhập loại cốc" }]}>
-                <Input placeholder="VD: 10-80mm, <10mm, Bụi CDQ" />
+              <Form.Item name="idLoaiCoc" label="Loại cốc" rules={[{ required: true, message: "Vui lòng chọn loại cốc" }]}>
+                <Select options={loaiCocOptionItems} placeholder="Chọn loại cốc" />
               </Form.Item>
             </Col>
           </Row>
@@ -345,7 +390,7 @@ const QuanLyLcXuatCapDanhMuc = () => {
             name="nhomTongHop"
             label="Nhóm tổng hợp (Trong ca/Lũy kế)"
             rules={[{ required: true, message: "Vui lòng nhập nhóm tổng hợp" }]}
-            extra="Các Cụm cùng tên nhóm sẽ gộp chung 1 giá trị Trong ca/Lũy kế (giống ô merge trên Excel gốc)."
+            extra="Các Nơi nhận cùng tên nhóm sẽ gộp chung 1 giá trị Trong ca/Lũy kế (giống ô merge trên Excel gốc)."
           >
             <Input placeholder="VD: C1-BTC817-LG1CDQ" />
           </Form.Item>
@@ -353,7 +398,7 @@ const QuanLyLcXuatCapDanhMuc = () => {
       </Modal>
 
       <Modal
-        title={editingChiTiet ? "Cập nhật Chi tiết" : `Thêm Chi tiết vào Cụm "${chiTietModalCum?.tenCum ?? ""}"`}
+        title={editingChiTiet ? "Cập nhật Chi tiết" : `Thêm Chi tiết vào Nơi nhận "${chiTietModalCum?.noiNhan ?? ""}"`}
         open={chiTietModalCum != null}
         onCancel={closeChiTietModal}
         onOk={handleSaveChiTiet}
@@ -364,8 +409,15 @@ const QuanLyLcXuatCapDanhMuc = () => {
           <Form.Item name="thuTu" label="Thứ tự" rules={[{ required: true, message: "Vui lòng nhập thứ tự" }]}>
             <InputNumber min={1} style={{ width: "100%" }} />
           </Form.Item>
-          <Form.Item name="chiTietLo" label="Chi tiết (tuỳ chọn — để trống nếu Cụm không tách con)">
+          <Form.Item name="chiTietLo" label="Chi tiết (tuỳ chọn — để trống nếu Nơi nhận không tách con)">
             <Input placeholder="VD: LC1, ca trước, CSR62%" />
+          </Form.Item>
+          <Form.Item
+            name="idLoaiNhan"
+            label="Loại nhận (tuỳ chọn)"
+            extra="Chỉ áp dụng khi Chi tiết này mang 1 biến thể CDQ/ƯỚT/TN/Xả bãi/Cốc ướt/Xả ôtô riêng (vd TP2 'LC5-CDQ')."
+          >
+            <Select allowClear options={loaiNhanOptionItems} placeholder="Không áp dụng" />
           </Form.Item>
         </Form>
       </Modal>

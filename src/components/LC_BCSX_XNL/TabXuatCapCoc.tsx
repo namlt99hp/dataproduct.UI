@@ -3,33 +3,33 @@ import { Button, Card, DatePicker, Empty, Input, InputNumber, Select, Space, Tab
 import { ReloadOutlined } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
 import { LcXuatCapApi } from "../../services/LcXuatCapApi";
+import { LcXuatCapDanhMucApi } from "../../services/LcXuatCapDanhMucApi";
+import type { LcXuatCapCumOption, LcXuatCapLoaiOption } from "../../models/LcXuatCapDanhMucModel";
 import { thanhPhamToScope, type ThanhPham } from "./lcTabsConfig";
 
 /**
  * Vùng "Xuất / Cấp cốc" (tab `xuatCapCoc`) — TP1 "C. Cốc xuất đi" / TP2 "3. Cấp cốc", xem
- * .claude/LuyenCoc/PhanTich_TabCapCoc.md §9. Layout (TenCan/NoiNhan/ChiTietLo/LoaiCoc) là CỐ
- * ĐỊNH theo Scope, do backend (Utils/LcXuatCapLayoutSeed.cs) sinh lúc tạo phiếu — FE KHÔNG cho
- * thêm/xoá dòng, chỉ nhập giá trị.
+ * .claude/LuyenCoc/PhanTich_TabCapCoc.md §9-§11. Layout (Cụm/NoiNhan/ChiTietLo/LoaiCoc) là CỐ
+ * ĐỊNH theo Scope, quản lý qua trang /lc-xuatcapdanhmuc — FE KHÔNG cho thêm/xoá dòng ở đây, chỉ
+ * nhập giá trị/gán nguồn.
+ *
+ * SỬA 2026-10-26 (2 thay đổi lớn, xem §10/§11):
+ * 1. "Cụm" là tầng THẬT trong Excel (Cụm 1,2,3,4/5 cho TP1, Cụm 6-7 cho TP2) — render ngoài cùng
+ *    theo Cụm → Loại cốc → Nơi nhận (kèm caption Tên cân) → Chi tiết, KHÔNG còn nhóm theo "Cân"
+ *    (TenCan) như trước — 1 Cân có thể xuất hiện ở NHIỀU Cụm khác nhau nên nhóm theo Cân là sai.
+ * 2. KHÔNG còn Initializer sinh sẵn slot lúc tạo phiếu — BE trả FULL layout (ghép danh mục + dữ
+ *    liệu đã có), slot chưa ai nhập/gán có `id=0` (ảo). Khoá để Lưu/Gán là `idDanhMucChiTiet`
+ *    (ổn định), KHÔNG dùng `id` (có thể trùng 0 giữa nhiều slot ảo).
+ *
+ * SỬA 2026-10-27: bảng hiển thị CHỈ render các slot ĐÃ CÓ DỮ LIỆU THẬT (`id>0` — đã gán nguồn
+ * hoặc đã lưu tay) hoặc đã bấm "+ Thêm dòng" để nhập tay — KHÔNG còn hiện toàn bộ ~95 dòng rỗng
+ * của layout (quá rối mắt). Render thành 1 bảng DUY NHẤT với rowSpan merge cột Cụm/Loại cốc/Nơi
+ * nhận/Trong ca-Lũy kế, đúng kiểu merge cell của template Excel gốc (xem `activeRows`).
  *
  * KHÔNG auto-map nguồn BBGN vào ô — người dùng bấm "Làm mới" để liệt kê các dòng "chấm chuyến"
- * (Tbl_ChiTiet_BienBanGiaoNhan) trong ngày/ca/kíp, rồi TỰ CHỌN ô cần gán cho từng dòng (chốt
- * 2026-10-23, xem PhanTich_TabCapCoc.md §9.0 mục 4). Khối lượng ẩm/Độ ẩm của ô có nguồn đã gán
- * do BE tự tính (SUM/trung bình trọng số) — chỉ ô KHÔNG có nguồn nào (ca trước/xả ôtô/CSR62%...)
- * mới cho nhập tay trực tiếp.
- *
- * Gán/bỏ gán ghi DB NGAY (không đợi "Lưu phiếu") vì cần kiểm tra trùng lặp (1 chấm chuyến chỉ
- * gán 1 ô) và tính lại Trong ca/Lũy kế cho cả nhóm liên quan. Các ô nhập tay khác (Tỷ khối/Ghi
- * chú/giá trị của ô không có nguồn) vẫn theo đúng quy ước các tab khác — giữ ở state cha, lưu
- * khi bấm "Lưu phiếu" — nhưng tab này có thêm nút "Lưu & tính lại" riêng để xem kết quả ngay.
- *
- * Nguồn BBGN lọc theo Ngày (`Tbl_BienBanGiaoNhan.ThoiGianXuLyBG`) + Ca (`Tbl_BienBanGiaoNhan.Ca`,
- * CÙNG quy ước 1=ngày/2=đêm với Ca của phiếu BCSX_XNL này) — Ca lấy mặc định từ phiếu, không cần
- * nhập lại; KHÔNG còn lọc theo Kíp (chốt 2026-10-23, lượt 4).
- *
- * "Gán vào ô" là lựa chọn 2 CẤP (chốt 2026-10-23, lượt 6): chọn CỤM (cha, vd 'LG1-CDQ') trước —
- * vì nguồn BBGN nhiều khi chỉ biết tới mức thô (vd chỉ biết 'LG1'), người dùng phải tự quyết định
- * đúng Cụm — rồi mới chọn CON (chi tiết, vd 'LC1') trong đúng Cụm đó. Bảng hiển thị dưới cũng
- * nhóm theo Cụm (`idDanhMucCum`) trong mỗi Card theo Tên cân, y hệt cách Excel gộp nhóm.
+ * (Tbl_ChiTiet_BienBanGiaoNhan) trong ngày/ca/kíp, rồi chọn Cụm (bắt buộc — không suy được từ
+ * BBGN) + Phòng ban/Loại nhận (gợi ý sẵn, có thể đổi) + Chi tiết rồi "Gán". Gán/bỏ gán ghi DB
+ * NGAY (không đợi "Lưu phiếu") vì cần kiểm tra trùng lặp và tính lại Trong ca/Lũy kế.
  */
 
 export interface XuatCapNguon {
@@ -41,7 +41,8 @@ export interface XuatCapNguon {
 }
 
 export interface XuatCapSlot {
-  id: number;
+  id: number; // 0 = slot ẢO (chưa ai nhập/gán gì cho phiếu này)
+  idDanhMucChiTiet: number; // khoá slot ổn định — dùng để Lưu/Gán
   thuTu: number;
   tenCan: string;
   noiNhan: string;
@@ -51,6 +52,11 @@ export interface XuatCapSlot {
   idPhongBan: number | null;
   tenPhongBan: string | null;
   idDanhMucCum: number | null;
+  idCum: number | null;
+  maCum: string | null;
+  tenCum: string | null;
+  idLoaiNhan: number | null;
+  tenLoaiNhan: string | null;
   khoiLuongAm: number | null;
   doAm: number | null;
   tyKhoi: number | null;
@@ -69,6 +75,7 @@ export interface XuatCapNguonBbgn {
   ca: string | null;
   kip: string | null;
   idXuongBn: number | null;
+  idPhongBanBn: number | null;
   tenXuongBn: string | null;
   tenPhongBanBn: string | null;
   idVatTu: number | null;
@@ -112,53 +119,129 @@ const TabXuatCapCoc = ({ editable, thanhPham, idPhieu, ngaySX, caPhieu, slots, o
   const [loadingNguon, setLoadingNguon] = useState(false);
   const [savingTab, setSavingTab] = useState(false);
   const [ganKey, setGanKey] = useState<number | null>(null);
+
+  const [cumOptions, setCumOptions] = useState<LcXuatCapCumOption[]>([]);
+  const [phongBanOptions, setPhongBanOptions] = useState<{ value: number; label: string }[]>([]);
+  const [loaiNhanOptions, setLoaiNhanOptions] = useState<LcXuatCapLoaiOption[]>([]);
+
   const [pickCumByCtBbgn, setPickCumByCtBbgn] = useState<Record<number, number>>({});
-  const [pickSlotByCtBbgn, setPickSlotByCtBbgn] = useState<Record<number, number>>({});
+  const [pickPhongBanByCtBbgn, setPickPhongBanByCtBbgn] = useState<Record<number, number>>({});
+  const [pickLoaiNhanByCtBbgn, setPickLoaiNhanByCtBbgn] = useState<Record<number, number>>({});
+  const [pickChiTietByCtBbgn, setPickChiTietByCtBbgn] = useState<Record<number, number>>({});
+
+  useEffect(() => {
+    if (!scope) return;
+    LcXuatCapDanhMucApi.getCumOptions(scope)
+      .then(setCumOptions)
+      .catch((err) => console.error("Không thể tải danh sách Cụm:", err));
+    LcXuatCapDanhMucApi.getPhongBanOptions()
+      .then((opts) => setPhongBanOptions(opts.map((p) => ({ value: p.idPhongBan, label: p.tenNgan || p.tenPhongBan || `#${p.idPhongBan}` }))))
+      .catch((err) => console.error("Không thể tải danh sách Phòng ban:", err));
+    LcXuatCapDanhMucApi.getLoaiNhanOptions()
+      .then(setLoaiNhanOptions)
+      .catch((err) => console.error("Không thể tải danh sách Loại nhận:", err));
+  }, [scope]);
+
+  const cumSelectOptions = useMemo(() => cumOptions.map((c) => ({ value: c.id, label: `${c.ten} (${c.ma})` })), [cumOptions]);
+  const loaiNhanSelectOptions = useMemo(() => loaiNhanOptions.map((l) => ({ value: l.id, label: l.ten })), [loaiNhanOptions]);
 
   const assignedCtBbgnIds = useMemo(() => new Set(slots.flatMap((s) => s.nguon.map((n) => n.idCtBbgn))), [slots]);
 
-  // Nhóm 2 cấp cho bảng hiển thị: Tên cân (Card) → Cụm (idDanhMucCum, sub-block) → Con (dòng).
-  // Mirror y hệt layout Excel (1 Cụm = 1 nhóm Trong ca/Lũy kế).
-  const tenCanGroups = useMemo(() => {
-    const byTenCan = new Map<string, XuatCapSlot[]>();
-    for (const s of slots) {
-      if (!byTenCan.has(s.tenCan)) byTenCan.set(s.tenCan, []);
-      byTenCan.get(s.tenCan)!.push(s);
-    }
-    return Array.from(byTenCan.entries()).map(([tenCan, rows]) => {
-      const byCum = new Map<string, XuatCapSlot[]>();
-      for (const s of rows) {
-        const key = s.idDanhMucCum != null ? `cum:${s.idDanhMucCum}` : `noiNhan:${s.noiNhan}:${s.thuTu}`;
-        if (!byCum.has(key)) byCum.set(key, []);
-        byCum.get(key)!.push(s);
+  // Chỉ những slot nào đã gán được chọn thêm thủ công (chưa có dữ liệu thật — `id===0`) mới hiện
+  // trong bảng, để cho phép nhập tay các ô KHÔNG có nguồn BBGN tương ứng (vd "ca trước", TKVV...).
+  const [manualPicks, setManualPicks] = useState<Set<number>>(new Set());
+  const [addPick, setAddPick] = useState<number | undefined>(undefined);
+
+  // Bảng hiển thị CHỈ gồm slot ĐÃ CÓ DỮ LIỆU THẬT (`id > 0` — đã nhập tay/lưu hoặc đã gán nguồn)
+  // hoặc đã được người dùng bấm "+ Thêm dòng" để nhập tay lần đầu — KHÔNG còn hiện toàn bộ ~95
+  // dòng rỗng của layout (quá rối mắt). `slots` đã được BE sắp đúng thứ tự Cụm→Loại cốc→Nơi
+  // nhận→Chi tiết (ThuTu danh mục) nên lọc giữ nguyên thứ tự này — tính luôn rowSpan để RENDER
+  // MERGE CELL giống template Excel (cột A "Loại cốc" merge dọc cả khối, cột B "Nơi nhận" merge
+  // theo nhóm, cột Trong ca/Lũy kế merge theo NhomTongHop — xem PhanTich_TabCapCoc.md §10/§11).
+  const activeRows = useMemo(() => {
+    const rows = slots.filter((s) => s.id > 0 || manualPicks.has(s.idDanhMucChiTiet));
+    const withSpan = rows.map((s) => ({ ...s, cumSpan: 0, loaiCocSpan: 0, noiNhanSpan: 0, nhomSpan: 0 }));
+
+    for (let i = 0; i < withSpan.length; i++) {
+      const cur = withSpan[i];
+      const prev = i > 0 ? withSpan[i - 1] : null;
+
+      const newCum = !prev || prev.idCum !== cur.idCum;
+      const newLoaiCoc = newCum || prev!.loaiCoc !== cur.loaiCoc;
+      const newNoiNhan = newLoaiCoc || prev!.idDanhMucCum !== cur.idDanhMucCum;
+      const newNhom = !prev || prev.nhomTongHop !== cur.nhomTongHop;
+
+      if (newCum) {
+        let span = 1;
+        while (i + span < withSpan.length && withSpan[i + span].idCum === cur.idCum) span++;
+        cur.cumSpan = span;
       }
-      const cumGroups = Array.from(byCum.values())
-        .map((r) => r.sort((a, b) => a.thuTu - b.thuTu))
-        .sort((a, b) => a[0].thuTu - b[0].thuTu);
-      return { tenCan, cumGroups };
-    });
-  }, [slots]);
-
-  // "Gán vào ô" 2 cấp: Cụm (cha, nhóm theo idDanhMucCum) → Con (chi tiết trong đúng Cụm đó).
-  const cumSelectOptions = useMemo(() => {
-    const byCum = new Map<number, string>();
-    for (const s of slots) {
-      if (s.idDanhMucCum == null || byCum.has(s.idDanhMucCum)) continue;
-      byCum.set(s.idDanhMucCum, `${s.noiNhan} (${s.tenCan})`);
+      if (newLoaiCoc) {
+        let span = 1;
+        while (i + span < withSpan.length && withSpan[i + span].idCum === cur.idCum && withSpan[i + span].loaiCoc === cur.loaiCoc) span++;
+        cur.loaiCocSpan = span;
+      }
+      if (newNoiNhan) {
+        let span = 1;
+        while (
+          i + span < withSpan.length &&
+          withSpan[i + span].idCum === cur.idCum &&
+          withSpan[i + span].loaiCoc === cur.loaiCoc &&
+          withSpan[i + span].idDanhMucCum === cur.idDanhMucCum
+        )
+          span++;
+        cur.noiNhanSpan = span;
+      }
+      if (newNhom) {
+        let span = 1;
+        while (i + span < withSpan.length && withSpan[i + span].nhomTongHop === cur.nhomTongHop) span++;
+        cur.nhomSpan = span;
+      }
     }
-    return Array.from(byCum.entries()).map(([value, label]) => ({ value, label }));
-  }, [slots]);
+    return withSpan;
+  }, [slots, manualPicks]);
+  type MergedRow = (typeof activeRows)[number];
 
-  const conSelectOptions = (idCum: number | undefined) => {
-    if (idCum == null) return [];
-    return slots
-      .filter((s) => s.idDanhMucCum === idCum)
-      .sort((a, b) => a.thuTu - b.thuTu)
-      .map((s) => ({ value: s.id, label: s.chiTietLo ?? "(không tách con)" }));
+  // Danh sách Nơi nhận/Chi tiết CHƯA hiện trong bảng — cho "+ Thêm dòng nhập tay" (slot không có
+  // nguồn BBGN tương ứng, vd "ca trước"/"CSR62%"/TKVV..., vẫn cần 1 dòng để gõ tay Tỷ khối/Ghi chú).
+  const activeKeySet = useMemo(() => new Set(activeRows.map((r) => r.idDanhMucChiTiet)), [activeRows]);
+  const addableOptions = useMemo(
+    () =>
+      slots
+        .filter((s) => !activeKeySet.has(s.idDanhMucChiTiet))
+        .map((s) => ({
+          value: s.idDanhMucChiTiet,
+          label: `${s.tenCum ?? "?"} · ${s.loaiCoc} · ${s.noiNhan}${s.chiTietLo ? " – " + s.chiTietLo : ""}`,
+        })),
+    [slots, activeKeySet]
+  );
+  const handleAddManualRow = () => {
+    if (addPick == null) return;
+    setManualPicks((prev) => new Set(prev).add(addPick));
+    setAddPick(undefined);
   };
 
-  const updateSlotField = (id: number, patch: Partial<XuatCapSlot>) => {
-    onChange(slots.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  // Options "Chi tiết" cuối cùng cho panel Gán — lọc theo Cụm (bắt buộc) + Phòng ban/Loại nhận
+  // (GỢI Ý MỀM: chỉ áp dụng nếu gợi ý đó thực sự khớp ít nhất 1 Chi tiết trong Cụm đã chọn, nếu
+  // không thì TỰ BỎ QUA bộ lọc đó — tránh rỗng hết lựa chọn vì phần lớn Nơi nhận hiện CHƯA được
+  // gán ID_PhongBan trong danh mục, xem PhanTich_TabCapCoc.md §9.7/§11.3: chỉ LG1-*/LG2-* có sẵn
+  // 87/88, các Nơi nhận khác (NM.HRC1, NM.NL, Xuất bán, TKVV...) còn NULL cho tới khi khai báo tay
+  // ở trang /lc-xuatcapdanhmuc).
+  const chiTietOptionsFor = (idCum: number | undefined, idPhongBan: number | undefined, idLoaiNhan: number | undefined) => {
+    if (idCum == null) return [];
+    const byCum = slots.filter((s) => s.idCum === idCum);
+
+    const phongBanApplicable = idPhongBan != null && byCum.some((s) => s.idPhongBan === idPhongBan);
+    const byPhongBan = phongBanApplicable ? byCum.filter((s) => s.idPhongBan === idPhongBan) : byCum;
+
+    const loaiNhanApplicable = idLoaiNhan != null && byPhongBan.some((s) => s.idLoaiNhan === idLoaiNhan);
+    const final = loaiNhanApplicable ? byPhongBan.filter((s) => s.idLoaiNhan === idLoaiNhan) : byPhongBan;
+
+    return final.map((s) => ({ value: s.idDanhMucChiTiet, label: `${s.noiNhan}${s.chiTietLo ? " – " + s.chiTietLo : ""}` }));
+  };
+
+  const updateSlotField = (idDanhMucChiTiet: number, patch: Partial<XuatCapSlot>) => {
+    onChange(slots.map((s) => (s.idDanhMucChiTiet === idDanhMucChiTiet ? { ...s, ...patch } : s)));
   };
 
   const handleLamMoiNguon = async () => {
@@ -187,12 +270,13 @@ const TabXuatCapCoc = ({ editable, thanhPham, idPhieu, ngaySX, caPhieu, slots, o
   };
 
   const handleGan = async (row: XuatCapNguonBbgn) => {
-    const idXuatCap = pickSlotByCtBbgn[row.idCtBbgn];
-    if (!idPhieu || !idXuatCap) return;
+    const idDanhMucChiTiet = pickChiTietByCtBbgn[row.idCtBbgn];
+    if (!idPhieu || !idDanhMucChiTiet) return;
     setGanKey(row.idCtBbgn);
     try {
       await LcXuatCapApi.gan({
-        idXuatCap,
+        idPhieu,
+        idDanhMucChiTiet,
         idBbgn: row.idBbgn,
         idCtBbgn: row.idCtBbgn,
         khoiLuongGan: row.khoiLuongBg,
@@ -233,7 +317,7 @@ const TabXuatCapCoc = ({ editable, thanhPham, idPhieu, ngaySX, caPhieu, slots, o
     setSavingTab(true);
     try {
       const body = slots.map((s) => ({
-        id: s.id,
+        idDanhMucChiTiet: s.idDanhMucChiTiet,
         khoiLuongAm: s.khoiLuongAm,
         doAm: s.doAm,
         tyKhoi: s.tyKhoi,
@@ -251,17 +335,31 @@ const TabXuatCapCoc = ({ editable, thanhPham, idPhieu, ngaySX, caPhieu, slots, o
   };
 
   const nguonColumns = [
-    { title: "Số phiếu BBGN", dataIndex: "soPhieu", key: "soPhieu", width: 140 },
-    { title: "Xưởng/Phòng ban nhận", key: "noiNhan", render: (_: unknown, r: XuatCapNguonBbgn) => [r.tenXuongBn, r.tenPhongBanBn].filter(Boolean).join(" / ") || "-" },
+    // { title: "Số phiếu BBGN", dataIndex: "soPhieu", key: "soPhieu", width: 130 },
+    { title: "Xưởng/Phòng ban nhận", key: "noiNhan", width: 170, render: (_: unknown, r: XuatCapNguonBbgn) => [r.tenXuongBn, r.tenPhongBanBn].filter(Boolean).join(" / ") || "-" },
     { title: "Vật tư", dataIndex: "tenVatTu", key: "tenVatTu" },
     { title: "Mã lô", dataIndex: "maLo", key: "maLo", width: 100 },
     { title: "Khối lượng ẩm (BG)", dataIndex: "khoiLuongBg", key: "khoiLuongBg", width: 120 },
     { title: "Độ ẩm", dataIndex: "doAmW", key: "doAmW", width: 90 },
     { title: "Quy khô (BG)", dataIndex: "klQuyKhoBg", key: "klQuyKhoBg", width: 110 },
     {
+      title: "Ghi chú (BBGN)",
+      dataIndex: "ghiChu",
+      key: "ghiChu",
+      width: 200,
+      render: (v: string | null) =>
+        v ? (
+          <Tooltip title={v}>
+            <span>{v}</span>
+          </Tooltip>
+        ) : (
+          "-"
+        ),
+    },
+    {
       title: "Gán vào ô",
       key: "gan",
-      width: 340,
+      width: 460,
       render: (_: unknown, row: XuatCapNguonBbgn) => {
         const da = assignedCtBbgnIds.has(row.idCtBbgn);
         if (da) {
@@ -278,42 +376,69 @@ const TabXuatCapCoc = ({ editable, thanhPham, idPhieu, ngaySX, caPhieu, slots, o
             </Space>
           );
         }
-        const chosenCum = pickCumByCtBbgn[row.idCtBbgn];
+
+        const chosenCum = pickCumByCtBbgn[row.idCtBbgn] ?? (cumSelectOptions.length === 1 ? cumSelectOptions[0].value : undefined);
+        const chosenPhongBan = pickPhongBanByCtBbgn[row.idCtBbgn] ?? row.idPhongBanBn ?? undefined;
+        const chosenLoaiNhan = pickLoaiNhanByCtBbgn[row.idCtBbgn];
+        const chiTietOpts = chiTietOptionsFor(chosenCum, chosenPhongBan, chosenLoaiNhan);
+
         return (
-          <Space>
+          <Space wrap>
             <Select
               size="small"
-              showSearch
-              style={{ width: 160 }}
-              placeholder="Chọn Cụm..."
+              style={{ width: 120 }}
+              placeholder="Cụm..."
               options={cumSelectOptions}
               disabled={!editable}
-              filterOption={(input, option) => (option?.label as string)?.toLowerCase().includes(input.toLowerCase())}
               value={chosenCum}
               onChange={(v) => {
                 setPickCumByCtBbgn((prev) => ({ ...prev, [row.idCtBbgn]: v }));
-                setPickSlotByCtBbgn((prev) => {
-                  const next = { ...prev };
-                  delete next[row.idCtBbgn];
-                  return next;
-                });
+                setPickChiTietByCtBbgn((prev) => ({ ...prev, [row.idCtBbgn]: 0 }));
               }}
             />
             <Select
               size="small"
               showSearch
-              style={{ width: 140 }}
-              placeholder="Chọn Con..."
-              options={conSelectOptions(chosenCum)}
+              allowClear
+              style={{ width: 130 }}
+              placeholder="Phòng ban (gợi ý)"
+              options={phongBanOptions}
+              disabled={!editable}
+              filterOption={(input, option) => (option?.label as string)?.toLowerCase().includes(input.toLowerCase())}
+              value={chosenPhongBan}
+              onChange={(v) => {
+                setPickPhongBanByCtBbgn((prev) => ({ ...prev, [row.idCtBbgn]: v }));
+                setPickChiTietByCtBbgn((prev) => ({ ...prev, [row.idCtBbgn]: 0 }));
+              }}
+            />
+            <Select
+              size="small"
+              allowClear
+              style={{ width: 100 }}
+              placeholder="Loại nhận"
+              options={loaiNhanSelectOptions}
+              disabled={!editable}
+              value={chosenLoaiNhan}
+              onChange={(v) => {
+                setPickLoaiNhanByCtBbgn((prev) => ({ ...prev, [row.idCtBbgn]: v }));
+                setPickChiTietByCtBbgn((prev) => ({ ...prev, [row.idCtBbgn]: 0 }));
+              }}
+            />
+            <Select
+              size="small"
+              showSearch
+              style={{ width: 150 }}
+              placeholder="Chi tiết..."
+              options={chiTietOpts}
               disabled={!editable || chosenCum == null}
               filterOption={(input, option) => (option?.label as string)?.toLowerCase().includes(input.toLowerCase())}
-              value={pickSlotByCtBbgn[row.idCtBbgn]}
-              onChange={(v) => setPickSlotByCtBbgn((prev) => ({ ...prev, [row.idCtBbgn]: v }))}
+              value={pickChiTietByCtBbgn[row.idCtBbgn] || undefined}
+              onChange={(v) => setPickChiTietByCtBbgn((prev) => ({ ...prev, [row.idCtBbgn]: v }))}
             />
             <Button
               size="small"
               type="primary"
-              disabled={!editable || !pickSlotByCtBbgn[row.idCtBbgn]}
+              disabled={!editable || !pickChiTietByCtBbgn[row.idCtBbgn]}
               loading={ganKey === row.idCtBbgn}
               onClick={() => handleGan(row)}
             >
@@ -334,7 +459,7 @@ const TabXuatCapCoc = ({ editable, thanhPham, idPhieu, ngaySX, caPhieu, slots, o
           <Button icon={<ReloadOutlined />} onClick={handleLamMoiNguon} loading={loadingNguon}>
             Làm mới
           </Button>
-          <Typography.Text type="secondary">Ca lấy mặc định theo Ca của phiếu.</Typography.Text>
+          <Typography.Text type="secondary">Ca lấy mặc định theo Ca của phiếu. Phòng ban đã gợi ý sẵn theo nơi nhận BBGN.</Typography.Text>
         </Space>
         {nguonBbgn.length === 0 ? (
           <Empty description="Chưa tải danh sách chấm chuyến — bấm &quot;Làm mới&quot;" />
@@ -357,19 +482,37 @@ const TabXuatCapCoc = ({ editable, thanhPham, idPhieu, ngaySX, caPhieu, slots, o
         </Button>
       )}
 
-      {tenCanGroups.length === 0 && <Empty description="Chưa có dữ liệu — layout sẽ được sinh khi tạo phiếu." />}
+      <Space wrap style={{ marginBottom: 12 }}>
+        <Select
+          showSearch
+          style={{ width: 360 }}
+          placeholder="Chọn Nơi nhận/Chi tiết để nhập tay (ô không có nguồn BBGN, vd 'ca trước', TKVV...)"
+          options={addableOptions}
+          disabled={!editable}
+          filterOption={(input, option) => (option?.label as string)?.toLowerCase().includes(input.toLowerCase())}
+          value={addPick}
+          onChange={setAddPick}
+        />
+        <Button disabled={!editable || addPick == null} onClick={handleAddManualRow}>
+          + Thêm dòng
+        </Button>
+      </Space>
 
-      <Space direction="vertical" style={{ width: "100%" }} size={16}>
-        {tenCanGroups.map(({ tenCan, cumGroups }) => {
-          const columns = [
-            { title: "Nơi nhận", dataIndex: "noiNhan", key: "noiNhan", width: 130 },
-            { title: "Chi tiết", dataIndex: "chiTietLo", key: "chiTietLo", width: 120, render: (v: string | null) => v ?? "-" },
-            { title: "Loại cốc", dataIndex: "loaiCoc", key: "loaiCoc", width: 90 },
+      {activeRows.length === 0 ? (
+        <Empty description="Chưa có dữ liệu nào được gán/nhập — dùng bảng Nguồn BBGN phía trên hoặc chọn Nơi nhận/Chi tiết ở trên để nhập tay." />
+      ) : (
+        <Table
+          rowKey="idDanhMucChiTiet"
+          columns={[
+            { title: "Cụm", dataIndex: "tenCum", key: "tenCum", width: 110, onCell: (r: MergedRow) => ({ rowSpan: r.cumSpan }), render: (v: string | null) => v ?? "-" },
+            { title: "Loại cốc", dataIndex: "loaiCoc", key: "loaiCoc", width: 110, onCell: (r: MergedRow) => ({ rowSpan: r.loaiCocSpan }) },
+            { title: "Nơi nhận", dataIndex: "noiNhan", key: "noiNhan", width: 130, onCell: (r: MergedRow) => ({ rowSpan: r.noiNhanSpan }) },
+            { title: "Chi tiết", dataIndex: "chiTietLo", key: "chiTietLo", width: 110, render: (v: string | null) => v ?? "-" },
             {
               title: "Khối lượng ẩm",
               key: "khoiLuongAm",
-              width: 160,
-              render: (_: unknown, s: XuatCapSlot) =>
+              width: 150,
+              render: (_: unknown, s: MergedRow) =>
                 s.nguon.length > 0 ? (
                   <Tooltip title={`Tổng từ ${s.nguon.length} chấm chuyến đã gán`}>
                     <Tag color="blue">{s.khoiLuongAm ?? 0}</Tag>
@@ -380,15 +523,15 @@ const TabXuatCapCoc = ({ editable, thanhPham, idPhieu, ngaySX, caPhieu, slots, o
                     style={{ width: "100%" }}
                     value={s.khoiLuongAm ?? undefined}
                     disabled={!editable}
-                    onChange={(v) => updateSlotField(s.id, { khoiLuongAm: v })}
+                    onChange={(v) => updateSlotField(s.idDanhMucChiTiet, { khoiLuongAm: v })}
                   />
                 ),
             },
             {
               title: "Độ ẩm (%)",
               key: "doAm",
-              width: 110,
-              render: (_: unknown, s: XuatCapSlot) =>
+              width: 100,
+              render: (_: unknown, s: MergedRow) =>
                 s.nguon.length > 0 ? (
                   s.doAm ?? "-"
                 ) : (
@@ -397,56 +540,48 @@ const TabXuatCapCoc = ({ editable, thanhPham, idPhieu, ngaySX, caPhieu, slots, o
                     style={{ width: "100%" }}
                     value={s.doAm ?? undefined}
                     disabled={!editable}
-                    onChange={(v) => updateSlotField(s.id, { doAm: v })}
+                    onChange={(v) => updateSlotField(s.idDanhMucChiTiet, { doAm: v })}
                   />
                 ),
             },
             {
               title: "Tỷ khối",
               key: "tyKhoi",
-              width: 100,
-              render: (_: unknown, s: XuatCapSlot) => (
+              width: 90,
+              render: (_: unknown, s: MergedRow) => (
                 <InputNumber
                   size="small"
                   style={{ width: "100%" }}
                   value={s.tyKhoi ?? undefined}
                   disabled={!editable}
-                  onChange={(v) => updateSlotField(s.id, { tyKhoi: v })}
+                  onChange={(v) => updateSlotField(s.idDanhMucChiTiet, { tyKhoi: v })}
                 />
               ),
             },
-            { title: "Quy khô", dataIndex: "klQuyKho", key: "klQuyKho", width: 100, render: (v: number | null) => v ?? "-" },
-            { title: "Trong ca", dataIndex: "trongCa", key: "trongCa", width: 100, render: (v: number | null) => v ?? "-" },
-            { title: "Lũy kế", dataIndex: "luyKe", key: "luyKe", width: 100, render: (v: number | null) => v ?? "-" },
+            { title: "Quy khô", dataIndex: "klQuyKho", key: "klQuyKho", width: 90, render: (v: number | null) => v ?? "-" },
+            { title: "Trong ca", dataIndex: "trongCa", key: "trongCa", width: 90, onCell: (r: MergedRow) => ({ rowSpan: r.nhomSpan }), render: (v: number | null) => v ?? "-" },
+            { title: "Lũy kế", dataIndex: "luyKe", key: "luyKe", width: 90, onCell: (r: MergedRow) => ({ rowSpan: r.nhomSpan }), render: (v: number | null) => v ?? "-" },
             {
               title: "Ghi chú",
               key: "ghiChu",
-              width: 160,
-              render: (_: unknown, s: XuatCapSlot) => (
+              width: 150,
+              render: (_: unknown, s: MergedRow) => (
                 <Input
                   size="small"
                   value={s.ghiChu ?? ""}
                   disabled={!editable}
-                  onChange={(e) => updateSlotField(s.id, { ghiChu: e.target.value })}
+                  onChange={(e) => updateSlotField(s.idDanhMucChiTiet, { ghiChu: e.target.value })}
                 />
               ),
             },
-          ];
-
-          return (
-            <Card key={tenCan} size="small" title={tenCan}>
-              <Space direction="vertical" style={{ width: "100%" }} size={12}>
-                {cumGroups.map((rows) => (
-                  <div key={rows[0].id}>
-                    <Typography.Text strong>{rows[0].noiNhan}</Typography.Text>
-                    <Table rowKey="id" columns={columns} dataSource={rows} pagination={false} size="small" bordered scroll={{ x: true }} />
-                  </div>
-                ))}
-              </Space>
-            </Card>
-          );
-        })}
-      </Space>
+          ]}
+          dataSource={activeRows}
+          pagination={false}
+          size="small"
+          bordered
+          scroll={{ x: true }}
+        />
+      )}
     </div>
   );
 };

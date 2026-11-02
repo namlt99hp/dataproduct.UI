@@ -18,6 +18,7 @@ import {
   CloudDownloadOutlined,
   DeleteOutlined,
   DeploymentUnitOutlined,
+  EyeOutlined,
   PlusOutlined,
   ScissorOutlined,
   UndoOutlined,
@@ -188,6 +189,7 @@ const TaoPhieuTonSilo = () => {
   const [tachSourceRow, setTachSourceRow] = useState<TableRow | null>(null);
   const [tachRows, setTachRows] = useState<TachLieuRow[]>([]);
   const [loadingTachNvl, setLoadingTachNvl] = useState(false);
+  const [showTonCuoiTT, setShowTonCuoiTT] = useState(false);
 
   const [phieuInfo, setPhieuInfo] = useState<{
     tinhTrang?: number;
@@ -905,6 +907,7 @@ const TaoPhieuTonSilo = () => {
       (s: any) => s.sectionType === "table" && s.key === "table1",
     );
     const baseCols = (section?.columns || []) as FormColumnDef[];
+    if (!showTonCuoiTT) return [...baseCols];
     const calcCol: FormColumnDef = {
       title: "Tồn cuối T.T",
       dataIndex: "tonCuoiTinhToan",
@@ -920,7 +923,7 @@ const TaoPhieuTonSilo = () => {
       return cols;
     }
     return [...baseCols, calcCol];
-  }, [config]);
+  }, [config, showTonCuoiTT]);
 
   const handleCellChange = useCallback(
     (rowIndex: number, dataIndex: string, value: any) => {
@@ -1159,6 +1162,14 @@ const TaoPhieuTonSilo = () => {
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             {tableData.length} Silo
           </Typography.Text>
+          <Button
+            size="small"
+            type={showTonCuoiTT ? "primary" : "default"}
+            icon={<EyeOutlined />}
+            onClick={() => setShowTonCuoiTT((v) => !v)}
+          >
+            Tồn cuối T.T
+          </Button>
         </div>
         <div ref={tableWrapperRef} style={{ width: "100%", marginBottom: 4 }}>
           <CustomFormTable

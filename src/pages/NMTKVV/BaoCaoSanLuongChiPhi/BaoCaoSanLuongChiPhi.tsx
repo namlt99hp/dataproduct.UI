@@ -13,7 +13,10 @@ import { usePhieuSearchListHRC } from "../../../hooks/usePhieuSearchListHRC";
 import type { SearchPhieuResponseModel } from "../../../models/Phieu";
 import useRowSelection from "../../../hooks/useRowSelection";
 import useCheckPhieu from "../../../hooks/useCheckPhieu";
-import { tkvvScopeToLabel, TKVV_SCOPE_OPTIONS } from "../../../utils/constants/TKVV_constant";
+import {
+  tkvvScopeToLabel,
+  TKVV_SCOPE_OPTIONS,
+} from "../../../utils/constants/TKVV_constant";
 
 const BaoCaoSanLuongChiPhi = ({ type }: { type?: string }) => {
   const config = TKVV_BC_SanLuongChiPhi as any;
@@ -228,27 +231,33 @@ const BaoCaoSanLuongChiPhi = ({ type }: { type?: string }) => {
     },
   ];
 
-  const filterFieldsConfig: FilterFieldConfig[] = useMemo(() => [
-    {
-      key: "soPhieu",
-      label: "Số phiếu",
-      type: "text",
-      placeholder: "Số phiếu...",
-    },
-    {
-      key: "ngaySX",
-      label: "Khoảng ngày",
-      type: "dateRange",
-      placeholder: "Khoảng ngày",
-    },
-    {
-      key: "scope",
-      label: "Xưởng",
-      type: "select",
-      placeholder: "Chọn xưởng",
-      options: getAllowedScopeOptions(config.code as string, TKVV_SCOPE_OPTIONS),
-    },
-  ], [getAllowedScopeOptions, config.code]);
+  const filterFieldsConfig: FilterFieldConfig[] = useMemo(
+    () => [
+      {
+        key: "soPhieu",
+        label: "Số phiếu",
+        type: "text",
+        placeholder: "Số phiếu...",
+      },
+      {
+        key: "ngaySX",
+        label: "Khoảng ngày",
+        type: "dateRange",
+        placeholder: "Khoảng ngày",
+      },
+      {
+        key: "scope",
+        label: "Xưởng",
+        type: "select",
+        placeholder: "Chọn xưởng",
+        options: getAllowedScopeOptions(
+          config.code as string,
+          TKVV_SCOPE_OPTIONS,
+        ),
+      },
+    ],
+    [getAllowedScopeOptions, config.code],
+  );
 
   return (
     <div>
@@ -274,13 +283,13 @@ const BaoCaoSanLuongChiPhi = ({ type }: { type?: string }) => {
             >
               Làm mới dữ liệu BBGN
             </Button>
-            <Button
+            {/* <Button
               type="primary"
               icon={<PlusOutlined />}
               onClick={() => navigate("/taophieubaocaoslcptkvv")}
             >
               Tạo phiếu mới
-            </Button>
+            </Button> */}
           </Space>
         }
       >

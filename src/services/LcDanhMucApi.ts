@@ -55,6 +55,7 @@ interface BackendLcSiloTon {
   loaiLieu?: string; LoaiLieu?: string;
   tenNhapLieu?: string; TenNhapLieu?: string;
   congThuc?: string; CongThuc?: string;
+  idCumSanXuat?: number | null; ID_CumSanXuat?: number | null;
   ngayTao?: string | null; NgayTao?: string | null;
 }
 
@@ -70,6 +71,7 @@ const toSiloTonModel = (x: BackendLcSiloTon): LcSiloTon => ({
   loaiLieu: (x.loaiLieu ?? x.LoaiLieu ?? "MM_10_80") as LcSiloTon["loaiLieu"],
   tenNhapLieu: x.tenNhapLieu ?? x.TenNhapLieu ?? "Chiều cao",
   congThuc: x.congThuc ?? x.CongThuc ?? "",
+  idCumSanXuat: x.idCumSanXuat ?? x.ID_CumSanXuat ?? null,
   ngayTao: x.ngayTao ?? x.NgayTao ?? null,
 });
 

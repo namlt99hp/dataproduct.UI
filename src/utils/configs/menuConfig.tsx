@@ -219,6 +219,14 @@ export const menuConfig = [
               </Tooltip>
             ),
           },
+          {
+            key: "sub1-6-5",
+            label: (
+              <Tooltip title="LC - Quản lý Nơi nhận vùng Bụi cốc (tab Tháp/Phễu, TP1)">
+                <NavLink to="/lc-buicocnoinhan">LC - Nơi nhận Bụi cốc</NavLink>
+              </Tooltip>
+            ),
+          },
         ],
       }
     ],

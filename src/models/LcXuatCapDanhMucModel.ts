@@ -30,6 +30,8 @@ export interface LcXuatCapDanhMucCum {
   nhomTongHop: string;
   idPhongBan?: number | null;
   tenPhongBan?: string | null; // resolved từ PRODUCTDATA.Tbl_PhongBan, chỉ hiển thị
+  /** Cụm SẢN XUẤT (1,2,5/3,4...) — NULL = dùng chung 2 cụm, dùng cho tab Sản lượng cốc. KHÁC `idCum`. */
+  idCumSanXuat?: number | null;
   ngayTao?: string | null;
   chiTiet: LcXuatCapDanhMucChiTiet[];
 }
@@ -43,6 +45,7 @@ export interface LcXuatCapDanhMucCumPayload {
   idLoaiCoc: number;
   nhomTongHop: string;
   idPhongBan?: number | null;
+  idCumSanXuat?: number | null;
 }
 
 export interface LcXuatCapDanhMucChiTietCreatePayload {

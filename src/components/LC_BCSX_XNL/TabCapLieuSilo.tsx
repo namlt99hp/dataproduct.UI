@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button, Divider, Input, Modal, Popconfirm, Space, Table, Tooltip, Typography } from "antd";
+import { Button, Divider, Input, Modal, Popconfirm, Space, Tooltip } from "antd";
 import { DeleteOutlined, PlusSquareOutlined, SnippetsOutlined } from "@ant-design/icons";
-import CustomFormTable, { type FormColumnDef } from "../CustomFormTable";
 import type { ThanhPham } from "./lcTabsConfig";
 import { buildDefaultCoHatNghien1Rows } from "./lcMockOptions";
 import { VatTuAutoCompleteCell, MaLoAutoCompleteCell, useMaLoBatchCache, type VatTuMaLoCellPatch } from "./LcVatTuMaLoCells";
+import { NumberCell, TextCell } from "./LcExcelGridCells";
 
 /**
  * Vùng "Cấp liệu & Silo" — lát cắt đầu tiên theo LC_02_Prompt_Vibecoding_V5.md mục 3.
@@ -28,6 +28,13 @@ import { VatTuAutoCompleteCell, MaLoAutoCompleteCell, useMaLoBatchCache, type Va
  * trị FE gửi, nên giá trị lưu/đọc lại luôn đúng dù FE preview có sai lệch tạm thời.
  * "KL ẩm tồn cuối" CHỈ tính ở TP1 — TP2 dùng công thức khác (F05b), CHƯA có, để NULL.
  * "Lũy kế", "Tồn đầu" vẫn trống theo quy ước NULL (LC_02 mục 2.7/7), chờ engine.
+ *
+ * SỬA 2026-11-02: cả 2 bảng (Cấp liệu & tồn silo, Cỡ hạt sau nghiền 1) KHÔNG còn dùng
+ * `CustomFormTable` (component AntD DÙNG CHUNG cho ~28 file khác trong app — KHÔNG sửa component
+ * đó) — thay bằng `<table>`/`<input>` HTML thường + Tailwind, dùng lại `NumberCell`/`TextCell` từ
+ * LcExcelGridCells.tsx (cùng cách đã áp cho TabXuatCapCoc.tsx/TabPhoiTron.tsx). Cột "Tên than"/"Số
+ * hiệu lô" vẫn giữ `VatTuAutoCompleteCell`/`MaLoAutoCompleteCell` (AntD Select autocomplete, có
+ * debounce/async search riêng — không phải nguồn gây đơ, không cần đổi).
  */
 
 export interface CapLieuRow {
@@ -125,6 +132,14 @@ function computeKLAmTonCuoi_PREVIEW(row: CapLieuRow, thanhPham: ThanhPham | null
 }
 
 /** F01 (PREVIEW ONLY) áp lại cho (KL ẩm tồn cuối, Độ ẩm silo) — ra KL khô tồn cuối. */
+const toNumOrNull = (v: string | number | null | undefined): number | null =>
+  v === null || v === undefined || v === "" ? null : Number(v);
+
+const sumCapLieu = (rows: readonly CapLieuRow[], key: keyof CapLieuRow): string => {
+  const total = rows.reduce((acc, r) => acc + (Number(r[key]) || 0), 0);
+  return total ? total.toLocaleString("en-US", { maximumFractionDigits: 3 }) : "—";
+};
+
 function computeKLTonCuoiQuyKho_PREVIEW(
   klAmTonCuoi: number | null,
   doAmSilo: CapLieuRow["doAmSilo"]
@@ -251,6 +266,18 @@ const TabCapLieuSilo = ({
       }),
     [capLieuRows, thanhPham]
   );
+
+  // Patch 1 field của 1 dòng — nguồn là `displayRows` (bản đã gộp preview F01/F05a), giữ đúng
+  // hành vi cũ của CustomFormTable (initialData=displayRows, onDataChange ghi thẳng lại toàn bộ
+  // mảng) — KHÔNG dùng cho cột Tên than/Số hiệu lô (vẫn qua `updateCapLieuRow`/capLieuRowsRef ở
+  // trên, patch nhiều field 1 lúc theo dữ liệu THÔ, không phải bản preview).
+  const updateDisplayField = useCallback(
+    (idx: number, patch: Partial<CapLieuRow>) => {
+      const next = displayRows.map((row, i) => (i === idx ? { ...row, ...patch } : row));
+      onCapLieuChange(next);
+    },
+    [displayRows, onCapLieuChange]
+  );
   // Excel không cho thêm/xóa SILO tự do — đảm bảo mỗi silo (1..N theo thành phẩm) luôn có
   // ÍT NHẤT 1 dòng (lớp Stt=1), giữ nguyên mọi lớp đã tách thêm (Stt>1) và dữ liệu đã nhập.
   // KHÔNG còn merge theo vị trí index như trước (index không còn đại diện cho silo nữa khi
@@ -313,178 +340,17 @@ const TabCapLieuSilo = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [coHatNghien1Rows.length]);
 
-  const columns: FormColumnDef[] = useMemo(
-    () => [
-      {
-        title: "Silo",
-        dataIndex: "siloSo",
-        width: 70,
-        align: "center",
-        type: "index",
-        render: (_: unknown, record: CapLieuRow) => record.siloSo,
-      } as FormColumnDef,
-      {
-        title: "Tên than",
-        dataIndex: "vatLieuTen",
-        width: 200,
-        renderCell: (record: CapLieuRow, idx: number, _onChange, disabled: boolean) => (
-          <VatTuAutoCompleteCell
-            idx={idx}
-            disabled={disabled}
-            onUpdateRow={updateCapLieuRow}
-            idVatTu={record.idVatTu}
-            vatLieuTen={record.vatLieuTen}
-          />
-        ),
-      } as FormColumnDef,
-      {
-        title: "Số hiệu lô",
-        dataIndex: "soHieuLo",
-        width: 160,
-        renderCell: (record: CapLieuRow, idx: number, _onChange, disabled: boolean) => (
-          <MaLoAutoCompleteCell
-            idx={idx}
-            disabled={disabled}
-            onUpdateRow={updateCapLieuRow}
-            idVatTu={record.idVatTu}
-            idMaLo={record.idMaLo}
-            options={getMaLoOptions(record.idVatTu)}
-            loading={isMaLoLoading(record.idVatTu)}
-          />
-        ),
-      } as FormColumnDef,
-      {
-        title: renderPasteableTitle("Kế hoạch (tấn)", "khoiLuongKeHoach"),
-        dataIndex: "khoiLuongKeHoach",
-        width: 100,
-        type: "float",
-        align: "right",
-      },
-      {
-        title: renderPasteableTitle("KL ẩm thực tế (tấn)", "khoiLuongAmThucTe"),
-        dataIndex: "khoiLuongAmThucTe",
-        width: 130,
-        type: "float",
-        align: "right",
-      },
-      {
-        title: renderPasteableTitle("Độ ẩm (%)", "doAm"),
-        dataIndex: "doAm",
-        width: 85,
-        type: "float",
-        min: 0,
-        align: "right",
-      },
-      {
-        title: "KL khô thực tế (tấn)",
-        dataIndex: "khoiLuongKhoThucTe",
-        width: 130,
-        type: "float",
-        align: "right",
-        readonly: true,
-      },
-      {
-        title: "Lũy kế quy khô (tấn)",
-        dataIndex: "luyKeQuyKho",
-        width: 130,
-        align: "right",
-        readonly: true,
-      },
-      {
-        title: "KL tồn silo đầu kíp quy khô (tấn)",
-        dataIndex: "tonDauKyQuyKho",
-        width: 150,
-        align: "right",
-        readonly: true,
-      },
-      {
-        title: renderPasteableTitle("Âm silo cuối kíp (m)", "amSiloCuoiKy"),
-        dataIndex: "amSiloCuoiKy",
-        width: 130,
-        type: "float",
-        align: "right",
-      },
-      {
-        title: "KL ẩm tồn silo cuối kíp (tấn)",
-        dataIndex: "klAmTonCuoi",
-        width: 130,
-        align: "right",
-        readonly: true,
-      },
-      {
-        title: renderPasteableTitle("Độ ẩm silo (%)", "doAmSilo"),
-        dataIndex: "doAmSilo",
-        width: 95,
-        type: "float",
-        min: 0,
-        align: "right",
-      },
-      {
-        title: "Khối lượng tồn silo cuối kíp quy khô (tấn)",
-        dataIndex: "klTonCuoiQuyKho",
-        width: 130,
-        align: "right",
-        readonly: true,
-      },
-      { title: "Ghi chú / vị trí bãi", dataIndex: "ghiChu", width: 160 },
-    ],
-    [updateCapLieuRow, getMaLoOptions, isMaLoLoading, renderPasteableTitle]
+  const updateCoHatField = useCallback(
+    (idx: number, patch: Partial<CoHatNghien1Row>) => {
+      const next = coHatNghien1Rows.map((row, i) => (i === idx ? { ...row, ...patch } : row));
+      onCoHatNghien1Change(next);
+    },
+    [coHatNghien1Rows, onCoHatNghien1Change]
   );
 
-  const renderSummary = () => {
-    const sum = (key: keyof CapLieuRow) => {
-      const total = displayRows.reduce((acc, r) => acc + (Number(r[key]) || 0), 0);
-      return total
-        ? total.toLocaleString("en-US", { maximumFractionDigits: 3 })
-        : "—";
-    };
-    return (
-      <Table.Summary fixed>
-        <Table.Summary.Row style={{ backgroundColor: "#fafafa", fontWeight: 600 }}>
-          <Table.Summary.Cell index={0} colSpan={3} align="center">
-            Tổng
-          </Table.Summary.Cell>
-          <Table.Summary.Cell index={3} align="right">
-            {sum("khoiLuongKeHoach")}
-          </Table.Summary.Cell>
-          <Table.Summary.Cell index={4} align="right">
-            {sum("khoiLuongAmThucTe")}
-          </Table.Summary.Cell>
-          <Table.Summary.Cell index={5} />
-          <Table.Summary.Cell index={6} align="right">
-            {sum("khoiLuongKhoThucTe")}
-          </Table.Summary.Cell>
-          <Table.Summary.Cell index={7} align="right">
-            {sum("luyKeQuyKho")}
-          </Table.Summary.Cell>
-          <Table.Summary.Cell index={8} align="right">
-            {sum("tonDauKyQuyKho")}
-          </Table.Summary.Cell>
-          <Table.Summary.Cell index={9} />
-          <Table.Summary.Cell index={10} align="right">
-            {sum("klAmTonCuoi")}
-          </Table.Summary.Cell>
-          <Table.Summary.Cell index={11} />
-          <Table.Summary.Cell index={12} align="right">
-            {sum("klTonCuoiQuyKho")}
-          </Table.Summary.Cell>
-          <Table.Summary.Cell index={13} />
-          {editable && <Table.Summary.Cell index={14} />}
-        </Table.Summary.Row>
-      </Table.Summary>
-    );
-  };
-
-  const coHatColumns: FormColumnDef[] = useMemo(
-    () => [
-      { title: "Kích cỡ", dataIndex: "kichCo", width: 90, readonly: true },
-      { title: "Lần 1", dataIndex: "lan1", width: 90, type: "float", align: "right" },
-      { title: "Lần 2", dataIndex: "lan2", width: 90, type: "float", align: "right" },
-      { title: "Lần 3", dataIndex: "lan3", width: 90, type: "float", align: "right" },
-      { title: "Ghi chú", dataIndex: "ghiChu", width: 200 },
-    ],
-    []
-  );
+  /** true nếu cột đo vật lý silo (TONSILO_FIELDS) bị khoá ở dòng này (lớp Stt>1, không phải lớp
+   *  gốc của silo — xem comment TONSILO_FIELDS đầu file). */
+  const isTonSiloLocked = (dataIndex: string, row: CapLieuRow) => TONSILO_FIELDS.has(dataIndex) && (row.stt ?? 1) !== 1;
 
   return (
     <div>
@@ -503,53 +369,156 @@ const TabCapLieuSilo = ({
       <Divider orientation="left" plain>
         Cấp liệu &amp; tồn silo
       </Divider>
-      <CustomFormTable
-        columns={columns}
-        initialData={displayRows}
-        onDataChange={(rows) => onCapLieuChange(rows as CapLieuRow[])}
-        showAddButton={false}
-        showDeleteButton={false}
-        editable={editable}
-        minRows={0}
-        summary={renderSummary}
-        scrollY={520}
-        stickyHeader
-        readonlyCellGetter={(dataIndex, record: CapLieuRow) => TONSILO_FIELDS.has(dataIndex) && (record.stt ?? 1) !== 1}
-        rowActions={
-          editable
-            ? (record: CapLieuRow, rowIndex: number) => (
-                <Space size={4}>
-                  <Tooltip title="Tách liệu (thêm 1 lớp liệu khác cho silo này)">
-                    <Button size="small" icon={<PlusSquareOutlined />} onClick={() => handleTachLieu(rowIndex)} />
-                  </Tooltip>
-                  {(record.stt ?? 1) !== 1 && (
-                    <Popconfirm
-                      title="Xoá lớp liệu này?"
-                      okText="Xoá"
-                      cancelText="Hủy"
-                      onConfirm={() => handleXoaLop(rowIndex)}
-                    >
-                      <Button size="small" danger icon={<DeleteOutlined />} />
-                    </Popconfirm>
-                  )}
-                </Space>
-              )
-            : undefined
-        }
-      />
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[1700px] border-collapse text-xs">
+          <thead>
+            <tr className="bg-gray-50">
+              <th style={{ width: 60 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Silo</th>
+              <th style={{ width: 200 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Tên than</th>
+              <th style={{ width: 160 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Số hiệu lô</th>
+              <th style={{ width: 100 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">{renderPasteableTitle("Kế hoạch (tấn)", "khoiLuongKeHoach")}</th>
+              <th style={{ width: 130 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">{renderPasteableTitle("KL ẩm thực tế (tấn)", "khoiLuongAmThucTe")}</th>
+              <th style={{ width: 85 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">{renderPasteableTitle("Độ ẩm (%)", "doAm")}</th>
+              <th style={{ width: 130 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">KL khô thực tế (tấn)</th>
+              <th style={{ width: 130 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Lũy kế quy khô (tấn)</th>
+              <th style={{ width: 150 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">KL tồn silo đầu kíp quy khô (tấn)</th>
+              <th style={{ width: 130 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">{renderPasteableTitle("Âm silo cuối kíp (m)", "amSiloCuoiKy")}</th>
+              <th style={{ width: 130 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">KL ẩm tồn silo cuối kíp (tấn)</th>
+              <th style={{ width: 95 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">{renderPasteableTitle("Độ ẩm silo (%)", "doAmSilo")}</th>
+              <th style={{ width: 150 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Khối lượng tồn silo cuối kíp quy khô (tấn)</th>
+              <th style={{ width: 160 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Ghi chú / vị trí bãi</th>
+              {editable && <th style={{ width: 90 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Thao tác</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {displayRows.map((row, idx) => (
+              <tr key={row.key ?? `${row.siloSo}-${row.stt ?? 1}`} className="hover:bg-blue-50/50">
+                <td className="border border-gray-300 px-2 py-1 text-center">{row.siloSo}</td>
+                <td className="border border-gray-300 p-0">
+                  <VatTuAutoCompleteCell
+                    idx={idx}
+                    disabled={!editable}
+                    onUpdateRow={updateCapLieuRow}
+                    idVatTu={row.idVatTu}
+                    vatLieuTen={row.vatLieuTen}
+                  />
+                </td>
+                <td className="border border-gray-300 p-0">
+                  <MaLoAutoCompleteCell
+                    idx={idx}
+                    disabled={!editable}
+                    onUpdateRow={updateCapLieuRow}
+                    idVatTu={row.idVatTu}
+                    idMaLo={row.idMaLo}
+                    options={getMaLoOptions(row.idVatTu)}
+                    loading={isMaLoLoading(row.idVatTu)}
+                  />
+                </td>
+                <td className="border border-gray-300 p-0">
+                  <NumberCell value={toNumOrNull(row.khoiLuongKeHoach)} disabled={!editable} onCommit={(v) => updateDisplayField(idx, { khoiLuongKeHoach: v })} />
+                </td>
+                <td className="border border-gray-300 p-0">
+                  <NumberCell value={toNumOrNull(row.khoiLuongAmThucTe)} disabled={!editable} onCommit={(v) => updateDisplayField(idx, { khoiLuongAmThucTe: v })} />
+                </td>
+                <td className="border border-gray-300 p-0">
+                  <NumberCell value={toNumOrNull(row.doAm)} disabled={!editable} onCommit={(v) => updateDisplayField(idx, { doAm: v })} />
+                </td>
+                <td className="border border-gray-300 px-2 py-1 text-right">{row.khoiLuongKhoThucTe ?? "-"}</td>
+                <td className="border border-gray-300 px-2 py-1 text-right">{row.luyKeQuyKho ?? "-"}</td>
+                <td className="border border-gray-300 px-2 py-1 text-right">{row.tonDauKyQuyKho ?? "-"}</td>
+                <td className="border border-gray-300 p-0">
+                  <NumberCell
+                    value={toNumOrNull(row.amSiloCuoiKy)}
+                    disabled={!editable || isTonSiloLocked("amSiloCuoiKy", row)}
+                    onCommit={(v) => updateDisplayField(idx, { amSiloCuoiKy: v })}
+                  />
+                </td>
+                <td className="border border-gray-300 px-2 py-1 text-right">{row.klAmTonCuoi ?? "-"}</td>
+                <td className="border border-gray-300 p-0">
+                  <NumberCell
+                    value={toNumOrNull(row.doAmSilo)}
+                    disabled={!editable || isTonSiloLocked("doAmSilo", row)}
+                    onCommit={(v) => updateDisplayField(idx, { doAmSilo: v })}
+                  />
+                </td>
+                <td className="border border-gray-300 px-2 py-1 text-right">{row.klTonCuoiQuyKho ?? "-"}</td>
+                <td className="border border-gray-300 p-0">
+                  <TextCell value={row.ghiChu ?? null} disabled={!editable} onCommit={(v) => updateDisplayField(idx, { ghiChu: v })} />
+                </td>
+                {editable && (
+                  <td className="border border-gray-300 px-1 py-1 text-center">
+                    <Space size={4}>
+                      <Tooltip title="Tách liệu (thêm 1 lớp liệu khác cho silo này)">
+                        <Button size="small" icon={<PlusSquareOutlined />} onClick={() => handleTachLieu(idx)} />
+                      </Tooltip>
+                      {(row.stt ?? 1) !== 1 && (
+                        <Popconfirm title="Xoá lớp liệu này?" okText="Xoá" cancelText="Hủy" onConfirm={() => handleXoaLop(idx)}>
+                          <Button size="small" danger icon={<DeleteOutlined />} />
+                        </Popconfirm>
+                      )}
+                    </Space>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+          {displayRows.length > 0 && (
+            <tfoot>
+              <tr className="bg-gray-50 font-semibold">
+                <td colSpan={3} className="border border-gray-300 px-2 py-1 text-center">Tổng</td>
+                <td className="border border-gray-300 px-2 py-1 text-right">{sumCapLieu(displayRows, "khoiLuongKeHoach")}</td>
+                <td className="border border-gray-300 px-2 py-1 text-right">{sumCapLieu(displayRows, "khoiLuongAmThucTe")}</td>
+                <td className="border border-gray-300 px-2 py-1" />
+                <td className="border border-gray-300 px-2 py-1 text-right">{sumCapLieu(displayRows, "khoiLuongKhoThucTe")}</td>
+                <td className="border border-gray-300 px-2 py-1 text-right">{sumCapLieu(displayRows, "luyKeQuyKho")}</td>
+                <td className="border border-gray-300 px-2 py-1 text-right">{sumCapLieu(displayRows, "tonDauKyQuyKho")}</td>
+                <td className="border border-gray-300 px-2 py-1" />
+                <td className="border border-gray-300 px-2 py-1 text-right">{sumCapLieu(displayRows, "klAmTonCuoi")}</td>
+                <td className="border border-gray-300 px-2 py-1" />
+                <td className="border border-gray-300 px-2 py-1 text-right">{sumCapLieu(displayRows, "klTonCuoiQuyKho")}</td>
+                <td className="border border-gray-300 px-2 py-1" />
+                {editable && <td className="border border-gray-300 px-2 py-1" />}
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
 
       <Divider orientation="left" plain>
         Cỡ hạt sau nghiền 1
       </Divider>
-      <CustomFormTable
-        columns={coHatColumns}
-        initialData={coHatNghien1Rows}
-        onDataChange={(rows) => onCoHatNghien1Change(rows as CoHatNghien1Row[])}
-        showAddButton={false}
-        showDeleteButton={false}
-        editable={editable}
-        minRows={0}
-      />
+      <div className="overflow-x-auto">
+        <table className="border-collapse text-xs" style={{ width: 580 }}>
+          <thead>
+            <tr className="bg-gray-50">
+              <th style={{ width: 90 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Kích cỡ</th>
+              <th style={{ width: 90 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Lần 1</th>
+              <th style={{ width: 90 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Lần 2</th>
+              <th style={{ width: 90 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Lần 3</th>
+              <th style={{ width: 200 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Ghi chú</th>
+            </tr>
+          </thead>
+          <tbody>
+            {coHatNghien1Rows.map((row, idx) => (
+              <tr key={row.key ?? row.kichCo} className="hover:bg-blue-50/50">
+                <td className="border border-gray-300 px-2 py-1 text-center">{row.kichCo}</td>
+                <td className="border border-gray-300 p-0">
+                  <NumberCell value={toNumOrNull(row.lan1)} disabled={!editable} onCommit={(v) => updateCoHatField(idx, { lan1: v })} />
+                </td>
+                <td className="border border-gray-300 p-0">
+                  <NumberCell value={toNumOrNull(row.lan2)} disabled={!editable} onCommit={(v) => updateCoHatField(idx, { lan2: v })} />
+                </td>
+                <td className="border border-gray-300 p-0">
+                  <NumberCell value={toNumOrNull(row.lan3)} disabled={!editable} onCommit={(v) => updateCoHatField(idx, { lan3: v })} />
+                </td>
+                <td className="border border-gray-300 p-0">
+                  <TextCell value={row.ghiChu ?? null} disabled={!editable} onCommit={(v) => updateCoHatField(idx, { ghiChu: v })} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       <Modal
         title={`Paste dữ liệu - ${pasteModal.columnTitle}`}
@@ -561,7 +530,7 @@ const TabCapLieuSilo = ({
         }}
         okText="Xác nhận"
         cancelText="Hủy"
-        destroyOnClose
+        destroyOnHidden
       >
         <Input.TextArea
           autoFocus

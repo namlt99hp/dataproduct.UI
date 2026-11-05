@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Button, Card, Col, Divider, Input, InputNumber, Modal, Popconfirm, Row, Select, Table, Typography } from "antd";
+import { Button, Card, Col, Divider, Input, Modal, Popconfirm, Row, Select, Typography } from "antd";
 import { DeleteOutlined, PlusOutlined, SnippetsOutlined } from "@ant-design/icons";
-import CustomFormTable, { type FormColumnDef } from "../CustomFormTable";
 import { thanhPhamToScope, type ThanhPham } from "./lcTabsConfig";
 import type { CapLieuRow } from "./TabCapLieuSilo";
 import { LOAI_PHOI_TRON_OPTIONS } from "./lcMockOptions";
-import { sttColumn } from "./lcColumnHelpers";
+import { NumberCell, TextCell } from "./LcExcelGridCells";
 import { LcCumThapApi } from "../../services/LcDanhMucApi";
 import type { LcCumThap } from "../../models/LcDanhMucModel";
 
@@ -23,6 +22,13 @@ import type { LcCumThap } from "../../models/LcDanhMucModel";
  *
  * Lưu qua bảng quan hệ riêng (LC_PhoiTron/LC_PhoiTronChiTiet, LcPhoiTronApi) — KHÔNG qua
  * BmPhieu.DataJson, cùng nguyên tắc đã áp cho tab Cấp liệu & Silo.
+ *
+ * SỬA 2026-11-02: bảng "Chi tiết" mỗi thẻ KHÔNG còn dùng `CustomFormTable` (component AntD DÙNG
+ * CHUNG cho ~28 file khác trong app, kể cả DynamicForm.tsx — KHÔNG được sửa component đó vì ảnh
+ * hưởng ngoài phạm vi module này) — thay bằng `<table>`/`<input>` HTML thường + Tailwind, dùng lại
+ * `NumberCell`/`TextCell` từ LcExcelGridCells.tsx (cùng cách đã áp cho TabXuatCapCoc.tsx, lý do xem
+ * comment đầu file đó). Cột "Khối lượng cân 2A/Độ ẩm/KL quy khô cân" vẫn giữ nguyên 3 khối rowSpan
+ * dọc trong 1 cột (`splitCanDoAmRows`) — chỉ đổi phần render từng khối.
  */
 
 export interface PhoiTronChiTietRow {
@@ -118,32 +124,9 @@ const loaiLabel = (value: string): string => LOAI_PHOI_TRON_OPTIONS.find((o) => 
 /** Các cột cho phép "Paste từ Excel" ở bảng chi tiết mỗi thẻ — xem GroupedTableSTD.tsx (bản gốc). */
 const PASTE_COLUMNS = new Set(["tyLeKeHoach", "tyLeThucTe"]);
 
-const renderChiTietSummary = (data: readonly PhoiTronChiTietRow[]) => {
-  const sum = (key: keyof PhoiTronChiTietRow) => {
-    const total = data.reduce((acc, r) => acc + (Number(r[key]) || 0), 0);
-    return total ? total.toLocaleString("en-US", { maximumFractionDigits: 3 }) : "—";
-  };
-  return (
-    <Table.Summary fixed>
-      <Table.Summary.Row style={{ backgroundColor: "#fafafa", fontWeight: 600 }}>
-        <Table.Summary.Cell index={0} colSpan={3} align="center">
-          Tổng
-        </Table.Summary.Cell>
-        <Table.Summary.Cell index={3} align="right">
-          {sum("tyLeKeHoach")}
-        </Table.Summary.Cell>
-        <Table.Summary.Cell index={4} align="right">
-          {sum("tyLeThucTe")}
-        </Table.Summary.Cell>
-        <Table.Summary.Cell index={5} />
-        <Table.Summary.Cell index={6} align="right">
-          {sum("klQuyKho")}
-        </Table.Summary.Cell>
-        <Table.Summary.Cell index={7} />
-        <Table.Summary.Cell index={8} />
-      </Table.Summary.Row>
-    </Table.Summary>
-  );
+const sumChiTiet = (data: readonly PhoiTronChiTietRow[], key: keyof PhoiTronChiTietRow): string => {
+  const total = data.reduce((acc, r) => acc + (Number(r[key]) || 0), 0);
+  return total ? total.toLocaleString("en-US", { maximumFractionDigits: 3 }) : "—";
 };
 
 /**
@@ -350,116 +333,42 @@ const TabPhoiTron = ({ thanhPham, editable, cards, onChange, capLieuRows }: TabP
   /** Một "khối" trong cột merge — label nhỏ phía trên + nội dung (input hoặc giá trị). */
   const canDoAmField = (label: string, content: ReactNode, highlight?: boolean) => (
     <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 4,
-        width: "100%",
-        padding: "4px 10px",
-        backgroundColor: highlight ? "#ffc000" : undefined,
-        borderRadius: highlight ? 4 : undefined,
-      }}
+      className="flex w-full flex-col items-center gap-1 px-2 py-1"
+      style={highlight ? { backgroundColor: "#ffc000", borderRadius: 4 } : undefined}
     >
-      <Typography.Text strong={highlight} style={{ fontSize: 11, textAlign: "center", lineHeight: 1.2 }}>
-        {label}
-      </Typography.Text>
+      <span className={`text-center leading-tight text-[11px] ${highlight ? "font-semibold" : "text-gray-600"}`}>{label}</span>
       {content}
     </div>
   );
 
-  const buildCanDoAmColumn = useCallback(
-    (card: PhoiTronCard): FormColumnDef => ({
-      title: "Khối lượng cân 2A, (tấn)",
-      dataIndex: "__canDoAmQuyKho",
-      width: 200,
-      align: "center",
-      onCell: (_record, rowIndex) => {
-        const n = card.chiTiet.length;
-        const [s1, s2] = splitCanDoAmRows(n);
-        if (n < 3) return rowIndex === 0 ? { rowSpan: n } : { rowSpan: 0 };
-        if (rowIndex === 0) return { rowSpan: s1 };
-        if (rowIndex === s1) return { rowSpan: s2 };
-        if (rowIndex === s1 + s2) return { rowSpan: n - s1 - s2 };
-        return { rowSpan: 0 };
-      },
-      renderCell: (_record, idx) => {
-        const n = card.chiTiet.length;
-        const [s1, s2] = splitCanDoAmRows(n);
-
-        const canAm = canDoAmField(
-          "Khối lượng cân 2A, (tấn)",
-          <InputNumber
-            style={{ width: "100%" }}
-            value={toNum(card.klCanAm)}
-            disabled={!editable}
-            onChange={(v) => updateCard(card.cumThapMa, card.loaiPhoiTron, card.thuTu, { klCanAm: v })}
-          />
-        );
-        const doAm = canDoAmField(
-          "Độ ẩm, (W%) — Nhập tay",
-          <InputNumber
-            style={{ width: "100%" }}
-            min={0}
-            value={toNum(card.doAm)}
-            disabled={!editable}
-            onChange={(v) => updateCard(card.cumThapMa, card.loaiPhoiTron, card.thuTu, { doAm: v })}
-          />
-        );
-        const klQuyKhoCan = canDoAmField(
-          "Khối lượng quy khô cân 2A, (tấn)",
-          <Typography.Text strong style={{ fontSize: 13 }}>
-            {card.klQuyKhoCan ?? "—"}
-          </Typography.Text>,
-          true
-        );
-
-        if (n < 3) {
-          if (idx !== 0) return null;
-          return (
-            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              {canAm}
-              {doAm}
-              {klQuyKhoCan}
-            </div>
-          );
-        }
-        if (idx === 0) return canAm;
-        if (idx === s1) return doAm;
-        if (idx === s1 + s2) return klQuyKhoCan;
-        return null;
-      },
+  /** 3 khối (KL cân 2A / Độ ẩm / KL quy khô cân) cho cột merge — xem splitCanDoAmRows. Dùng
+   *  `NumberCell`/`TextCell` (chung với TabXuatCapCoc.tsx) thay InputNumber để khỏi re-render cả
+   *  mảng `cards` mỗi keystroke (xem SỬA 2026-11-02 đầu file). */
+  const buildCanDoAmBlocks = useCallback(
+    (card: PhoiTronCard) => ({
+      canAm: canDoAmField(
+        "Khối lượng cân 2A, (tấn)",
+        <NumberCell
+          value={toNum(card.klCanAm) ?? null}
+          disabled={!editable}
+          onCommit={(v) => updateCard(card.cumThapMa, card.loaiPhoiTron, card.thuTu, { klCanAm: v })}
+        />
+      ),
+      doAm: canDoAmField(
+        "Độ ẩm, (W%) — Nhập tay",
+        <NumberCell
+          value={toNum(card.doAm) ?? null}
+          disabled={!editable}
+          onCommit={(v) => updateCard(card.cumThapMa, card.loaiPhoiTron, card.thuTu, { doAm: v })}
+        />
+      ),
+      klQuyKhoCan: canDoAmField(
+        "Khối lượng quy khô cân 2A, (tấn)",
+        <span className="text-sm font-semibold">{card.klQuyKhoCan ?? "—"}</span>,
+        true
+      ),
     }),
     [editable, updateCard]
-  );
-
-  const buildChiTietColumns = useCallback(
-    (card: PhoiTronCard): FormColumnDef[] => [
-      sttColumn(),
-      { title: "Silo", dataIndex: "siloSo", width: 70, align: "center", readonly: true },
-      { title: "Tên than", dataIndex: "vatLieuTen", width: 180, readonly: true },
-      {
-        title: renderPasteableTitle("Tỷ lệ kế hoạch (%)", "tyLeKeHoach", card),
-        dataIndex: "tyLeKeHoach",
-        width: 120,
-        type: "float",
-        min: 0,
-        align: "right",
-      },
-      {
-        title: renderPasteableTitle("Tỷ lệ quy khô thực tế (%)", "tyLeThucTe", card),
-        dataIndex: "tyLeThucTe",
-        width: 120,
-        type: "float",
-        min: 0,
-        align: "right",
-      },
-      buildCanDoAmColumn(card),
-      { title: "KL quy khô (tấn)", dataIndex: "klQuyKho", width: 120, align: "right", readonly: true },
-      { title: "Lũy kế quy khô (tấn)", dataIndex: "luyKeQuyKho", width: 140, align: "right", readonly: true },
-      { title: "Ghi chú", dataIndex: "ghiChu", width: 160 },
-    ],
-    [renderPasteableTitle, buildCanDoAmColumn]
   );
 
   // Tên than luôn lấy LIVE theo capLieuRows (không dùng snapshot đã lưu) — tránh lệch khi
@@ -577,18 +486,121 @@ const TabPhoiTron = ({ thanhPham, editable, cards, onChange, capLieuRows }: TabP
 
                 <Divider style={{ margin: "10px 0" }} />
 
-                <CustomFormTable
-                  columns={buildChiTietColumns(card)}
-                  initialData={card.chiTiet}
-                  onDataChange={(rows) =>
-                    updateCardChiTiet(card.cumThapMa, card.loaiPhoiTron, card.thuTu, rows as PhoiTronChiTietRow[])
-                  }
-                  showAddButton={false}
-                  showDeleteButton={false}
-                  editable={editable}
-                  minRows={0}
-                  summary={renderChiTietSummary}
-                />
+                {(() => {
+                  const n = card.chiTiet.length;
+                  const [s1, s2] = splitCanDoAmRows(n);
+                  const blocks = buildCanDoAmBlocks(card);
+                  const updateChiTietCell = (rowIndex: number, patch: Partial<PhoiTronChiTietRow>) => {
+                    const next = card.chiTiet.map((r, i) => (i === rowIndex ? { ...r, ...patch } : r));
+                    updateCardChiTiet(card.cumThapMa, card.loaiPhoiTron, card.thuTu, next);
+                  };
+
+                  return (
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[1000px] border-collapse text-xs">
+                        <thead>
+                          <tr className="bg-gray-50">
+                            <th style={{ width: 50 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">STT</th>
+                            <th style={{ width: 70 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Silo</th>
+                            <th style={{ width: 180 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Tên than</th>
+                            <th style={{ width: 120 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">
+                              {renderPasteableTitle("Tỷ lệ kế hoạch (%)", "tyLeKeHoach", card)}
+                            </th>
+                            <th style={{ width: 120 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">
+                              {renderPasteableTitle("Tỷ lệ quy khô thực tế (%)", "tyLeThucTe", card)}
+                            </th>
+                            <th style={{ width: 200 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Khối lượng cân 2A, (tấn)</th>
+                            <th style={{ width: 120 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">KL quy khô (tấn)</th>
+                            <th style={{ width: 140 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Lũy kế quy khô (tấn)</th>
+                            <th style={{ width: 160 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Ghi chú</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {card.chiTiet.map((row, idx) => {
+                            let canDoAmCell: ReactNode = null;
+                            if (n > 0) {
+                              if (n < 3) {
+                                if (idx === 0)
+                                  canDoAmCell = (
+                                    <td rowSpan={n} className="border border-gray-300 p-0 align-top">
+                                      <div className="flex flex-col gap-1">
+                                        {blocks.canAm}
+                                        {blocks.doAm}
+                                        {blocks.klQuyKhoCan}
+                                      </div>
+                                    </td>
+                                  );
+                              } else if (idx === 0) {
+                                canDoAmCell = (
+                                  <td rowSpan={s1} className="border border-gray-300 p-0 align-top">
+                                    {blocks.canAm}
+                                  </td>
+                                );
+                              } else if (idx === s1) {
+                                canDoAmCell = (
+                                  <td rowSpan={s2} className="border border-gray-300 p-0 align-top">
+                                    {blocks.doAm}
+                                  </td>
+                                );
+                              } else if (idx === s1 + s2) {
+                                canDoAmCell = (
+                                  <td rowSpan={n - s1 - s2} className="border border-gray-300 p-0 align-top">
+                                    {blocks.klQuyKhoCan}
+                                  </td>
+                                );
+                              }
+                            }
+
+                            return (
+                              <tr key={capLieuKey(row.siloSo, row.stt)} className="hover:bg-blue-50/50">
+                                <td className="border border-gray-300 px-2 py-1 text-center">{idx + 1}</td>
+                                <td className="border border-gray-300 px-2 py-1 text-center">{row.siloSo}</td>
+                                <td className="border border-gray-300 px-2 py-1 text-center">{row.vatLieuTen ?? "-"}</td>
+                                <td className="border border-gray-300 p-0">
+                                  <NumberCell
+                                    value={toNum(row.tyLeKeHoach) ?? null}
+                                    disabled={!editable}
+                                    onCommit={(v) => updateChiTietCell(idx, { tyLeKeHoach: v })}
+                                  />
+                                </td>
+                                <td className="border border-gray-300 p-0">
+                                  <NumberCell
+                                    value={toNum(row.tyLeThucTe) ?? null}
+                                    disabled={!editable}
+                                    onCommit={(v) => updateChiTietCell(idx, { tyLeThucTe: v })}
+                                  />
+                                </td>
+                                {canDoAmCell}
+                                <td className="border border-gray-300 px-2 py-1 text-right">{row.klQuyKho ?? "-"}</td>
+                                <td className="border border-gray-300 px-2 py-1 text-right">{row.luyKeQuyKho ?? "-"}</td>
+                                <td className="border border-gray-300 p-0">
+                                  <TextCell
+                                    value={row.ghiChu ?? null}
+                                    disabled={!editable}
+                                    onCommit={(v) => updateChiTietCell(idx, { ghiChu: v })}
+                                  />
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                        {card.chiTiet.length > 0 && (
+                          <tfoot>
+                            <tr className="bg-gray-50 font-semibold">
+                              <td colSpan={3} className="border border-gray-300 px-2 py-1 text-center">Tổng</td>
+                              <td className="border border-gray-300 px-2 py-1 text-right">{sumChiTiet(card.chiTiet, "tyLeKeHoach")}</td>
+                              <td className="border border-gray-300 px-2 py-1 text-right">{sumChiTiet(card.chiTiet, "tyLeThucTe")}</td>
+                              <td className="border border-gray-300 px-2 py-1" />
+                              <td className="border border-gray-300 px-2 py-1 text-right">{sumChiTiet(card.chiTiet, "klQuyKho")}</td>
+                              <td className="border border-gray-300 px-2 py-1" />
+                              <td className="border border-gray-300 px-2 py-1" />
+                            </tr>
+                          </tfoot>
+                        )}
+                      </table>
+                    </div>
+                  );
+                })()}
               </Card>
             ))}
 

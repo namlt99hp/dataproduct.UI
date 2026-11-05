@@ -21,6 +21,7 @@ import { LcSiloTonApi } from "../../../services/LcDanhMucApi";
 import type { LcSiloTon, LcSiloTonPayload } from "../../../models/LcDanhMucModel";
 import { ThanhPhamEnum, LoaiLieuSiloTonEnum } from "../../../models/LcDanhMucModel";
 import CongThucCalculatorInput from "../../../components/LC_BCSX_XNL/CongThucCalculatorInput";
+import { LcSanLuongCocApi, type LcCumSanXuat } from "../../../services/LcSanLuongCocApi";
 
 type ErrorLike = { message?: unknown; Message?: unknown };
 
@@ -51,6 +52,20 @@ const QuanLyLcSiloTon = () => {
   const [scopeFilter, setScopeFilter] = useState<number | null>(null);
   const [editingRecord, setEditingRecord] = useState<LcSiloTon | null>(null);
   const [congThucValue, setCongThucValue] = useState("");
+  const [cumSanXuatList, setCumSanXuatList] = useState<LcCumSanXuat[]>([]);
+
+  useEffect(() => {
+    LcSanLuongCocApi.getCumSanXuat()
+      .then(setCumSanXuatList)
+      .catch((err) => console.error("Không tải được danh mục Cụm sản xuất:", err));
+  }, []);
+
+  const modalScope = Form.useWatch("scope", modalForm);
+
+  const cumSanXuatTenById = useMemo(
+    () => new Map(cumSanXuatList.map((c) => [c.id, c.ten])),
+    [cumSanXuatList]
+  );
 
   const fetchData = async (scope: number | null = scopeFilter) => {
     setLoading(true);
@@ -94,6 +109,7 @@ const QuanLyLcSiloTon = () => {
       tenSilo: record.tenSilo,
       loaiLieu: record.loaiLieu,
       tenNhapLieu: record.tenNhapLieu,
+      idCumSanXuat: record.idCumSanXuat ?? null,
     });
     setCongThucValue(record.congThuc);
     setModalVisible(true);
@@ -119,6 +135,7 @@ const QuanLyLcSiloTon = () => {
         loaiLieu: values.loaiLieu,
         tenNhapLieu: values.tenNhapLieu?.trim() || "Chiều cao",
         congThuc: congThucValue.trim(),
+        idCumSanXuat: values.idCumSanXuat ?? null,
       };
       setModalLoading(true);
       if (editingRecord) {
@@ -170,6 +187,13 @@ const QuanLyLcSiloTon = () => {
       },
       { title: "Nhập liệu", dataIndex: "tenNhapLieu", key: "tenNhapLieu", width: 110 },
       {
+        title: "Cụm sản xuất",
+        dataIndex: "idCumSanXuat",
+        key: "idCumSanXuat",
+        width: 120,
+        render: (v: number | null | undefined) => (v != null ? cumSanXuatTenById.get(v) ?? v : <Tag>Dùng chung</Tag>),
+      },
+      {
         title: "Công thức",
         dataIndex: "congThuc",
         key: "congThuc",
@@ -201,7 +225,7 @@ const QuanLyLcSiloTon = () => {
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [data]
+    [data, cumSanXuatTenById]
   );
 
   return (
@@ -276,6 +300,20 @@ const QuanLyLcSiloTon = () => {
 
           <Form.Item name="tenNhapLieu" label="Nhãn giá trị nhập">
             <AutoComplete options={NHAP_LIEU_OPTIONS} placeholder="Chiều cao" />
+          </Form.Item>
+
+          <Form.Item
+            name="idCumSanXuat"
+            label="Cụm sản xuất"
+            tooltip="Dùng cho tab Sản lượng cốc — để trống nếu silo này dùng chung cho cả 2 cụm."
+          >
+            <Select
+              allowClear
+              placeholder="Dùng chung 2 cụm"
+              options={cumSanXuatList
+                .filter((c) => c.scope === modalScope)
+                .map((c) => ({ value: c.id, label: c.ten }))}
+            />
           </Form.Item>
 
           <Form.Item

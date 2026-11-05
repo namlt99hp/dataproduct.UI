@@ -12,6 +12,8 @@ import LcPhieuTabs from "../../../components/LC_BCSX_XNL/LcPhieuTabs";
 import { scopeToThanhPham, EMPTY_LC_PHIEU_TABLES, type LcPhieuTables } from "../../../components/LC_BCSX_XNL/lcTabsConfig";
 import { LcCapLieuSiloApi } from "../../../services/LcCapLieuSiloApi";
 import { LcPhoiTronApi } from "../../../services/LcPhoiTronApi";
+import { lcThapThanApi } from "../../../services/LCThapThanApi";
+import { LcSanLuongCocApi } from "../../../services/LcSanLuongCocApi";
 import { LcSiloCocTonApi } from "../../../services/LcSiloCocTonApi";
 import { LcXuatCapApi } from "../../../services/LcXuatCapApi";
 import { LcTieuHaoApi } from "../../../services/LcTieuHaoApi";
@@ -47,8 +49,13 @@ const ChiTietBaoCaoSanXuat_XNL = () => {
         capLieu: fd.table_capLieu || [],
         coHatNghien1: fd.table_coHatNghien1 || [],
         phoiTron: fd.table_phoiTron || [],
-        pheu: fd.table_pheu || [],
-        thap: fd.table_thap || [],
+        pheu: [],
+        thap: [],
+        buiCoc: {},
+        buiCocXuat: [],
+        dapCoc: [],
+        cocChuyenNhaSang: [],
+        sanLuong: [],
         phanTich: fd.table_phanTich || [],
         suCo: fd.table_suCo || [],
         tonCoc: [],
@@ -77,6 +84,32 @@ const ChiTietBaoCaoSanXuat_XNL = () => {
           setTables((prev) => ({ ...prev, phoiTron: phoiTronCards }));
         } catch (err) {
           console.error("Không thể tải dữ liệu Phối trộn (bảng quan hệ):", err);
+        }
+
+        try {
+          const thapPheuTables = await lcThapThanApi.getByPhieu(resIdPhieu);
+          setTables((prev) => ({ ...prev, pheu: thapPheuTables.pheu, thap: thapPheuTables.thap }));
+        } catch (err) {
+          console.error("Không thể tải dữ liệu Tháp/Phễu (bảng quan hệ):", err);
+        }
+
+        try {
+          const buiCocTables = await lcThapThanApi.getBuiCocByPhieu(resIdPhieu);
+          setTables((prev) => ({ ...prev, buiCoc: buiCocTables.buiCoc, buiCocXuat: buiCocTables.buiCocXuat }));
+        } catch (err) {
+          console.error("Không thể tải dữ liệu Bụi cốc (bảng quan hệ):", err);
+        }
+
+        try {
+          const sanLuongTables = await LcSanLuongCocApi.getByPhieu(resIdPhieu);
+          setTables((prev) => ({
+            ...prev,
+            dapCoc: sanLuongTables.dapCoc,
+            cocChuyenNhaSang: sanLuongTables.cocChuyenNhaSang,
+            sanLuong: sanLuongTables.sanLuong,
+          }));
+        } catch (err) {
+          console.error("Không thể tải dữ liệu Sản lượng cốc (bảng quan hệ):", err);
         }
 
         try {

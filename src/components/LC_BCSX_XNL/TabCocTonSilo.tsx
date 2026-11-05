@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
-import { Button, Card, Empty, Input, InputNumber, Modal, Popconfirm, Select, Space, Table, Tag, message } from "antd";
+import { Fragment, useEffect, useMemo, useState } from "react";
+import { Button, Card, Empty, Input, Modal, Popconfirm, Select, Space, Tag, message } from "antd";
 import { CloseOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import { LcSiloTonApi } from "../../services/LcDanhMucApi";
 import type { LcSiloTon } from "../../models/LcDanhMucModel";
 import { thanhPhamToScope, type ThanhPham } from "./lcTabsConfig";
+import { NumberCell } from "./LcExcelGridCells";
 
 /**
  * Vùng "Cốc tồn silo" (tab `tonCoc`) — layout mô phỏng ĐÚNG TP1.xlsx dòng 235-267: mỗi "cụm
@@ -16,6 +17,13 @@ import { thanhPhamToScope, type ThanhPham } from "./lcTabsConfig";
  *
  * Cấu trúc (cụm nào, silo nào, thứ tự) được backend COPY FORWARD từ phiếu liền trước lúc tạo
  * phiếu — chỉ phiếu đầu tiên của Scope mới trống, cần tự "+ Thêm cụm hạng mục" từ đầu.
+ *
+ * SỬA 2026-11-02: bảng pivot (hạng mục × silo) KHÔNG còn dùng AntD `Table`/`InputNumber` — thay
+ * bằng `<table>`/`<input>` HTML thường + Tailwind (cùng cách đã áp cho TabXuatCapCoc/TabPhoiTron/
+ * TabCapLieuSilo), dùng lại `NumberCell` từ LcExcelGridCells.tsx. `onChange` (mỗi keystroke) +
+ * `onBlur` (gọi API tính thử công thức) của InputNumber cũ gộp thành 1 `onCommit` (NumberCell chỉ
+ * bắn lúc blur) — `handleTinhKhoiLuong` đổi sang nhận `giaTri` trực tiếp làm tham số thay vì đọc
+ * lại từ `cums`, vì state cha chưa chắc đã cập nhật xong ngay trong cùng tick gọi.
  */
 
 export interface CocTonSiloCol {
@@ -154,11 +162,17 @@ const TabCocTonSilo = ({ editable, thanhPham, cums, onChange }: TabCocTonSiloPro
     );
   };
 
-  const handleTinhKhoiLuong = async (cumKey: string, siloKey: string, moc: "tonCuoi" | "tonDau") => {
+  // `giaTri` nhận trực tiếp làm tham số (KHÔNG đọc lại từ `cums`) — gọi ngay trong `onCommit` của
+  // NumberCell cùng lúc với handleGiaTriChange. Giữa 2 lệnh gọi KHÔNG có `await` nào nên state cha
+  // (cập nhật bất đồng bộ qua `onChange`) CHẮC CHẮN CHƯA kịp phản ánh patch của handleGiaTriChange
+  // khi `cums` ở đây được đọc (y hệt bug "mất giá trị vừa nhập sau khi tính khối lượng" — patch
+  // KHỐI LƯỢNG ghi SAU, dựa trên snapshot `cums` CŨ, đè mất patch GIÁ TRỊ ghi TRƯỚC). Vì vậy patch
+  // cuối ở đây PHẢI tự gán lại đúng field giá trị (`giaTriTonCuoiCa`/`giaTriTonDauCa`) bằng `giaTri`
+  // đã có sẵn, KHÔNG dựa vào việc đọc lại từ `cums`/`col`.
+  const handleTinhKhoiLuong = async (cumKey: string, siloKey: string, moc: "tonCuoi" | "tonDau", giaTri: number | null) => {
     const cum = cums.find((c) => c.key === cumKey);
     const col = cum?.silos.find((s) => s.key === siloKey);
     if (!col) return;
-    const giaTri = moc === "tonCuoi" ? col.giaTriTonCuoiCa : col.giaTriTonDauCa;
     const siloTon = catalogById.get(col.idSiloTon);
     if (giaTri == null) return;
     if (!siloTon) {
@@ -179,7 +193,12 @@ const TabCocTonSilo = ({ editable, thanhPham, cums, onChange }: TabCocTonSiloPro
             ...c,
             silos: c.silos.map((s) => {
               if (s.key !== siloKey) return s;
-              const patched = moc === "tonCuoi" ? { ...s, khoiLuongTonCuoiCa: res.ketQua } : { ...s, khoiLuongTonDauCa: res.ketQua };
+              const withGiaTri =
+                moc === "tonCuoi" ? { ...s, giaTriTonCuoiCa: giaTri } : { ...s, giaTriTonDauCa: giaTri };
+              const patched =
+                moc === "tonCuoi"
+                  ? { ...withGiaTri, khoiLuongTonCuoiCa: res.ketQua }
+                  : { ...withGiaTri, khoiLuongTonDauCa: res.ketQua };
               return recomputeChenhLech(patched);
             }),
           };
@@ -201,17 +220,17 @@ const TabCocTonSilo = ({ editable, thanhPham, cums, onChange }: TabCocTonSiloPro
     if (hangMuc === "tonCuoi" || hangMuc === "tonDau") {
       const value = hangMuc === "tonCuoi" ? col.giaTriTonCuoiCa : col.giaTriTonDauCa;
       return (
-        <InputNumber
-          size="small"
-          value={value ?? undefined}
+        <NumberCell
+          value={value ?? null}
           disabled={!editable}
-          style={{ width: "100%" }}
-          onChange={(v) => handleGiaTriChange(cumKey, col.key, hangMuc, v)}
-          onBlur={() => handleTinhKhoiLuong(cumKey, col.key, hangMuc)}
+          onCommit={(v) => {
+            handleGiaTriChange(cumKey, col.key, hangMuc, v);
+            handleTinhKhoiLuong(cumKey, col.key, hangMuc, v);
+          }}
         />
       );
     }
-    return <span style={{ color: "#bbb" }}>-</span>;
+    return <span className="text-gray-300">-</span>;
   };
 
   const renderKhoiLuongCell = (hangMuc: HangMucKey, col: CocTonSiloCol) => {
@@ -232,39 +251,6 @@ const TabCocTonSilo = ({ editable, thanhPham, cums, onChange }: TabCocTonSiloPro
 
       <Space direction="vertical" style={{ width: "100%" }} size={16}>
         {cums.map((cum) => {
-          const dataSource = HANG_MUC_ROWS.map((r) => ({ key: r.key, hangMuc: r.label }));
-          const columns = [
-            { title: "Hạng mục", dataIndex: "hangMuc", key: "hangMuc", fixed: "left" as const, width: 240 },
-            ...cum.silos.map((col) => ({
-              title: (
-                <Space>
-                  <span>{col.tenSilo}</span>
-                  {editable && (
-                    <Button
-                      type="text"
-                      size="small"
-                      icon={<CloseOutlined />}
-                      onClick={() => handleXoaSilo(cum.key, col.key)}
-                      title="Xoá silo này"
-                    />
-                  )}
-                </Space>
-              ),
-              children: [
-                {
-                  title: col.tenNhapLieu,
-                  width: 110,
-                  render: (_: unknown, row: { key: HangMucKey }) => renderGiaTriCell(row.key, cum.key, col),
-                },
-                {
-                  title: "Khối lượng",
-                  width: 110,
-                  render: (_: unknown, row: { key: HangMucKey }) => renderKhoiLuongCell(row.key, col),
-                },
-              ],
-            })),
-          ];
-
           return (
             <Card
               key={cum.key}
@@ -289,14 +275,58 @@ const TabCocTonSilo = ({ editable, thanhPham, cums, onChange }: TabCocTonSiloPro
               {cum.silos.length === 0 ? (
                 <Empty description="Chưa có silo nào" />
               ) : (
-                <Table
-                  columns={columns}
-                  dataSource={dataSource}
-                  pagination={false}
-                  size="small"
-                  bordered
-                  scroll={{ x: true }}
-                />
+                <div className="overflow-x-auto">
+                  <table className="border-collapse text-xs" style={{ minWidth: 240 + cum.silos.length * 220 }}>
+                    <thead>
+                      <tr className="bg-gray-50">
+                        <th
+                          rowSpan={2}
+                          style={{ width: 240 }}
+                          className="sticky left-0 z-10 border border-gray-300 bg-gray-50 px-2 py-1 text-center font-medium text-gray-700"
+                        >
+                          Hạng mục
+                        </th>
+                        {cum.silos.map((col) => (
+                          <th key={col.key} colSpan={2} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">
+                            <Space>
+                              <span>{col.tenSilo}</span>
+                              {editable && (
+                                <Button
+                                  type="text"
+                                  size="small"
+                                  icon={<CloseOutlined />}
+                                  onClick={() => handleXoaSilo(cum.key, col.key)}
+                                  title="Xoá silo này"
+                                />
+                              )}
+                            </Space>
+                          </th>
+                        ))}
+                      </tr>
+                      <tr className="bg-gray-50">
+                        {cum.silos.map((col) => (
+                          <Fragment key={col.key}>
+                            <th style={{ width: 110 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">{col.tenNhapLieu}</th>
+                            <th style={{ width: 110 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Khối lượng</th>
+                          </Fragment>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {HANG_MUC_ROWS.map((r) => (
+                        <tr key={r.key} className="hover:bg-blue-50/50">
+                          <td className="sticky left-0 z-10 border border-gray-300 bg-white px-2 py-1 text-center">{r.label}</td>
+                          {cum.silos.map((col) => (
+                            <Fragment key={col.key}>
+                              <td className="border border-gray-300 p-0">{renderGiaTriCell(r.key, cum.key, col)}</td>
+                              <td className="border border-gray-300 px-2 py-1 text-right">{renderKhoiLuongCell(r.key, col)}</td>
+                            </Fragment>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
               {editable && (
                 <Button
@@ -319,7 +349,7 @@ const TabCocTonSilo = ({ editable, thanhPham, cums, onChange }: TabCocTonSiloPro
         onCancel={() => setAddModalCumKey(null)}
         onOk={handleXacNhanThemSilo}
         okButtonProps={{ disabled: addModalSelected == null }}
-        destroyOnClose
+        destroyOnHidden
       >
         {!scope ? (
           <Tag color="warning">Vui lòng chọn Thành phẩm (TP1/TP2) ở phần đầu phiếu trước.</Tag>

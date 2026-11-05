@@ -80,6 +80,7 @@ import QuanLyLcSilo from "../pages/KhoDuLieu/NM.LC/Silo";
 import QuanLyLcCumThap from "../pages/KhoDuLieu/NM.LC/CumThap";
 import QuanLyLcSiloTon from "../pages/KhoDuLieu/NM.LC/SiloTon";
 import QuanLyLcXuatCapDanhMuc from "../pages/KhoDuLieu/NM.LC/XuatCapDanhMuc";
+import QuanLyBuiCocNoiNhan from "../pages/KhoDuLieu/NM.LC/BuiCocNoiNhan";
 import ThongKeHRC2 from "../pages/NM.HRC2/ThongKe/ThongKeHRC2";
 import NapLieuLoCao from "../pages/NMLG/NapLieuLoCao/NapLieuLoCao";
 import TaoPhieuNapLieuLoCao from "../pages/NMLG/NapLieuLoCao/TaoPhieuNapLieuLoCao";
@@ -1298,6 +1299,16 @@ export const routes = [
           <RequireAuth>
             <RequireRole allowedRoles={["admin", "user"]}>
               <QuanLyLcSiloTon />
+            </RequireRole>
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "lc-buicocnoinhan",
+        element: (
+          <RequireAuth>
+            <RequireRole allowedRoles={["admin", "user"]}>
+              <QuanLyBuiCocNoiNhan />
             </RequireRole>
           </RequireAuth>
         ),

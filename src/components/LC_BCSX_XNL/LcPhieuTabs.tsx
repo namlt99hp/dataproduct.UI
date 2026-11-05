@@ -5,7 +5,7 @@ import TabPlaceholder from "./TabPlaceholder";
 import TabCapLieuSilo from "./TabCapLieuSilo";
 import TabPhoiTron from "./TabPhoiTron";
 import TabThapPheu from "./TabThapPheu";
-import TabPhanTich from "./TabPhanTich";
+import TabSanLuongCoc from "./TabSanLuongCoc";
 import TabSuCo from "./TabSuCo";
 import TabCocTonSilo from "./TabCocTonSilo";
 import TabXuatCapCoc from "./TabXuatCapCoc";
@@ -71,15 +71,25 @@ const LcPhieuTabs = ({ thanhPham, editable, tables, onTablesChange, idPhieu, nga
             onPheuChange={(rows) => onTablesChange({ pheu: rows })}
             thapRows={tables.thap}
             onThapChange={(rows) => onTablesChange({ thap: rows })}
+            phanTich={tables.phanTich}
+            onPhanTichChange={(rows) => onTablesChange({ phanTich: rows })}
+            buiCoc={tables.buiCoc}
+            onBuiCocChange={(row) => onTablesChange({ buiCoc: row })}
+            buiCocXuat={tables.buiCocXuat}
+            onBuiCocXuatChange={(rows) => onTablesChange({ buiCocXuat: rows })}
           />
         );
         break;
-      case "phanTich":
+      case "dapCoc":
         children = (
-          <TabPhanTich
+          <TabSanLuongCoc
+            thanhPham={thanhPham}
             editable={editable}
-            rows={tables.phanTich}
-            onChange={(rows) => onTablesChange({ phanTich: rows })}
+            dapCoc={tables.dapCoc}
+            onDapCocChange={(rows) => onTablesChange({ dapCoc: rows })}
+            cocChuyenNhaSang={tables.cocChuyenNhaSang}
+            onCocChuyenNhaSangChange={(rows) => onTablesChange({ cocChuyenNhaSang: rows })}
+            sanLuong={tables.sanLuong}
           />
         );
         break;

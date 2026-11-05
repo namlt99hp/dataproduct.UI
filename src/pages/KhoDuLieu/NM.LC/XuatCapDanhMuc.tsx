@@ -28,6 +28,7 @@ import type {
   LcXuatCapLoaiOption,
 } from "../../../models/LcXuatCapDanhMucModel";
 import { ThanhPhamEnum } from "../../../models/LcDanhMucModel";
+import { LcSanLuongCocApi, type LcCumSanXuat } from "../../../services/LcSanLuongCocApi";
 
 const getErrMsg = (err: unknown, fallback: string): string =>
   typeof err === "object" && err !== null && "message" in err && typeof (err as { message?: unknown }).message === "string"
@@ -56,6 +57,7 @@ const QuanLyLcXuatCapDanhMuc = () => {
   const [cumOptions, setCumOptions] = useState<LcXuatCapCumOption[]>([]);
   const [loaiCocOptions, setLoaiCocOptions] = useState<LcXuatCapLoaiOption[]>([]);
   const [loaiNhanOptions, setLoaiNhanOptions] = useState<LcXuatCapLoaiOption[]>([]);
+  const [cumSanXuatList, setCumSanXuatList] = useState<LcCumSanXuat[]>([]);
   const [scopeFilter, setScopeFilter] = useState<number>(ThanhPhamEnum.TP1);
 
   const [cumModalOpen, setCumModalOpen] = useState(false);
@@ -84,6 +86,7 @@ const QuanLyLcXuatCapDanhMuc = () => {
     LcXuatCapDanhMucApi.getPhongBanOptions().then(setPhongBanOptions).catch((err) => console.error("Không thể tải danh sách Phòng ban:", err));
     LcXuatCapDanhMucApi.getLoaiCocOptions().then(setLoaiCocOptions).catch((err) => console.error("Không thể tải danh sách Loại cốc:", err));
     LcXuatCapDanhMucApi.getLoaiNhanOptions().then(setLoaiNhanOptions).catch((err) => console.error("Không thể tải danh sách Loại nhận:", err));
+    LcSanLuongCocApi.getCumSanXuat().then(setCumSanXuatList).catch((err) => console.error("Không thể tải danh sách Cụm sản xuất:", err));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -103,6 +106,11 @@ const QuanLyLcXuatCapDanhMuc = () => {
   const cumOptionItems = useMemo(() => cumOptions.map((c) => ({ value: c.id, label: `${c.ten} (${c.ma})` })), [cumOptions]);
   const loaiCocOptionItems = useMemo(() => loaiCocOptions.map((l) => ({ value: l.id, label: l.ten })), [loaiCocOptions]);
   const loaiNhanOptionItems = useMemo(() => loaiNhanOptions.map((l) => ({ value: l.id, label: l.ten })), [loaiNhanOptions]);
+  const cumSanXuatTenById = useMemo(() => new Map(cumSanXuatList.map((c) => [c.id, c.ten])), [cumSanXuatList]);
+  const cumSanXuatOptionItems = useMemo(
+    () => cumSanXuatList.filter((c) => c.scope === scopeFilter).map((c) => ({ value: c.id, label: c.ten })),
+    [cumSanXuatList, scopeFilter]
+  );
 
   // Nhóm theo Cụm THẬT (tầng ngoài cùng đúng layout Excel — xem §10/§11), giữ thứ tự ThuTu của Nơi nhận.
   const groupsByCum = useMemo(() => {
@@ -133,6 +141,7 @@ const QuanLyLcXuatCapDanhMuc = () => {
       idLoaiCoc: cum.idLoaiCoc,
       nhomTongHop: cum.nhomTongHop,
       idPhongBan: cum.idPhongBan ?? undefined,
+      idCumSanXuat: cum.idCumSanXuat ?? null,
     });
     setCumModalOpen(true);
   };
@@ -155,6 +164,7 @@ const QuanLyLcXuatCapDanhMuc = () => {
         idLoaiCoc: values.idLoaiCoc,
         nhomTongHop: values.nhomTongHop.trim(),
         idPhongBan: values.idPhongBan ?? null,
+        idCumSanXuat: values.idCumSanXuat ?? null,
       };
       setCumModalLoading(true);
       if (editingCum) {
@@ -311,6 +321,9 @@ const QuanLyLcXuatCapDanhMuc = () => {
                       <Typography.Text type="secondary">
                         {cum.tenLoaiCoc} · Nhóm: {cum.nhomTongHop}
                       </Typography.Text>
+                      <Tag color={cum.idCumSanXuat != null ? "gold" : "default"}>
+                        {cum.idCumSanXuat != null ? cumSanXuatTenById.get(cum.idCumSanXuat) ?? cum.idCumSanXuat : "Dùng chung"}
+                      </Tag>
                       <Button size="small" icon={<EditOutlined />} onClick={() => openEditCum(cum)}>
                         Sửa
                       </Button>
@@ -385,6 +398,13 @@ const QuanLyLcXuatCapDanhMuc = () => {
           </Row>
           <Form.Item name="idPhongBan" label="Phòng ban nhận (tham khảo, không bắt buộc)">
             <Select allowClear showSearch placeholder="Chưa gán" options={phongBanOptionItems} optionFilterProp="label" />
+          </Form.Item>
+          <Form.Item
+            name="idCumSanXuat"
+            label="Cụm sản xuất"
+            tooltip="Dùng cho tab Sản lượng cốc — để trống nếu Nơi nhận này dùng chung cho cả 2 cụm."
+          >
+            <Select allowClear placeholder="Dùng chung 2 cụm" options={cumSanXuatOptionItems} />
           </Form.Item>
           <Form.Item
             name="nhomTongHop"

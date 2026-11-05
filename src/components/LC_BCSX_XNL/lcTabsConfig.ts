@@ -19,10 +19,8 @@ export interface LcTabDef {
 export const LC_BCSX_XNL_TABS: LcTabDef[] = [
   { key: "capLieuSilo", label: "Cấp liệu & Silo", implemented: true },
   { key: "phoiTron", label: "Phối trộn", implemented: true },
-  { key: "thapPheu", label: "Tháp / Phễu", implemented: true },
-  { key: "phanTich", label: "Phân tích", implemented: true },
-  { key: "buiCoc", label: "Bụi cốc", implemented: false },
-  { key: "dapCoc", label: "Sản lượng cốc", implemented: false },
+  { key: "thapPheu", label: "Tháp / Phễu", implemented: true, note: "Gồm cả Phân tích và (TP1) Bụi cốc — xem TabThapPheu.tsx." },
+  { key: "dapCoc", label: "Sản lượng cốc", implemented: true, note: "Gồm cả Dập cốc và (TP1) Cốc chuyển qua X.NL,TP2 — xem TabSanLuongCoc.tsx." },
   { key: "tonCoc", label: "Tồn cốc", implemented: true },
   {
     key: "xuatCapCoc",
@@ -52,7 +50,16 @@ export interface LcPhieuTables {
   phoiTron: import("./TabPhoiTron").PhoiTronCard[];
   pheu: import("./TabThapPheu").PheuRow[];
   thap: import("./TabThapPheu").ThapRow[];
-  phanTich: import("./TabPhanTich").PhanTichRow[];
+  /** Gộp vào tab Tháp/Phễu (TP1 + TP2) — xem TabThapPheu.tsx. TabPhanTich.tsx cũ không còn dùng. */
+  phanTich: import("./TabThapPheu").PhanTichRow[];
+  /** Gộp vào tab Tháp/Phễu, TP1 only — xem TabThapPheu.tsx. */
+  buiCoc: import("./TabThapPheu").BuiCocRow;
+  buiCocXuat: import("./TabThapPheu").BuiCocXuatRow[];
+  /** Tab "Sản lượng cốc" — Dập cốc nhập tay (N vị trí/Scope) + Cốc chuyển qua X.NL,TP2 (TP1
+   *  only) + Sản lượng cốc (CALCULATED, chỉ hiển thị) — xem TabSanLuongCoc.tsx. */
+  dapCoc: import("./TabSanLuongCoc").DapCocRow[];
+  cocChuyenNhaSang: import("./TabSanLuongCoc").CocChuyenNhaSangRow[];
+  sanLuong: import("./TabSanLuongCoc").SanLuongCocRow[];
   suCo: import("./TabSuCo").SuCoRow[];
   tonCoc: import("./TabCocTonSilo").CocTonCum[];
   xuatCapCoc: import("./TabXuatCapCoc").XuatCapSlot[];
@@ -68,6 +75,11 @@ export const EMPTY_LC_PHIEU_TABLES: LcPhieuTables = {
   phoiTron: [],
   pheu: [],
   thap: [],
+  buiCoc: {},
+  buiCocXuat: [],
+  dapCoc: [],
+  cocChuyenNhaSang: [],
+  sanLuong: [],
   phanTich: [],
   suCo: [],
   tonCoc: [],

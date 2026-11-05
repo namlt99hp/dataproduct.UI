@@ -12,6 +12,8 @@ import LcPhieuTabs from "../../../components/LC_BCSX_XNL/LcPhieuTabs";
 import { scopeToThanhPham, thanhPhamToScope, EMPTY_LC_PHIEU_TABLES, type LcPhieuTables } from "../../../components/LC_BCSX_XNL/lcTabsConfig";
 import { LcCapLieuSiloApi } from "../../../services/LcCapLieuSiloApi";
 import { LcPhoiTronApi } from "../../../services/LcPhoiTronApi";
+import { lcThapThanApi } from "../../../services/LCThapThanApi";
+import { LcSanLuongCocApi } from "../../../services/LcSanLuongCocApi";
 import { LcSiloCocTonApi } from "../../../services/LcSiloCocTonApi";
 import { LcXuatCapApi } from "../../../services/LcXuatCapApi";
 import { LcTieuHaoApi } from "../../../services/LcTieuHaoApi";
@@ -108,8 +110,13 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
         capLieu: data.table_capLieu || [],
         coHatNghien1: data.table_coHatNghien1 || [],
         phoiTron: data.table_phoiTron || [],
-        pheu: data.table_pheu || [],
-        thap: data.table_thap || [],
+        pheu: [],
+        thap: [],
+        buiCoc: {},
+        buiCocXuat: [],
+        dapCoc: [],
+        cocChuyenNhaSang: [],
+        sanLuong: [],
         phanTich: data.table_phanTich || [],
         suCo: data.table_suCo || [],
         tonCoc: [],
@@ -139,6 +146,32 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
           setTables((prev) => ({ ...prev, phoiTron: phoiTronCards }));
         } catch (err) {
           console.error("Không thể tải dữ liệu Phối trộn (bảng quan hệ):", err);
+        }
+
+        try {
+          const thapPheuTables = await lcThapThanApi.getByPhieu(resIdPhieu);
+          setTables((prev) => ({ ...prev, pheu: thapPheuTables.pheu, thap: thapPheuTables.thap }));
+        } catch (err) {
+          console.error("Không thể tải dữ liệu Tháp/Phễu (bảng quan hệ):", err);
+        }
+
+        try {
+          const buiCocTables = await lcThapThanApi.getBuiCocByPhieu(resIdPhieu);
+          setTables((prev) => ({ ...prev, buiCoc: buiCocTables.buiCoc, buiCocXuat: buiCocTables.buiCocXuat }));
+        } catch (err) {
+          console.error("Không thể tải dữ liệu Bụi cốc (bảng quan hệ):", err);
+        }
+
+        try {
+          const sanLuongTables = await LcSanLuongCocApi.getByPhieu(resIdPhieu);
+          setTables((prev) => ({
+            ...prev,
+            dapCoc: sanLuongTables.dapCoc,
+            cocChuyenNhaSang: sanLuongTables.cocChuyenNhaSang,
+            sanLuong: sanLuongTables.sanLuong,
+          }));
+        } catch (err) {
+          console.error("Không thể tải dữ liệu Sản lượng cốc (bảng quan hệ):", err);
         }
 
         try {
@@ -229,12 +262,10 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
       tenScope: thanhPham ?? null,
       xuongId: userInfo.iD_PhanXuong ?? null,
       idphongBan: userInfo.iD_PhongBan ?? null,
-      // table_capLieu/table_coHatNghien1/table_phoiTron/table_tonCoc KHÔNG gửi qua DataJson
-      // nữa (rủi ro lệch dữ liệu) — lưu trực tiếp vào bảng quan hệ riêng qua
-      // LcCapLieuSiloApi.save / LcPhoiTronApi.save / LcSiloCocTonApi.save trong
-      // handleActionSuccess bên dưới.
-      table_pheu: tables.pheu,
-      table_thap: tables.thap,
+      // table_capLieu/table_coHatNghien1/table_phoiTron/table_tonCoc/table_pheu/table_thap
+      // KHÔNG gửi qua DataJson nữa (rủi ro lệch dữ liệu) — lưu trực tiếp vào bảng quan hệ
+      // riêng qua LcCapLieuSiloApi.save / LcPhoiTronApi.save / LcSiloCocTonApi.save /
+      // lcThapThanApi.save trong handleActionSuccess bên dưới.
       table_phanTich: tables.phanTich,
       table_suCo: tables.suCo,
       pheDuyet: pheDuyetFlow,
@@ -271,6 +302,37 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
           } catch (err) {
             console.error("Không thể lưu Phối trộn:", err);
             message.error("Đã lưu phiếu nhưng lưu dữ liệu Phối trộn thất bại, vui lòng kiểm tra lại.");
+          }
+        }
+
+        if (!isCreatingNew || tables.pheu.length > 0 || tables.thap.length > 0) {
+          try {
+            await lcThapThanApi.save(targetId, { pheu: tables.pheu, thap: tables.thap });
+          } catch (err) {
+            console.error("Không thể lưu Tháp/Phễu:", err);
+            message.error("Đã lưu phiếu nhưng lưu dữ liệu Tháp/Phễu thất bại, vui lòng kiểm tra lại.");
+          }
+        }
+
+        if (!isCreatingNew || tables.buiCocXuat.length > 0) {
+          try {
+            await lcThapThanApi.saveBuiCoc(targetId, { buiCoc: tables.buiCoc, buiCocXuat: tables.buiCocXuat });
+          } catch (err) {
+            console.error("Không thể lưu Bụi cốc:", err);
+            message.error("Đã lưu phiếu nhưng lưu dữ liệu Bụi cốc thất bại, vui lòng kiểm tra lại.");
+          }
+        }
+
+        if (!isCreatingNew || tables.dapCoc.length > 0 || tables.cocChuyenNhaSang.length > 0) {
+          try {
+            const sanLuongRes = await LcSanLuongCocApi.save(targetId, {
+              dapCoc: tables.dapCoc,
+              cocChuyenNhaSang: tables.cocChuyenNhaSang,
+            });
+            setTables((prev) => ({ ...prev, sanLuong: sanLuongRes.sanLuong }));
+          } catch (err) {
+            console.error("Không thể lưu Sản lượng cốc:", err);
+            message.error("Đã lưu phiếu nhưng lưu dữ liệu Sản lượng cốc thất bại, vui lòng kiểm tra lại.");
           }
         }
 
@@ -334,15 +396,21 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
     if (!idphieu) return;
     setRefreshLoading(true);
     try {
-      const [capLieuRes, phoiTronRes] = await Promise.all([
+      const [capLieuRes, phoiTronRes, thapPheuRes, buiCocRes] = await Promise.all([
         LcCapLieuSiloApi.refreshTuCaTruoc(idphieu),
         LcPhoiTronApi.refreshTuCaTruoc(idphieu),
+        lcThapThanApi.refreshTuCaTruoc(idphieu),
+        lcThapThanApi.refreshBuiCocTuCaTruoc(idphieu),
       ]);
       setTables((prev) => ({
         ...prev,
         capLieu: capLieuRes.capLieu,
         coHatNghien1: capLieuRes.coHatNghien1,
         phoiTron: phoiTronRes,
+        pheu: thapPheuRes.pheu,
+        thap: thapPheuRes.thap,
+        buiCoc: buiCocRes.buiCoc,
+        buiCocXuat: buiCocRes.buiCocXuat,
       }));
       message.success("Đã làm mới Tồn đầu/Lũy kế theo dữ liệu mới nhất của kíp liền trước.");
     } catch (err: any) {
@@ -423,7 +491,7 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
           <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
             <Popconfirm
               title="Làm mới từ kíp liền trước?"
-              description="Tồn đầu/Lũy kế của tab Cấp liệu & Silo và Phối trộn sẽ được nạp lại theo dữ liệu kíp trước MỚI NHẤT. Các thay đổi CHƯA LƯU ở 2 tab này sẽ bị mất."
+              description="Tồn đầu/Lũy kế của tab Cấp liệu & Silo, Phối trộn và Tháp/Phễu sẽ được nạp lại theo dữ liệu kíp trước MỚI NHẤT. Các thay đổi CHƯA LƯU ở 3 tab này sẽ bị mất."
               okText="Làm mới"
               cancelText="Hủy"
               onConfirm={handleLamMoiTuCaTruoc}

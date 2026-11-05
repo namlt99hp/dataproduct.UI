@@ -34,6 +34,7 @@ interface BackendCum {
   nhomTongHop?: string; NhomTongHop?: string;
   idPhongBan?: number | null; IdPhongBan?: number | null;
   tenPhongBan?: string | null; TenPhongBan?: string | null;
+  idCumSanXuat?: number | null; IdCumSanXuat?: number | null;
   ngayTao?: string | null; NgayTao?: string | null;
   chiTiet?: BackendChiTiet[]; ChiTiet?: BackendChiTiet[];
 }
@@ -81,6 +82,7 @@ const toCum = (x: BackendCum): LcXuatCapDanhMucCum => ({
   nhomTongHop: x.nhomTongHop ?? x.NhomTongHop ?? "",
   idPhongBan: x.idPhongBan ?? x.IdPhongBan ?? null,
   tenPhongBan: x.tenPhongBan ?? x.TenPhongBan ?? null,
+  idCumSanXuat: x.idCumSanXuat ?? x.IdCumSanXuat ?? null,
   ngayTao: x.ngayTao ?? x.NgayTao ?? null,
   chiTiet: (x.chiTiet ?? x.ChiTiet ?? []).map(toChiTiet),
 });

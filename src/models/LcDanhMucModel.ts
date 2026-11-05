@@ -60,6 +60,8 @@ export interface LcSiloTon {
   loaiLieu: LoaiLieuSiloTonEnum;
   tenNhapLieu: string;
   congThuc: string;
+  /** Cụm SẢN XUẤT (1,2,5/3,4...) — NULL = dùng chung 2 cụm, dùng cho tab Sản lượng cốc. */
+  idCumSanXuat?: number | null;
   ngayTao?: string | null;
 }
 
@@ -69,6 +71,7 @@ export interface LcSiloTonPayload {
   loaiLieu: LoaiLieuSiloTonEnum;
   tenNhapLieu?: string | null;
   congThuc: string;
+  idCumSanXuat?: number | null;
 }
 
 export interface TestCongThucResult {

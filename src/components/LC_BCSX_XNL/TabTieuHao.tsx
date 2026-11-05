@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Empty, InputNumber, Spin, Table, Typography, message } from "antd";
-import type { ColumnsType } from "antd/es/table";
+import { Empty, Spin, Typography, message } from "antd";
 import { LcTieuHaoApi, type DanhMucTieuHaoDto } from "../../services/LcTieuHaoApi";
+import { NumberCell } from "./LcExcelGridCells";
 
 /**
  * Vùng "Tiêu hao" — mỗi hạng mục trong danh mục (LC_TP_DanhMucTieuHao) là 1 dòng cố định,
@@ -98,65 +98,23 @@ const TabTieuHao = ({ editable, rows, onChange }: TabTieuHaoProps) => {
 
   const rowByHangMuc = useMemo(() => new Map(rows.map((r) => [r.hangMucId, r])), [rows]);
 
-  const numberCell = (field: NumField, step: number, onValue?: (row: TieuHaoRow, v: number | null) => void) =>
-    (_: unknown, hm: DanhMucTieuHaoDto) => {
-      const row = rowByHangMuc.get(hm.id);
-      if (!row) return null;
-      if (!editable) return fmt(row[field]);
-      return (
-        <InputNumber
-          size="small"
-          step={step}
-          value={toNumOrNull(row[field])}
-          onChange={(val) => (onValue ? onValue(row, val) : patchRow(hm.id, { [field]: val }))}
-          style={{ width: "100%" }}
-        />
-      );
-    };
+  const renderNumberCell = (
+    hm: DanhMucTieuHaoDto,
+    field: NumField,
+    onValue?: (row: TieuHaoRow, value: number | null) => void
+  ) => {
+    const row = rowByHangMuc.get(hm.id);
+    if (!row) return null;
+    if (!editable) return fmt(row[field]);
 
-  const columns: ColumnsType<DanhMucTieuHaoDto> = [
-    {
-      title: "Hạng mục",
-      dataIndex: "ten",
-      width: 220,
-      render: (v: string, hm) => (
-        <>
-          {v}
-          {hm.donVi ? <Typography.Text type="secondary"> ({hm.donVi})</Typography.Text> : null}
-        </>
-      ),
-    },
-    {
-      title: "Chỉ số đầu ca",
-      width: 130,
-      align: "right",
-      render: numberCell("chiSoDauCa", 0.01, (row, v) => onChiSoChange(row, "chiSoDauCa", v)),
-    },
-    {
-      title: "Chỉ số cuối ca",
-      width: 130,
-      align: "right",
-      render: numberCell("chiSoCuoiCa", 0.01, (row, v) => onChiSoChange(row, "chiSoCuoiCa", v)),
-    },
-    { title: "Trong ca", width: 130, align: "right", render: numberCell("trongCa", 0.01) },
-    { title: "Tổng nhà máy", width: 130, align: "right", render: numberCell("tongNhaMay", 0.01) },
-    { title: "Lũy kế", width: 130, align: "right", render: numberCell("luyKe", 0.01) },
-    {
-      title: "Tiêu hao trên tấn",
-      width: 170,
-      align: "right",
-      render: (_: unknown, hm) => (
-        <>
-          {numberCell("tieuHaoTrenTan", 0.0001)(_, hm)}
-          {hm.donViTieuHao ? (
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              {hm.donViTieuHao}
-            </Typography.Text>
-          ) : null}
-        </>
-      ),
-    },
-  ];
+    return (
+      <NumberCell
+        value={toNumOrNull(row[field])}
+        step={field === "tieuHaoTrenTan" ? 0.0001 : 0.01}
+        onCommit={(value) => (onValue ? onValue(row, value) : patchRow(hm.id, { [field]: value }))}
+      />
+    );
+  };
 
   if (loading && !danhMuc.length) return <Spin />;
   if (!danhMuc.length) {
@@ -170,15 +128,74 @@ const TabTieuHao = ({ editable, rows, onChange }: TabTieuHaoProps) => {
           <Typography.Text strong style={{ display: "block", padding: "4px 0" }}>
             {index + 1}. {nhom}
           </Typography.Text>
-          <Table<DanhMucTieuHaoDto>
-            size="small"
-            bordered
-            pagination={false}
-            rowKey="id"
-            columns={columns}
-            dataSource={items}
-            scroll={{ x: "max-content" }}
-          />
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1100px] border-collapse text-xs">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="w-[220px] border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">
+                    Hạng mục
+                  </th>
+                  <th className="w-[130px] border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">
+                    Chỉ số đầu ca
+                  </th>
+                  <th className="w-[130px] border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">
+                    Chỉ số cuối ca
+                  </th>
+                  <th className="w-[130px] border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">
+                    Trong ca
+                  </th>
+                  <th className="w-[130px] border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">
+                    Tổng nhà máy
+                  </th>
+                  <th className="w-[130px] border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">
+                    Lũy kế
+                  </th>
+                  <th className="w-[170px] border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">
+                    Tiêu hao trên tấn
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((hm) => (
+                  <tr key={hm.id} className="hover:bg-blue-50/50">
+                    <td className="border border-gray-300 px-2 py-1">
+                      {hm.ten}
+                      {hm.donVi ? <span className="text-gray-500"> ({hm.donVi})</span> : null}
+                    </td>
+                    <td className="border border-gray-300 p-0 text-right">
+                      {renderNumberCell(hm, "chiSoDauCa", (row, value) =>
+                        onChiSoChange(row, "chiSoDauCa", value)
+                      )}
+                    </td>
+                    <td className="border border-gray-300 p-0 text-right">
+                      {renderNumberCell(hm, "chiSoCuoiCa", (row, value) =>
+                        onChiSoChange(row, "chiSoCuoiCa", value)
+                      )}
+                    </td>
+                    <td className="border border-gray-300 p-0 text-right">
+                      {renderNumberCell(hm, "trongCa")}
+                    </td>
+                    <td className="border border-gray-300 p-0 text-right">
+                      {renderNumberCell(hm, "tongNhaMay")}
+                    </td>
+                    <td className="border border-gray-300 p-0 text-right">
+                      {renderNumberCell(hm, "luyKe")}
+                    </td>
+                    <td className="border border-gray-300 p-0 text-right">
+                      <div className="flex items-center">
+                        <div className="min-w-0 flex-1">
+                          {renderNumberCell(hm, "tieuHaoTrenTan")}
+                        </div>
+                        {hm.donViTieuHao ? (
+                          <span className="px-1 text-gray-500">{hm.donViTieuHao}</span>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       ))}
     </>

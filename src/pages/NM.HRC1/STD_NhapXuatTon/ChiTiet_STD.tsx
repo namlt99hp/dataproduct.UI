@@ -163,6 +163,8 @@ const ChiTiet_STD_HRC1 = () => {
         tyLeLF: item.tyLeLF ?? item.TyLeLF ?? null,
         KLPB_BOF: item.klpB_BOF ?? item.klpb_BOF ?? item.KLPB_BOF ?? null,
         KLPB_LF: item.klpB_LF ?? item.klpb_LF ?? item.KLPB_LF ?? null,
+        KLTK_BOF: item.kltK_BOF ?? item.kltk_BOF ?? item.KLTK_BOF ?? null,
+        KLTK_LF: item.kltK_LF ?? item.kltk_LF ?? item.KLTK_LF ?? null,
       }));
 
       setTable1Data(mappedDetails);

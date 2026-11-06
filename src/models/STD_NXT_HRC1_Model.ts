@@ -48,6 +48,9 @@ export interface STD_NXT_HRC1_Table2Row {
   /** Khối lượng phân bổ theo 1 mẻ (từ BE) */
   KLPB_BOF?: string | number | null;
   KLPB_LF?: string | number | null;
+  /** Tổng KL Thống Kê BOF/LF chốt lúc Phân bổ/Không PB gần nhất (từ BE), null nếu chưa xử lý/vừa thu hồi */
+  KLTK_BOF?: string | number | null;
+  KLTK_LF?: string | number | null;
 }
 
 /**
@@ -125,4 +128,51 @@ export interface STD_NXT_HRC1_KhongPhanBoDto {
   Ca: number;
   IdPhieu: string;
   PhuLieuID: number;
+}
+
+/** 1 phụ liệu cần reset — IsPhanBo cho biết trạng thái hiện tại trước khi reset. */
+export interface STD_NXT_HRC1_ResetAllItemDto {
+  PhuLieuID: number;
+  IsPhanBo: boolean;
+}
+
+/** Payload gộp reset tất cả phụ liệu của 1 phiếu trong 1 request (thay cho gọi song song N request). */
+export interface STD_NXT_HRC1_ResetAllDto {
+  IdPhieu: string;
+  NgaySX: string;
+  Ca: number;
+  Items: STD_NXT_HRC1_ResetAllItemDto[];
+}
+
+/** Request kiểm tra "Thống kê" (phụ liệu thực tế + phân bổ) có đang âm không, cho đúng công đoạn
+ * (BieuMau: BOF/LF) trong 1 Ngày/Ca — dùng khi "Chốt" phiếu Tiêu hao. */
+export interface STD_NXT_HRC1_CheckNegativeThongKeRequest {
+  NgaySX: string;
+  Ca: number;
+  BieuMau: "BOF" | "LF";
+}
+
+/**
+ * Payload lọc "Nhập Xuất Tồn" (đối chiếu tồn cuối ca trước / tồn đầu ca sau) theo khoảng ngày.
+ */
+export interface STD_NXT_HRC1_NhapXuatTonSearchRequest {
+  TuNgay: string;
+  DenNgay: string;
+}
+
+/**
+ * 1 dòng đối chiếu: bên trái là Tồn cuối của phiếu ca trước, bên phải là Tồn đầu của phiếu ca sau
+ * (cùng Scope + Phụ liệu, ghép theo 2 bản ghi liên tiếp trong thời gian).
+ * Field camelCase — khớp System.Text.Json (mặc định lowercase ký tự đầu) của BE.
+ */
+export interface STD_NXT_HRC1_NhapXuatTonRow {
+  ngaySXTruoc?: string | null;
+  caTruoc?: number | null;
+  phuLieuTruoc?: string | null;
+  tonCuoiTruoc?: number | null;
+
+  ngaySXSau?: string | null;
+  caSau?: number | null;
+  phuLieuSau?: string | null;
+  tonDauSau?: number | null;
 }

@@ -511,7 +511,7 @@ export const menuConfig = [
             ),
           },
           {
-            key: "sub2-7-4",
+            key: "sub2-7-5",
             maBM: BM_CONFIG.HRC1.HRC1_BB_TieuHao_BOF,
             label: (
               <Tooltip title="BM.07/QT.05.10 (BB Tiêu hao lò thổi BOF)">
@@ -522,7 +522,7 @@ export const menuConfig = [
             ),
           },
           {
-            key: "sub2-7-5",
+            key: "sub2-7-6",
             maBM: BM_CONFIG.HRC1.HRC1_BB_TieuHao_LF,
             label: (
               <Tooltip title="BM.14/QT.05.10 (BB Tiêu hao tinh luyện LF)">
@@ -533,7 +533,7 @@ export const menuConfig = [
             ),
           },
           {
-            key: "sub2-7-6",
+            key: "sub2-7-7",
             maBM: BM_CONFIG.HRC1.HRC1_STD_NXT,
             label: (
               <Tooltip title="STD Nhập xuất tồn HRC1">
@@ -854,7 +854,7 @@ export const menuConfig = [
         label: "NM.HRC1",
         children: [
           {
-            key: "sub3-5-1",
+            key: "sub3-6-1",
             maBM: BM_CONFIG.HRC1.HRC1_BB_Sanluongphoi,
             label: (
               <Tooltip title="BM.11/QT.05.11 (Biên bản xác nhận sản lượng phôi thép)">
@@ -865,7 +865,7 @@ export const menuConfig = [
             ),
           },
           {
-            key: "sub3-5-2",
+            key: "sub3-6-2",
             maBM: BM_CONFIG.HRC1.HRC1_BB_GiaoNhanPhoiNhapKho,
             label: (
               <Tooltip title="BM.12/QT.05.11 (Biên bản giao nhận phôi nhập kho)">

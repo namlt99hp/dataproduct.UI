@@ -26,6 +26,7 @@ import {
 import ThongKeBBGNThepLong from "./ThongKeBBGNThepLong";
 import { BM_CONFIG } from "../../../utils/configs/BieuMauConst";
 import { getAllowedScope } from "../../../utils/helpers/checkAdminRole";
+import ThongKeNhapXuatTonHRC2 from "./ThongKeNhapXuatTonHRC2";
 
 const { Title } = Typography;
 const { RangePicker } = DatePicker;
@@ -47,6 +48,9 @@ const renderHkCell = (cellData: HkCellData | null | unknown) => {
   const effectiveValue = isManual ? (manualValue ?? 0) : value;
   const displayValue = totalKLPhuGia ?? effectiveValue;
   const formatted = formatNumberVN(displayValue);
+  // Phân bổ chênh lệch có thể âm (xem SummaryTableSTD.tsx) — nếu phân bổ âm vượt quá lượng phụ liệu
+  // thực tế, tổng thống kê (totalKLPhuGia) sẽ âm: cảnh báo đỏ, chặn chốt phiếu chi tiết liên quan.
+  const isNegative = displayValue != null && displayValue < 0;
 
   const hasPhanBo = klPhanBo != null;
   // hasManual = true khi có giá trị chỉnh tay, hoặc isManual=true (kể cả khi user đã xóa → manualValue=null)
@@ -58,13 +62,28 @@ const renderHkCell = (cellData: HkCellData | null | unknown) => {
     if (manualValue != null) tooltipParts.push(`Chỉnh tay: ${formatNumberVN(manualValue)}`);
     else if (isManual) tooltipParts.push(`Chỉnh tay: (đã xóa)`);
     if (hasPhanBo) tooltipParts.push(`Phân bổ: ${formatNumberVN(klPhanBo)}`);
+    if (isNegative) tooltipParts.push("Tổng thống kê đang ÂM — cần kiểm tra lại trước khi chốt phiếu.");
 
     const bg = hasPhanBo && hasManual ? "#d4edda" : hasPhanBo ? "#d6f0ff" : "#fff7b3";
     return (
       <Tooltip title={tooltipParts.join(" | ")}>
-        <span style={{ backgroundColor: bg, display: "block", padding: "0 4px" }}>
+        <span
+          style={{
+            backgroundColor: bg,
+            display: "block",
+            padding: "0 4px",
+            ...(isNegative && { color: "#ff4d4f", fontWeight: 600 }),
+          }}
+        >
           {formatted}
         </span>
+      </Tooltip>
+    );
+  }
+  if (isNegative) {
+    return (
+      <Tooltip title="Tổng thống kê đang ÂM — cần kiểm tra lại trước khi chốt phiếu.">
+        <span style={{ color: "#ff4d4f", fontWeight: 600, display: "block" }}>{formatted}</span>
       </Tooltip>
     );
   }
@@ -162,6 +181,7 @@ const ThongKeHRC2 = () => {
   const [columns, setColumns] = useState<any[]>([]);
   const [tableData, setTableData] = useState<any[]>([]);
   const [loaiBmKey, setLoaiBmKey] = useState<LoaiBMKey>("BOF");
+  const [activeSubTab, setActiveSubTab] = useState<LoaiBMKey | "NXT">("BOF");
   const [mainTabKey, setMainTabKey] = useState<"tieuhao" | "bbgn">("tieuhao");
   const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 });
 
@@ -569,6 +589,18 @@ const ThongKeHRC2 = () => {
     [form, handleSearch, pagination.pageSize]
   );
 
+  const handleSubTabChange = useCallback(
+    (key: string) => {
+      if (key === "NXT") {
+        setActiveSubTab("NXT");
+        return;
+      }
+      setActiveSubTab(key as LoaiBMKey);
+      handleTabChange(key);
+    },
+    [handleTabChange]
+  );
+
   return (
     <div style={{ margin: 2 }}>
       <Tabs
@@ -588,163 +620,172 @@ const ThongKeHRC2 = () => {
       {/* Tabs chọn loại BM + chú thích màu sắc */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
         <Tabs
-          activeKey={loaiBmKey}
-          onChange={handleTabChange}
+          activeKey={activeSubTab}
+          onChange={handleSubTabChange}
           style={{ flex: 1 }}
           items={[
             { key: "BOF", label: "BOF" },
             { key: "LF", label: "LF" },
             { key: "RH", label: "RH" },
+            { key: "NXT", label: "Nhập Xuất Tồn" },
           ]}
         />
-        <div style={{ display: "flex", gap: 12, alignItems: "center", paddingTop: 10, flexShrink: 0 }}>
-          {[
-            { bg: "#fff7b3", label: "Chỉnh tay" },
-            { bg: "#d6f0ff", label: "Phân bổ" },
-            { bg: "#d4edda", label: "Phân bổ + Chỉnh tay" },
-          ].map(({ bg, label }) => (
-            <div key={label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "#555" }}>
-              <span style={{ display: "inline-block", width: 14, height: 14, backgroundColor: bg, border: "1px solid #ccc", borderRadius: 2, flexShrink: 0 }} />
-              {label}
-            </div>
-          ))}
-        </div>
+        {activeSubTab !== "NXT" && (
+          <div style={{ display: "flex", gap: 12, alignItems: "center", paddingTop: 10, flexShrink: 0 }}>
+            {[
+              { bg: "#fff7b3", label: "Chỉnh tay" },
+              { bg: "#d6f0ff", label: "Phân bổ" },
+              { bg: "#d4edda", label: "Phân bổ + Chỉnh tay" },
+            ].map(({ bg, label }) => (
+              <div key={label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "#555" }}>
+                <span style={{ display: "inline-block", width: 14, height: 14, backgroundColor: bg, border: "1px solid #ccc", borderRadius: 2, flexShrink: 0 }} />
+                {label}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Khu vực search (các ô tô đỏ trong Excel) */}
-      <Form form={form} layout="inline" style={{ marginTop: 8 }}>
-        <Space wrap align="center">
-          <Form.Item
-            name="dateRange"
-            label="Từ ngày LT / Đến ngày LT"
-          >
-            <RangePicker format="DD/MM/YYYY" />
-          </Form.Item>
-
-          <Form.Item name="ca" label="Ca LT">
-            <Select
-              allowClear
-              options={CA_OPTIONS}
-              placeholder="-- Ca --"
-              style={{ minWidth: 120 }}
-            />
-          </Form.Item>
-
-          <Form.Item name="scope" label="Lò / Khu vực">
-            <Select
-              allowClear
-              options={SCOPE_OPTIONS_BY_BM[loaiBmKey]}
-              placeholder={loaiBmKey === "LF" ? "Lò 6 (mặc định)" : "-- Lò --"}
-              style={{ minWidth: 150 }}
-            />
-          </Form.Item>
-
-          <Form.Item name="kip" label="Kíp LT">
-            <Select
-              allowClear
-              placeholder="-- Kíp --"
-              options={[
-                { value: "A", label: "Kíp A" },
-                { value: "B", label: "Kíp B" },
-                { value: "C", label: "Kíp C" },
-              ]}
-              style={{ minWidth: 140 }}
-            />
-          </Form.Item>
-
-          <Form.Item name="meThoi" label="Mã mẻ thép">
-            <Input placeholder="Nhập mã mẻ thép" style={{ minWidth: 160 }} />
-          </Form.Item>
-
-          <Form.Item name="isDelete" valuePropName="checked">
-            <Checkbox>Đã xóa</Checkbox>
-          </Form.Item>
-
-          <Form.Item name="isTrungMeThoi" valuePropName="checked">
-            <Checkbox>Mẻ trùng</Checkbox>
-          </Form.Item>
-
-          <Form.Item>
-            <Space>
-              <Button
-                type="primary"
-                onClick={() => void handleSearch()}
-                loading={loading}
+      {activeSubTab === "NXT" ? (
+        <ThongKeNhapXuatTonHRC2 />
+      ) : (
+        <>
+          {/* Khu vực search (các ô tô đỏ trong Excel) */}
+          <Form form={form} layout="inline" style={{ marginTop: 8 }}>
+            <Space wrap align="center">
+              <Form.Item
+                name="dateRange"
+                label="Từ ngày LT / Đến ngày LT"
               >
-                Tìm
-              </Button>
-              <Button onClick={handleReset}>Reset</Button>
-              <Button type="primary" style={{ backgroundColor: "green" }} onClick={() => void handleExcel()}>
-                Excel
-              </Button>
-            </Space>
-          </Form.Item>
-        </Space>
-      </Form>
+                <RangePicker format="DD/MM/YYYY" />
+              </Form.Item>
 
-      {/* Bảng thống kê */}
-      <style>{`.row-not-nm td { background-color: #fffbe6 !important; }`}</style>
-      <div style={{ marginTop: 24 }}>
-        <Table
-          bordered
-          size="small"
-          loading={loading}
-          columns={columns}
-          dataSource={tableData}
-          rowClassName={(record) => record.isNM === false ? "row-not-nm" : ""}
-          pagination={{
-            current: pagination.current,
-            pageSize: pagination.pageSize,
-            total: pagination.total,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            pageSizeOptions: ["10", "20", "50", "100"],
-            showTotal: (total, range) =>
-              `${range[0]}-${range[1]} của ${total} bản ghi`,
-            onChange: (page, pageSize) => {
-              void handleSearch(undefined, page, pageSize);
-            },
-          }}
-          scroll={{ x: "max-content", y: 500 }}
-          summary={() => {
-            const leafCols = flattenLeafColumns(columns);
-            if (!leafCols.length) return null;
-            return (
-              <Table.Summary fixed>
-                <Table.Summary.Row style={{ background: "#e6f4ff", fontWeight: 600 }}>
-                  {leafCols.map((col, idx) => {
-                    if (idx === 0) {
-                      return (
-                        <Table.Summary.Cell key={idx} index={idx} align="right">
-                          Tổng
-                        </Table.Summary.Cell>
-                      );
-                    }
-                    const di: string = col.dataIndex ?? "";
-                    const isHkCol = di.startsWith("hk_");
-                    if (!isHkCol) {
-                      return <Table.Summary.Cell key={idx} index={idx} />;
-                    }
-                    if (sumLoading) {
-                      return (
-                        <Table.Summary.Cell key={idx} index={idx} align="right">
-                          <span style={{ color: "#aaa" }}>...</span>
-                        </Table.Summary.Cell>
-                      );
-                    }
-                    const val = sumRow[di];
-                    return (
-                      <Table.Summary.Cell key={idx} index={idx} align="right">
-                        {val != null ? formatNumberVN(val) : ""}
-                      </Table.Summary.Cell>
-                    );
-                  })}
-                </Table.Summary.Row>
-              </Table.Summary>
-            );
-          }}
-        />
-      </div>
+              <Form.Item name="ca" label="Ca LT">
+                <Select
+                  allowClear
+                  options={CA_OPTIONS}
+                  placeholder="-- Ca --"
+                  style={{ minWidth: 120 }}
+                />
+              </Form.Item>
+
+              <Form.Item name="scope" label="Lò / Khu vực">
+                <Select
+                  allowClear
+                  options={SCOPE_OPTIONS_BY_BM[loaiBmKey]}
+                  placeholder={loaiBmKey === "LF" ? "Lò 6 (mặc định)" : "-- Lò --"}
+                  style={{ minWidth: 150 }}
+                />
+              </Form.Item>
+
+              <Form.Item name="kip" label="Kíp LT">
+                <Select
+                  allowClear
+                  placeholder="-- Kíp --"
+                  options={[
+                    { value: "A", label: "Kíp A" },
+                    { value: "B", label: "Kíp B" },
+                    { value: "C", label: "Kíp C" },
+                  ]}
+                  style={{ minWidth: 140 }}
+                />
+              </Form.Item>
+
+              <Form.Item name="meThoi" label="Mã mẻ thép">
+                <Input placeholder="Nhập mã mẻ thép" style={{ minWidth: 160 }} />
+              </Form.Item>
+
+              <Form.Item name="isDelete" valuePropName="checked">
+                <Checkbox>Đã xóa</Checkbox>
+              </Form.Item>
+
+              <Form.Item name="isTrungMeThoi" valuePropName="checked">
+                <Checkbox>Mẻ trùng</Checkbox>
+              </Form.Item>
+
+              <Form.Item>
+                <Space>
+                  <Button
+                    type="primary"
+                    onClick={() => void handleSearch()}
+                    loading={loading}
+                  >
+                    Tìm
+                  </Button>
+                  <Button onClick={handleReset}>Reset</Button>
+                  <Button type="primary" style={{ backgroundColor: "green" }} onClick={() => void handleExcel()}>
+                    Excel
+                  </Button>
+                </Space>
+              </Form.Item>
+            </Space>
+          </Form>
+
+          {/* Bảng thống kê */}
+          <style>{`.row-not-nm td { background-color: #fffbe6 !important; }`}</style>
+          <div style={{ marginTop: 24 }}>
+            <Table
+              bordered
+              size="small"
+              loading={loading}
+              columns={columns}
+              dataSource={tableData}
+              rowClassName={(record) => record.isNM === false ? "row-not-nm" : ""}
+              pagination={{
+                current: pagination.current,
+                pageSize: pagination.pageSize,
+                total: pagination.total,
+                showSizeChanger: true,
+                showQuickJumper: true,
+                pageSizeOptions: ["10", "20", "50", "100"],
+                showTotal: (total, range) =>
+                  `${range[0]}-${range[1]} của ${total} bản ghi`,
+                onChange: (page, pageSize) => {
+                  void handleSearch(undefined, page, pageSize);
+                },
+              }}
+              scroll={{ x: "max-content", y: 500 }}
+              summary={() => {
+                const leafCols = flattenLeafColumns(columns);
+                if (!leafCols.length) return null;
+                return (
+                  <Table.Summary fixed>
+                    <Table.Summary.Row style={{ background: "#e6f4ff", fontWeight: 600 }}>
+                      {leafCols.map((col, idx) => {
+                        if (idx === 0) {
+                          return (
+                            <Table.Summary.Cell key={idx} index={idx} align="right">
+                              Tổng
+                            </Table.Summary.Cell>
+                          );
+                        }
+                        const di: string = col.dataIndex ?? "";
+                        const isHkCol = di.startsWith("hk_");
+                        if (!isHkCol) {
+                          return <Table.Summary.Cell key={idx} index={idx} />;
+                        }
+                        if (sumLoading) {
+                          return (
+                            <Table.Summary.Cell key={idx} index={idx} align="right">
+                              <span style={{ color: "#aaa" }}>...</span>
+                            </Table.Summary.Cell>
+                          );
+                        }
+                        const val = sumRow[di];
+                        return (
+                          <Table.Summary.Cell key={idx} index={idx} align="right">
+                            {val != null ? formatNumberVN(val) : ""}
+                          </Table.Summary.Cell>
+                        );
+                      })}
+                    </Table.Summary.Row>
+                  </Table.Summary>
+                );
+              }}
+            />
+          </div>
+        </>
+      )}
     </Card>
       )}
     </div>

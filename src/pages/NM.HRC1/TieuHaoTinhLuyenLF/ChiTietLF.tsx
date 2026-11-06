@@ -77,6 +77,27 @@ function mergeAdjustColumnValuesIntoRows(
   return list;
 }
 
+// Cột "Phân bổ" (phanBo_*) có thể không còn trong dynAdjust (chỉ lưu phần isManuallyAdded khi Lưu
+// phiếu — xem TaoTieuHaoTinhLuyenLF.tsx) — suy ra trực tiếp từ key của row khi phải fallback về
+// snapshot (không gọi được live). Mirror inferPhanBoMetasFromRows ở ChiTietBOF.tsx (HRC1).
+function inferPhanBoMetasFromRows(rows: any[]): AdjustColumnMeta[] {
+  if (!rows?.length) return [];
+  const keys = new Set<string>();
+  rows.forEach((r) => {
+    Object.keys(r).forEach((k) => {
+      if (k.startsWith("phanBo_") && !k.includes("__")) keys.add(k);
+    });
+  });
+  return Array.from(keys).map((dataIndex) => ({
+    key: dataIndex,
+    dataIndex,
+    headerKeyId: Number(String(dataIndex).replace(/^phanBo_/, "")) || null,
+    headerKeyLabel: null,
+    width: 100,
+    isManuallyAdded: false,
+  }));
+}
+
 const isSttDataIndex = (dataIndex: string) => dataIndex === "stt" || dataIndex === "STT";
 
 const formatSum = (value: number): string => {
@@ -105,6 +126,9 @@ const ChiTietTieuHaoTinhLuyenLF = () => {
   // nếu chỉ đọc snapshot sẽ hiển thị nhầm mẻ đã bị hủy nhận (đã xóa khỏi Hrc1TieuHao) là còn tồn tại.
   const [table1DisplayRows, setTable1DisplayRows] = useState<any[]>([]);
   const [livePhuGiaColumns, setLivePhuGiaColumns] = useState<HRCChildColumn[] | null>(null);
+  // Cột "Phân bổ" (phanBo_*) lấy từ live fetch — KHÔNG được lưu vào snapshot table1DynamicColumns.adjust
+  // (xem TaoTieuHaoTinhLuyenLF.tsx: chỉ lưu phần isManuallyAdded), nên phải tách riêng khỏi adjustMetas.
+  const [livePhanBoColumns, setLivePhanBoColumns] = useState<HRCChildColumn[] | null>(null);
   // Cột "phụ liệu thêm tay" (Hrc1PhuLieuNm mới tạo, chưa được admin cấu hình ThuTu_Excel_LF) — LF
   // không có API live nào trả lại các cột này (khác BOF), nên phải phục hồi từ snapshot đã lưu
   // (jsonData.table1DynamicColumns.adjust) mỗi lần load, kể cả khi phần còn lại của bảng đọc live.
@@ -115,6 +139,7 @@ const ChiTietTieuHaoTinhLuyenLF = () => {
       setLoading(true);
       setTable1DisplayRows([]);
       setLivePhuGiaColumns(null);
+      setLivePhanBoColumns(null);
       setAdjustMetas([]);
       if (!idphieu) return;
       const res = await safeGetDetail(() => PhieuApi.getDetail(idphieu));
@@ -160,6 +185,7 @@ const ChiTietTieuHaoTinhLuyenLF = () => {
           sortRowsByThoiGianLF(mergeAdjustColumnValuesIntoRows(liveRows, dynAdjust), ca, ngay)
         );
         setLivePhuGiaColumns(result.phuGiaColumns);
+        setLivePhanBoColumns(result.phanBoColumns ?? []);
       } catch (liveErr) {
         console.error("Lỗi tải dữ liệu Tiêu hao LF hiện tại (live):", liveErr);
         setTable1DisplayRows(
@@ -226,11 +252,37 @@ const ChiTietTieuHaoTinhLuyenLF = () => {
       sum: true,
     }));
 
+    // Cột "Phân bổ" (phanBo_*) — tách riêng khỏi phụ liệu đo thật, mirror ChiTietBOF.tsx (HRC1)/
+    // các màn HRC2. Ưu tiên live (luôn tính lại mới nhất mỗi lần load); fallback suy ra từ key của
+    // row đang hiển thị khi phiếu chưa có Ngày/Ca/Scope để gọi live (xem nhánh fallback trong loadData).
+    const phanBoMetas: AdjustColumnMeta[] = livePhanBoColumns?.length
+      ? livePhanBoColumns.map((col) => ({
+          key: col.dataIndex,
+          dataIndex: col.dataIndex,
+          headerKeyId: col.headerKeyId ?? null,
+          headerKeyLabel: col.metaLabel || (typeof col.title === "string" ? col.title : undefined),
+          width: col.width,
+          isManuallyAdded: false,
+        }))
+      : inferPhanBoMetasFromRows(table1DisplayRows);
+
+    const phanBoChildColumns: HRCChildColumn[] = phanBoMetas.map((meta) => ({
+      title: meta.headerKeyLabel ?? "Phân bổ",
+      dataIndex: meta.dataIndex,
+      width: meta.width ?? 100,
+      editable: false,
+      variant: "adjust" as const,
+      metaLabel: meta.headerKeyLabel ?? "Phân bổ",
+      headerKeyId: meta.headerKeyId ?? null,
+      sum: true,
+    }));
+
     const built = hrc1TableService.buildColumnsWithAdjust({
       baseColumns,
       slotColumns: { LF_PhuGia: phuGiaCols },
       showAdjustColumns: adjustChildColumns.length > 0,
       manualAdjustColumns: adjustChildColumns,
+      phanBoColumns: phanBoChildColumns,
       generateAdjustColumnsFromBase: false,
     });
 
@@ -258,7 +310,15 @@ const ChiTietTieuHaoTinhLuyenLF = () => {
       });
 
     return mapColumnsWithHighlight(built as any[]);
-  }, [formData?.table1DynamicColumns, livePhuGiaColumns, adjustMetas, renderDynamicColumnTitle, config.layout]);
+  }, [
+    formData?.table1DynamicColumns,
+    livePhuGiaColumns,
+    livePhanBoColumns,
+    table1DisplayRows,
+    adjustMetas,
+    renderDynamicColumnTitle,
+    config.layout,
+  ]);
 
   const leafColumns = useMemo(() => {
     const result: Array<{ dataIndex: string; sum?: boolean; align?: string }> = [];
@@ -330,6 +390,16 @@ const ChiTietTieuHaoTinhLuyenLF = () => {
       nguoiTaoId: data.nguoiTaoId ?? null,
       phieuPhongBanId: data.idphongBan ?? null,
       pheDuyet: data.pheDuyet ?? [],
+      preConfirmCheck: async () => {
+        const { ok, negativePhuLieus } = await hrc1TableService.checkNoNegativeThongKe(
+          dayjs(formData?.NgaySX).format("YYYY-MM-DD"), formData?.ca, "LF"
+        );
+        if (!ok) {
+          message.error(`Thống kê phụ liệu ${negativePhuLieus.join(", ")} đang âm (phân bổ chênh lệch âm vượt quá lượng thực tế đã dùng). Vui lòng kiểm tra lại trước khi chốt.`);
+          return false;
+        }
+        return true;
+      },
       redirectToList,
       onSuccess: handleActionSuccess,
       onError: (error) => {
@@ -343,7 +413,7 @@ const ChiTietTieuHaoTinhLuyenLF = () => {
     const filteredButtons = buttons.filter((btn) => !DETAIL_HIDDEN_BUTTON_KEYS.has(btn.key));
     if (filteredButtons.length === 0) return null;
     return phieuActionService.renderActionButtons(filteredButtons, idphieu || "");
-  }, [data, idphieu, config.code, getUserInfo, handleActionSuccess, redirectToList]);
+  }, [data, idphieu, config.code, getUserInfo, handleActionSuccess, redirectToList, formData?.NgaySX, formData?.ca]);
 
   return (
     <Card bordered style={{ padding: 24, background: "#fff" }} loading={loading}>

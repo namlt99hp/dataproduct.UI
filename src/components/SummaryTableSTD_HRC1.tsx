@@ -2,8 +2,19 @@
 // Fork của SummaryTableSTD.tsx cho Sổ Xuất-Nhập-Tồn HRC1 — đổi Id_HeaderKey -> PhuLieuID, bỏ hẳn
 // cột/logic tyLeRH + KLPB_RH (HRC1 không có công đoạn RH, chỉ BOF/LF). Xem .claude/hrc1_xnt.md mục 2.3.
 import React, { useMemo, useState, useCallback, memo, useEffect } from "react";
-import { Table, Input, Button, InputNumber, message, Tag, Tooltip } from "antd";
+import { Table, Input, Button, InputNumber, message, Tag, Tooltip, Popconfirm } from "antd";
 import type { STD_NXT_HRC1_PhanBoDto } from "../models/STD_NXT_HRC1_Model";
+
+type STD_NXT_HRC1_ResetRow = STD_NXT_HRC1_PhanBoDto & { IsPhanBo: boolean };
+
+type TyLeField = "tyLeBOF" | "tyLeLF";
+
+// Cột tỷ lệ -> công đoạn (khớp bieuMau trong khuVucList) + cờ "có sử dụng" tương ứng trên row
+const TY_LE_CONG_DOAN: Record<TyLeField, { label: string; usedFlag: "_usedBOF" | "_usedLF" }> = {
+  tyLeBOF: { label: "BOF", usedFlag: "_usedBOF" },
+  tyLeLF: { label: "LF", usedFlag: "_usedLF" },
+};
+const TY_LE_FIELDS = Object.keys(TY_LE_CONG_DOAN) as TyLeField[];
 
 // Cột tổng hợp tính toán (readOnly) cần chặn/cảnh báo khi ra giá trị âm — mirror GroupedTableSTD_HRC1.
 const NEGATIVE_HIGHLIGHT_COLS = ["totalTonDauCa", "totalNhapTrongCa", "totalTonCuoiCa", "totalSuDung"];
@@ -52,6 +63,8 @@ interface SummaryTableSTD_HRC1Props {
   onPhanBo?: (data: STD_NXT_HRC1_PhanBoDto) => void;
   onThuHoi?: (data: STD_NXT_HRC1_PhanBoDto) => void;
   onKhongPhanBo?: (data: STD_NXT_HRC1_PhanBoDto) => void;
+  /** Reset toàn bộ phụ liệu đang Đã phân bổ/Không phân bổ về lại Chưa xử lý (nút ở header cột Thao tác) */
+  onResetAll?: (rows: STD_NXT_HRC1_ResetRow[]) => void | Promise<void>;
   /** Chỉ cho phép bấm "Phân bổ" khi tất cả phiếu tiêu hao BOF/LF liên quan đã Hoàn thành */
   canPhanBo?: boolean;
   idPhieu?: string | null;
@@ -59,6 +72,9 @@ interface SummaryTableSTD_HRC1Props {
   loading?: boolean;
   className?: string;
   lockedTooltip?: string;
+  /** Config khu vực [{label, bieuMau}] để biết phụ liệu dùng ở công đoạn nào (BOF/LF) theo tongThucTe.
+   *  Không truyền -> cho nhập tỷ lệ cả 2 công đoạn như cũ. */
+  khuVucConfig?: Array<{ label?: string; bieuMau?: string }>;
 }
 
 export default function SummaryTableSTD_HRC1({
@@ -69,16 +85,23 @@ export default function SummaryTableSTD_HRC1({
   onPhanBo,
   onThuHoi,
   onKhongPhanBo,
+  onResetAll,
   canPhanBo = true,
   idPhieu,
   editable = true,
   loading = false,
   className = "",
   lockedTooltip,
+  khuVucConfig,
 }: SummaryTableSTD_HRC1Props) {
   // Tính tổng theo nguyên nhiên liệu duy nhất (theo thứ tự xuất hiện ở bảng trên)
   const summaryData = useMemo(() => {
     if (!table1Data || table1Data.length === 0) return [];
+    const hasKhuVucConfig = Array.isArray(khuVucConfig) && khuVucConfig.length > 0;
+    const bieuMauByKhuVuc: Record<string, string> = {};
+    (khuVucConfig || []).forEach((k) => {
+      if (k?.label && k?.bieuMau) bieuMauByKhuVuc[k.label] = String(k.bieuMau).toUpperCase();
+    });
     const materialOrder: string[] = [];
     const grouped: Record<string, any[]> = {};
 
@@ -101,7 +124,16 @@ export default function SummaryTableSTD_HRC1({
       const totalTonCuoiCa = rows.reduce((sum, r) => sum + (parseFloat(String(r.tonCuoiCa || 0)) || 0), 0);
       const totalSDTrongSoSach = rows.reduce((sum, r) => sum + (parseFloat(String(r.tongThucTe || 0)) || 0), 0);
       const totalSuDung = totalTonDauCa + totalNhapTrongCa - totalTonCuoiCa;
-      const totalChenhLech = Math.abs(totalSuDung - totalSDTrongSoSach);
+      const totalChenhLech = totalSuDung - totalSDTrongSoSach;
+
+      // Công đoạn có sử dụng phụ liệu = có ít nhất 1 dòng khu vực thuộc công đoạn đó với tongThucTe != 0
+      const isUsedAt = (bieuMau: string) =>
+        !hasKhuVucConfig ||
+        rows.some(
+          (r) =>
+            (bieuMauByKhuVuc[r.khuVuc] ?? "").startsWith(bieuMau) &&
+            (parseFloat(String(r.tongThucTe || 0)) || 0) !== 0
+        );
 
       // Lấy PhuLieuID từ bảng 1 (giả định mỗi nguyên liệu chỉ có 1 PhuLieuID)
       const anyWithId = rows.find((r) => r.idPhuLieu != null);
@@ -120,6 +152,8 @@ export default function SummaryTableSTD_HRC1({
         PhuLieuID: phuLieuID,
         _isFirstMaterialRow: index === 0,
         _materialRowCount: materialOrder.length,
+        _usedBOF: isUsedAt("BOF"),
+        _usedLF: isUsedAt("LF"),
       };
 
       const meta = Array.isArray(initialData)
@@ -141,14 +175,24 @@ export default function SummaryTableSTD_HRC1({
         baseRow.tyLeLF = meta.tyLeLF ?? meta.TyLeLF ?? null;
         baseRow.KLPB_BOF = meta.klpB_BOF ?? meta.klpb_BOF ?? meta.KLPB_BOF ?? null;
         baseRow.KLPB_LF = meta.klpB_LF ?? meta.klpb_LF ?? meta.KLPB_LF ?? null;
+        baseRow.KLTK_BOF = meta.kltK_BOF ?? meta.kltk_BOF ?? meta.KLTK_BOF ?? null;
+        baseRow.KLTK_LF = meta.kltK_LF ?? meta.kltk_LF ?? meta.KLTK_LF ?? null;
 
+        // Ưu tiên chênh lệch từ BE, nhưng chỉ khi dòng đã được xử lý (đã phân bổ/không phân bổ) —
+        // lúc đó BE có thể đã cập nhật lại ChenhLech theo số liệu đã chốt. Khi chưa xử lý, luôn
+        // dùng giá trị vừa tính từ table1Data hiện tại (có thể âm) để không hiển thị số liệu cũ/stale.
         const chenhLechFromServer =
           meta.totalChenhLech ??
           meta.TotalChenhLech ??
           meta.chenhLech ??
           meta.ChenhLech ??
           null;
-        if (chenhLechFromServer !== null && chenhLechFromServer !== undefined && chenhLechFromServer !== "") {
+        if (
+          baseRow.IsPhanBo !== null &&
+          chenhLechFromServer !== null &&
+          chenhLechFromServer !== undefined &&
+          chenhLechFromServer !== ""
+        ) {
           baseRow.totalChenhLech = chenhLechFromServer;
           baseRow._chenhLechFromServer = true;
         }
@@ -158,14 +202,14 @@ export default function SummaryTableSTD_HRC1({
     });
 
     return summaryRows;
-  }, [table1Data, initialData]);
+  }, [table1Data, initialData, khuVucConfig]);
 
   const dataWithChenhLech = useMemo(() => {
     return summaryData.map((row) => {
       if (row._isTotalRow) return row;
       if (row._chenhLechFromServer === true) {
         const num = parseFloat(String(row.totalChenhLech ?? 0)) || 0;
-        return { ...row, totalChenhLech: Math.abs(num) };
+        return { ...row, totalChenhLech: num };
       }
 
       const suDung = typeof row.totalSuDung === "number" ? row.totalSuDung : parseFloat(String(row.totalSuDung || 0));
@@ -174,7 +218,7 @@ export default function SummaryTableSTD_HRC1({
 
       return {
         ...row,
-        totalChenhLech: Math.abs(chenhLech),
+        totalChenhLech: chenhLech,
       };
     });
   }, [summaryData]);
@@ -207,6 +251,25 @@ export default function SummaryTableSTD_HRC1({
     return record.IsPhanBo ?? null;
   }, [phanBoMap]);
 
+  const getRawTyLe = useCallback((record: any, field: TyLeField): number | null => {
+    return tyLeMap[record.key]?.[field] ?? record[field] ?? null;
+  }, [tyLeMap]);
+
+  // Khóa ô tỷ lệ của công đoạn không sử dụng phụ liệu (theo tongThucTe trên màn hình).
+  // Dòng đã phân bổ giữ nguyên hiển thị tỷ lệ đã chốt, không áp khóa.
+  const isTyLeLocked = useCallback((record: any, field: TyLeField): boolean => {
+    return getIsPhanBo(record) !== true && record[TY_LE_CONG_DOAN[field].usedFlag] === false;
+  }, [getIsPhanBo]);
+
+  // Tỷ lệ gửi đi khi phân bổ: công đoạn bị khóa luôn = 0 (bỏ tỷ lệ cũ lưu trong DB nếu có)
+  const getTyLeForPhanBo = useCallback((record: any): Record<TyLeField, number | null> => {
+    const result = {} as Record<TyLeField, number | null>;
+    TY_LE_FIELDS.forEach((f) => {
+      result[f] = isTyLeLocked(record, f) ? 0 : getRawTyLe(record, f);
+    });
+    return result;
+  }, [isTyLeLocked, getRawTyLe]);
+
   const mockApiCall = useCallback((_action: string): Promise<boolean | null> => {
     return new Promise((resolve) => {
       setTimeout(() => {
@@ -225,10 +288,8 @@ export default function SummaryTableSTD_HRC1({
       const next = await mockApiCall(action);
       setPhanBoMap(prev => ({ ...prev, [record.key]: next }));
       if (action === 'phan-bo') {
-        const rowTyLe = tyLeMap[record.key] ?? {};
-        const tyLeBOF = rowTyLe.tyLeBOF ?? record.tyLeBOF ?? 0;
-        const tyLeLF = rowTyLe.tyLeLF ?? record.tyLeLF ?? 0;
-        onPhanBo?.({ NgaySX: record.NgaySX, Ca: record.Ca, PhuLieuID: record.PhuLieuID, ChenhLech: Number(record.totalChenhLech ?? 0), IdPhieu: idPhieu ?? "", TyLeBOF: tyLeBOF, TyLeLF: tyLeLF });
+        const tyLe = getTyLeForPhanBo(record);
+        onPhanBo?.({ NgaySX: record.NgaySX, Ca: record.Ca, PhuLieuID: record.PhuLieuID, ChenhLech: Number(record.totalChenhLech ?? 0), IdPhieu: idPhieu ?? "", TyLeBOF: tyLe.tyLeBOF ?? 0, TyLeLF: tyLe.tyLeLF ?? 0 });
       } else {
         onThuHoi?.({ NgaySX: record.NgaySX, Ca: record.Ca, PhuLieuID: record.PhuLieuID, ChenhLech: Number(record.totalChenhLech ?? 0), IdPhieu: idPhieu ?? "", TyLeBOF: 0, TyLeLF: 0 });
       }
@@ -237,7 +298,7 @@ export default function SummaryTableSTD_HRC1({
     } finally {
       setLoadingMap(prev => ({ ...prev, [record.key]: null }));
     }
-  }, [getIsPhanBo, mockApiCall, tyLeMap, idPhieu, onPhanBo, onThuHoi]);
+  }, [getIsPhanBo, mockApiCall, getTyLeForPhanBo, idPhieu, onPhanBo, onThuHoi]);
 
   const handleThuHoiClick = useCallback(async (record: any) => {
     setLoadingMap(prev => ({ ...prev, [record.key]: 'thu-hoi' }));
@@ -267,6 +328,35 @@ export default function SummaryTableSTD_HRC1({
     }
   }, [getIsPhanBo, mockApiCall, idPhieu, onKhongPhanBo]);
 
+  const [resetAllLoading, setResetAllLoading] = useState(false);
+
+  const handleResetAllClick = useCallback(async () => {
+    const rowsToReset: STD_NXT_HRC1_ResetRow[] = dataWithChenhLech
+      .filter((r) => !r._isTotalRow && getIsPhanBo(r) !== null)
+      .map((r) => ({
+        NgaySX: r.NgaySX,
+        Ca: r.Ca,
+        PhuLieuID: r.PhuLieuID,
+        ChenhLech: Number(r.totalChenhLech ?? 0),
+        IdPhieu: idPhieu ?? "",
+        IsPhanBo: getIsPhanBo(r) as boolean,
+      }));
+
+    if (rowsToReset.length === 0) {
+      message.info("Không có phụ liệu nào đã phân bổ hoặc không phân bổ để reset.");
+      return;
+    }
+
+    setResetAllLoading(true);
+    try {
+      // Không cần tự set phanBoMap ở đây — onResetAll (BE) xong sẽ gọi refreshSummaryAndStatus ở component
+      // cha, đổi initialData, và useEffect ở trên đã tự reset phanBoMap = {} khi initialData đổi.
+      await onResetAll?.(rowsToReset);
+    } finally {
+      setResetAllLoading(false);
+    }
+  }, [dataWithChenhLech, getIsPhanBo, idPhieu, onResetAll]);
+
   const handleCellChange = (key: string, dataIndex: string, value: any) => {
     const updatedData = dataWithChenhLech.map((row) => {
       if (row.key === key) {
@@ -285,13 +375,8 @@ export default function SummaryTableSTD_HRC1({
     onDataChange?.(updatedData);
   };
 
-  const formatNumber = (value: string | number, showNegativeInParentheses = false) => {
-    const formatted = formatVi(value);
-    if (!formatted) return "";
-    if (showNegativeInParentheses && String(value).startsWith("-")) {
-      return `(${formatted.replace("-", "")})`;
-    }
-    return formatted;
+  const formatNumber = (value: string | number) => {
+    return formatVi(value);
   };
 
   const renderCell = (record: any, col: any) => {
@@ -302,8 +387,26 @@ export default function SummaryTableSTD_HRC1({
     const isTyLeColumn = dataIndex === "tyLeBOF" || dataIndex === "tyLeLF";
 
     if (isTyLeColumn && !record._isTotalRow) {
+      const field = dataIndex as TyLeField;
       const hasPhanBo = getIsPhanBo(record) === true;
-      const tyLeVal = tyLeMap[record.key]?.[dataIndex as "tyLeBOF" | "tyLeLF"] ?? (record[dataIndex] ?? null);
+      const tyLeVal = getRawTyLe(record, field);
+      if (isTyLeLocked(record, field)) {
+        const congDoan = TY_LE_CONG_DOAN[field].label;
+        const hasStale = tyLeVal !== null && Number(tyLeVal) !== 0;
+        return (
+          <Tooltip
+            title={
+              hasStale
+                ? `Phụ liệu không sử dụng ở ${congDoan}. Tỷ lệ cũ ${tyLeVal}% sẽ bị bỏ (tính = 0) khi phân bổ.`
+                : `Phụ liệu không sử dụng ở ${congDoan}`
+            }
+          >
+            <span style={{ display: "block" }}>
+              <InputNumber value={hasStale ? tyLeVal : null} disabled style={{ width: "100%" }} />
+            </span>
+          </Tooltip>
+        );
+      }
       return (
         <InputNumber
           value={tyLeVal}
@@ -311,7 +414,7 @@ export default function SummaryTableSTD_HRC1({
           max={100}
           disabled={!editable || hasPhanBo}
           style={{ width: "100%" }}
-          onChange={(v) => handleTyLeChange(record.key, dataIndex as "tyLeBOF" | "tyLeLF", v)}
+          onChange={(v) => handleTyLeChange(record.key, field, v)}
         />
       );
     }
@@ -339,8 +442,8 @@ export default function SummaryTableSTD_HRC1({
 
     if (isReadonly) {
       if (isNumberColumn && (value || value === 0)) {
-        const formatted = formatNumber(value, isChenhLechColumn);
-        const isNeg = NEGATIVE_HIGHLIGHT_COLS.includes(dataIndex) && isNegativeNumber(value);
+        const formatted = formatNumber(value);
+        const isNeg = (NEGATIVE_HIGHLIGHT_COLS.includes(dataIndex) || isChenhLechColumn) && isNegativeNumber(value);
         return (
           <span
             style={{
@@ -384,12 +487,15 @@ export default function SummaryTableSTD_HRC1({
       onCell: (record: any) => {
         const minW = isTotalTextColumn ? 80 : isMaterialCol ? 80 : isTyLeCol ? 60 : isNumberColumn ? 70 : 70;
         if (isTyLeCol && !record._isTotalRow) {
-          const rowTyLe = tyLeMap[record.key] ?? {};
-          const bof = rowTyLe.tyLeBOF ?? record.tyLeBOF ?? null;
-          const lf = rowTyLe.tyLeLF ?? record.tyLeLF ?? null;
-          const allFilled = bof !== null && lf !== null;
-          const total = allFilled ? Number(bof) + Number(lf) : null;
-          const isInvalid = allFilled && Math.abs(total! - 100) > 0.001;
+          const field = col.dataIndex as TyLeField;
+          const tyLe = getTyLeForPhanBo(record);
+          const values = TY_LE_FIELDS.map((f) => tyLe[f]);
+          const allFilled = values.every((v) => v !== null && v !== undefined);
+          const total = allFilled ? values.reduce((s: number, v) => s + Number(v), 0) : null;
+          // Đỏ khi: tổng các ô đang mở != 100, hoặc ô bị khóa nhưng còn tỷ lệ cũ != 0
+          const rawVal = getRawTyLe(record, field);
+          const isStaleLocked = isTyLeLocked(record, field) && rawVal !== null && Number(rawVal) !== 0;
+          const isInvalid = (allFilled && Math.abs(total! - 100) > 0.001) || isStaleLocked;
           return { style: { minWidth: minW, ...(isInvalid && { backgroundColor: "#fff1f0" }) } };
         }
         if (NEGATIVE_HIGHLIGHT_COLS.includes(col.dataIndex || "") && isNegativeNumber(record[col.dataIndex || ""])) {
@@ -435,6 +541,31 @@ export default function SummaryTableSTD_HRC1({
     } as any
   );
 
+  // Cột "Check phân bổ": (KLTK_BOF + KLTK_LF) phải = Tổng sử dụng. KLTK do BE chốt khi bấm Phân bổ/Không PB,
+  // null khi chưa xử lý hoặc vừa Thu hồi -> để trống. So sánh làm tròn 3 số lẻ (khớp decimal(18,3) ở DB).
+  tableColumns.push({
+    title: "Check phân bổ",
+    dataIndex: "checkPhanBo",
+    align: "center" as const,
+    render: (_: any, record: any) => {
+      if (record._isTotalRow) return null;
+      const bof = record.KLTK_BOF;
+      const lf = record.KLTK_LF;
+      if ((bof === null || bof === undefined) && (lf === null || lf === undefined)) return null;
+      const tongKLTK = (Number(bof) || 0) + (Number(lf) || 0);
+      const tongSuDung = Number(record.totalSuDung) || 0;
+      const diff = Math.round((tongKLTK - tongSuDung) * 1000) / 1000;
+      const detail = `KLTK BOF (${formatNumber(bof ?? 0)}) + KLTK LF (${formatNumber(lf ?? 0)}) = ${formatNumber(tongKLTK)} | Tổng sử dụng = ${formatNumber(tongSuDung)}`;
+      return (
+        <Tooltip title={detail}>
+          {diff === 0
+            ? <Tag color="success">Khớp</Tag>
+            : <Tag color="error">Lệch {formatNumber(diff)}</Tag>}
+        </Tooltip>
+      );
+    },
+  } as any);
+
   // Cột "Tình trạng"
   tableColumns.push({
     title: "Tình trạng",
@@ -449,9 +580,32 @@ export default function SummaryTableSTD_HRC1({
     },
   } as any);
 
-  // Cột "Thao tác" — gộp Phân bổ + Không phân bổ
+  // Cột "Thao tác" — gộp Phân bổ + Không phân bổ, header có nút Reset tất cả
   tableColumns.push({
-    title: "Thao tác",
+    title: (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+        <span>Thao tác</span>
+        {onResetAll && (
+          <Popconfirm
+            title="Reset tất cả phân bổ?"
+            description="Toàn bộ phụ liệu đang Đã phân bổ / Không phân bổ sẽ được đưa về Chưa xử lý. Không thể hoàn tác."
+            okText="Reset tất cả"
+            cancelText="Hủy"
+            onConfirm={handleResetAllClick}
+            disabled={!editable || !!lockedTooltip}
+          >
+            <Button
+              size="small"
+              danger
+              loading={resetAllLoading}
+              disabled={!editable || !!lockedTooltip}
+            >
+              Reset tất cả
+            </Button>
+          </Popconfirm>
+        )}
+      </div>
+    ),
     width: 180,
     dataIndex: "thaotac",
     align: "center" as const,
@@ -461,14 +615,15 @@ export default function SummaryTableSTD_HRC1({
       const isLoading = loadingMap[record.key];
       const isLocked = !!lockedTooltip;
       // Chặn Phân bổ/Không PB khi các cột tổng hợp tính toán (xem NEGATIVE_HIGHLIGHT_COLS) đang âm —
-      // dữ liệu chưa hợp lệ thì không nên cho xử lý phân bổ chênh lệch dựa trên số sai.
-      const hasNegativeSummary = NEGATIVE_HIGHLIGHT_COLS.some((col) => isNegativeNumber(record[col]));
+      // dữ liệu chưa hợp lệ thì không nên cho xử lý phân bổ chênh lệch dựa trên số sai. Chênh lệch tự
+      // nó được PHÉP âm (không chặn) — xem SummaryTableSTD.tsx/giải trình đổi logic cột chênh lệch.
+      const hasBlockingNegative = NEGATIVE_HIGHLIGHT_COLS.some((col) => isNegativeNumber(record[col]));
       const negativeTooltip = "Số liệu tổng hợp (tồn đầu/nhập/tồn cuối/tổng sử dụng) đang âm — vui lòng kiểm tra lại trước khi phân bổ.";
 
       const wrapLocked = (btn: React.ReactNode) =>
         isLocked ? <Tooltip title={lockedTooltip}><span style={{ display: "inline-block" }}>{btn}</span></Tooltip> : btn;
       const wrapNegative = (btn: React.ReactNode) =>
-        hasNegativeSummary ? <Tooltip title={negativeTooltip}><span style={{ display: "inline-block" }}>{btn}</span></Tooltip> : btn;
+        hasBlockingNegative ? <Tooltip title={negativeTooltip}><span style={{ display: "inline-block" }}>{btn}</span></Tooltip> : btn;
 
       let btnPhanBo: React.ReactNode;
       if (isPhanBo === true) {
@@ -483,25 +638,32 @@ export default function SummaryTableSTD_HRC1({
           </Button>
         );
       } else {
-        btnPhanBo = wrapLocked(wrapNegative(
+        // Không công đoạn nào có sử dụng (theo tongThucTe) -> không có chỗ nhận phân bổ, chỉ dùng "Không PB"
+        const noCongDoanUsed = TY_LE_FIELDS.every((f) => isTyLeLocked(record, f));
+        const wrapNoCongDoan = (btn: React.ReactNode) =>
+          noCongDoanUsed && isPhanBo === null && !isLocked && !hasBlockingNegative
+            ? <Tooltip title={'Phụ liệu không sử dụng ở công đoạn nào (BOF/LF) trong ca. Dùng "Không PB" hoặc Làm mới số liệu.'}><span style={{ display: "inline-block" }}>{btn}</span></Tooltip>
+            : btn;
+        btnPhanBo = wrapLocked(wrapNegative(wrapNoCongDoan(
           <Button
             type="primary"
             size="small"
             loading={isLoading === 'phan-bo'}
-            disabled={isPhanBo === false || !editable || isLocked || hasNegativeSummary || (canPhanBo === false && isPhanBo === null)}
+            disabled={isPhanBo === false || !editable || isLocked || hasBlockingNegative || (canPhanBo === false && isPhanBo === null) || noCongDoanUsed}
             onClick={() => {
-              if (hasNegativeSummary) {
+              if (hasBlockingNegative) {
                 message.warning(negativeTooltip);
                 return;
               }
-              const rowTyLe = tyLeMap[record.key] ?? {};
-              const tyLeBOF = rowTyLe.tyLeBOF ?? record.tyLeBOF ?? null;
-              const tyLeLF = rowTyLe.tyLeLF ?? record.tyLeLF ?? null;
-              if (tyLeBOF === null || tyLeBOF === undefined || tyLeLF === null || tyLeLF === undefined) {
-                message.warning("Vui lòng nhập đủ tỷ lệ phân bổ BOF và LF trước khi thực hiện phân bổ.");
+              const tyLe = getTyLeForPhanBo(record);
+              const missing = TY_LE_FIELDS
+                .filter((f) => tyLe[f] === null || tyLe[f] === undefined)
+                .map((f) => TY_LE_CONG_DOAN[f].label);
+              if (missing.length > 0) {
+                message.warning(`Vui lòng nhập tỷ lệ phân bổ ${missing.join(", ")} trước khi thực hiện phân bổ.`);
                 return;
               }
-              const total = Number(tyLeBOF) + Number(tyLeLF);
+              const total = TY_LE_FIELDS.reduce((s, f) => s + Number(tyLe[f]), 0);
               if (Math.abs(total - 100) > 0.001) {
                 message.warning(`Tổng tỷ lệ phân bổ phải bằng 100% (hiện tại: ${total.toFixed(2)}%).`);
                 return;
@@ -511,7 +673,7 @@ export default function SummaryTableSTD_HRC1({
           >
             Phân bổ
           </Button>
-        ));
+        )));
       }
 
       const btnKhongPhanBo = isPhanBo === false
@@ -533,9 +695,9 @@ export default function SummaryTableSTD_HRC1({
               type="default"
               size="small"
               loading={isLoading === 'khong-phan-bo'}
-              disabled={!editable || isLocked || isPhanBo === true || hasNegativeSummary || (canPhanBo === false && isPhanBo === null)}
+              disabled={!editable || isLocked || isPhanBo === true || hasBlockingNegative || (canPhanBo === false && isPhanBo === null)}
               onClick={() => {
-                if (hasNegativeSummary) {
+                if (hasBlockingNegative) {
                   message.warning(negativeTooltip);
                   return;
                 }

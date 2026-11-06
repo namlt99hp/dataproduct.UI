@@ -172,6 +172,9 @@ const ChiTiet_STD = () => {
         KLPB_BOF: item.klpB_BOF ?? item.klpb_BOF ?? item.KLPB_BOF ?? null,
         KLPB_TL: item.klpB_TL ?? item.klpb_TL ?? item.KLPB_TL ?? null,
         KLPB_RH: item.klpB_RH ?? item.klpb_RH ?? item.KLPB_RH ?? null,
+        KLTK_BOF: item.kltK_BOF ?? item.kltk_BOF ?? item.KLTK_BOF ?? null,
+        KLTK_LF: item.kltK_LF ?? item.kltk_LF ?? item.KLTK_LF ?? null,
+        KLTK_RH: item.kltK_RH ?? item.kltk_RH ?? item.KLTK_RH ?? null,
       }));
 
       setTable1Data(mappedDetails);

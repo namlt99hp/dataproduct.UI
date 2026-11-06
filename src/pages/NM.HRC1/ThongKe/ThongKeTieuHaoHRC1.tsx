@@ -23,6 +23,7 @@ import {
   Header_TieuHaoTinhLuyen_LF_HRC1,
   type ThongKeHeaderColumn,
 } from "../../../utils/configs/thongKeHRC1HeaderConfig";
+import ThongKeNhapXuatTonHRC1 from "./ThongKeNhapXuatTonHRC1";
 
 const { Title } = Typography;
 const { RangePicker } = DatePicker;
@@ -52,6 +53,9 @@ const renderPlCell = (cellData: PlCellData | null | unknown) => {
   const effectiveValue = isManual ? klPhuGia_Manual : klPhuGia;
   const displayValue = totalKLPhuGia ?? effectiveValue;
   const formatted = formatNumberVN(displayValue);
+  // Phân bổ chênh lệch có thể âm (xem SummaryTableSTD_HRC1.tsx) — nếu phân bổ âm vượt quá lượng phụ
+  // liệu thực tế, tổng thống kê (totalKLPhuGia) sẽ âm: cảnh báo đỏ, chặn chốt phiếu chi tiết liên quan.
+  const isNegative = displayValue != null && displayValue < 0;
 
   const hasPhanBo = klPhanBo != null;
   const hasManual = isManual === true || klPhuGia_Manual != null;
@@ -62,11 +66,28 @@ const renderPlCell = (cellData: PlCellData | null | unknown) => {
     if (klPhuGia_Manual != null) tooltipParts.push(`Chỉnh tay: ${formatNumberVN(klPhuGia_Manual)}`);
     else if (isManual) tooltipParts.push(`Chỉnh tay: (đã xóa)`);
     if (hasPhanBo) tooltipParts.push(`Phân bổ: ${formatNumberVN(klPhanBo)}`);
+    if (isNegative) tooltipParts.push("Tổng thống kê đang ÂM — cần kiểm tra lại trước khi chốt phiếu.");
 
     const bg = hasPhanBo && hasManual ? "#d4edda" : hasPhanBo ? "#d6f0ff" : "#fff7b3";
     return (
       <Tooltip title={tooltipParts.join(" | ")}>
-        <span style={{ backgroundColor: bg, display: "block", padding: "0 4px" }}>{formatted}</span>
+        <span
+          style={{
+            backgroundColor: bg,
+            display: "block",
+            padding: "0 4px",
+            ...(isNegative && { color: "#ff4d4f", fontWeight: 600 }),
+          }}
+        >
+          {formatted}
+        </span>
+      </Tooltip>
+    );
+  }
+  if (isNegative) {
+    return (
+      <Tooltip title="Tổng thống kê đang ÂM — cần kiểm tra lại trước khi chốt phiếu.">
+        <span style={{ color: "#ff4d4f", fontWeight: 600, display: "block" }}>{formatted}</span>
       </Tooltip>
     );
   }
@@ -146,6 +167,7 @@ const ThongKeTieuHaoHRC1 = () => {
   const [columns, setColumns] = useState<any[]>([]);
   const [tableData, setTableData] = useState<any[]>([]);
   const [loaiBmKey, setLoaiBmKey] = useState<LoaiBmKey>("BOF");
+  const [activeSubTab, setActiveSubTab] = useState<LoaiBmKey | "NXT">("BOF");
   const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 });
 
   const handleSearch = useCallback(
@@ -338,6 +360,18 @@ const ThongKeTieuHaoHRC1 = () => {
     [form, handleSearch, pagination.pageSize]
   );
 
+  const handleSubTabChange = useCallback(
+    (key: string) => {
+      if (key === "NXT") {
+        setActiveSubTab("NXT");
+        return;
+      }
+      setActiveSubTab(key as LoaiBmKey);
+      handleTabChange(key);
+    },
+    [handleTabChange]
+  );
+
   const handleExcel = useCallback(async () => {
     const values = form.getFieldsValue(true) as Record<string, unknown>;
     const dateRange = values.dateRange as [dayjs.Dayjs, dayjs.Dayjs] | undefined;
@@ -443,120 +477,127 @@ const ThongKeTieuHaoHRC1 = () => {
       </div>
 
       <Tabs
-        activeKey={loaiBmKey}
-        onChange={handleTabChange}
+        activeKey={activeSubTab}
+        onChange={handleSubTabChange}
         style={{ marginTop: 8 }}
         items={[
           { key: "BOF", label: "BOF" },
           { key: "LF", label: "LF" },
+          { key: "NXT", label: "Nhập Xuất Tồn" },
         ]}
       />
 
-      <Form form={form} layout="inline" style={{ marginTop: 8 }}>
-        <Space wrap align="center">
-          <Form.Item name="dateRange" label="Từ ngày / Đến ngày">
-            <RangePicker format="DD/MM/YYYY" />
-          </Form.Item>
+      {activeSubTab === "NXT" ? (
+        <ThongKeNhapXuatTonHRC1 />
+      ) : (
+        <>
+          <Form form={form} layout="inline" style={{ marginTop: 8 }}>
+            <Space wrap align="center">
+              <Form.Item name="dateRange" label="Từ ngày / Đến ngày">
+                <RangePicker format="DD/MM/YYYY" />
+              </Form.Item>
 
-          <Form.Item name="ca" label="Ca">
-            <Select allowClear options={CA_OPTIONS} placeholder="-- Ca --" style={{ minWidth: 120 }} />
-          </Form.Item>
+              <Form.Item name="ca" label="Ca">
+                <Select allowClear options={CA_OPTIONS} placeholder="-- Ca --" style={{ minWidth: 120 }} />
+              </Form.Item>
 
-          <Form.Item name="scope" label={SCOPE_LABEL_BY_BM[loaiBmKey]}>
-            <Select
-              allowClear
-              options={SCOPE_OPTIONS_BY_BM[loaiBmKey]}
-              placeholder={`-- ${SCOPE_LABEL_BY_BM[loaiBmKey]} --`}
-              style={{ minWidth: 150 }}
-            />
-          </Form.Item>
+              <Form.Item name="scope" label={SCOPE_LABEL_BY_BM[loaiBmKey]}>
+                <Select
+                  allowClear
+                  options={SCOPE_OPTIONS_BY_BM[loaiBmKey]}
+                  placeholder={`-- ${SCOPE_LABEL_BY_BM[loaiBmKey]} --`}
+                  style={{ minWidth: 150 }}
+                />
+              </Form.Item>
 
-          <Form.Item name="meThoi" label="Mã mẻ thép">
-            <Input placeholder="Nhập mã mẻ thép" style={{ minWidth: 160 }} />
-          </Form.Item>
+              <Form.Item name="meThoi" label="Mã mẻ thép">
+                <Input placeholder="Nhập mã mẻ thép" style={{ minWidth: 160 }} />
+              </Form.Item>
 
-          <Form.Item name="isDelete" valuePropName="checked">
-            <Checkbox>Đã xóa</Checkbox>
-          </Form.Item>
+              <Form.Item name="isDelete" valuePropName="checked">
+                <Checkbox>Đã xóa</Checkbox>
+              </Form.Item>
 
-          <Form.Item name="isTrungMeThoi" valuePropName="checked">
-            <Checkbox>Mẻ trùng</Checkbox>
-          </Form.Item>
+              <Form.Item name="isTrungMeThoi" valuePropName="checked">
+                <Checkbox>Mẻ trùng</Checkbox>
+              </Form.Item>
 
-          <Form.Item>
-            <Space>
-              <Button type="primary" onClick={() => void handleSearch()} loading={loading}>
-                Tìm
-              </Button>
-              <Button onClick={handleReset}>Reset</Button>
-              <Button type="primary" style={{ backgroundColor: "green" }} onClick={() => void handleExcel()}>
-                Excel
-              </Button>
+              <Form.Item>
+                <Space>
+                  <Button type="primary" onClick={() => void handleSearch()} loading={loading}>
+                    Tìm
+                  </Button>
+                  <Button onClick={handleReset}>Reset</Button>
+                  <Button type="primary" style={{ backgroundColor: "green" }} onClick={() => void handleExcel()}>
+                    Excel
+                  </Button>
+                </Space>
+              </Form.Item>
             </Space>
-          </Form.Item>
-        </Space>
-      </Form>
+          </Form>
 
-      <style>{`.row-not-nm td { background-color: #fffbe6 !important; }`}</style>
-      <div style={{ marginTop: 24 }}>
-        <Table
-          bordered
-          size="small"
-          loading={loading}
-          columns={columns}
-          dataSource={tableData}
-          rowClassName={(record: any) => (record.isNM === false ? "row-not-nm" : "")}
-          pagination={{
-            current: pagination.current,
-            pageSize: pagination.pageSize,
-            total: pagination.total,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            pageSizeOptions: ["10", "20", "50", "100"],
-            showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} bản ghi`,
-            onChange: (page, pageSize) => {
-              void handleSearch(undefined, page, pageSize);
-            },
-          }}
-          scroll={{ x: "max-content", y: 500 }}
-          summary={() => {
-            const leafCols = flattenLeafColumns(columns);
-            if (!leafCols.length) return null;
-            return (
-              <Table.Summary fixed>
-                <Table.Summary.Row style={{ background: "#e6f4ff", fontWeight: 600 }}>
-                  {leafCols.map((col, idx) => {
-                    if (idx === 0) {
-                      return (
-                        <Table.Summary.Cell key={idx} index={idx} align="right">
-                          Tổng
-                        </Table.Summary.Cell>
-                      );
-                    }
-                    const di: string = col.dataIndex ?? "";
-                    if (!di.startsWith("pl_")) {
-                      return <Table.Summary.Cell key={idx} index={idx} />;
-                    }
-                    if (sumLoading) {
-                      return (
-                        <Table.Summary.Cell key={idx} index={idx} align="right">
-                          <span style={{ color: "#aaa" }}>...</span>
-                        </Table.Summary.Cell>
-                      );
-                    }
-                    const val = sumRow[di];
-                    return (
-                      <Table.Summary.Cell key={idx} index={idx} align="right">
-                        {val != null ? formatNumberVN(val) : ""}
-                      </Table.Summary.Cell>
-                    );
-                  })}
-                </Table.Summary.Row>
-              </Table.Summary>
-            );
-          }}
-        />
-      </div>
+          <style>{`.row-not-nm td { background-color: #fffbe6 !important; }`}</style>
+          <div style={{ marginTop: 24 }}>
+            <Table
+              bordered
+              size="small"
+              loading={loading}
+              columns={columns}
+              dataSource={tableData}
+              rowClassName={(record: any) => (record.isNM === false ? "row-not-nm" : "")}
+              pagination={{
+                current: pagination.current,
+                pageSize: pagination.pageSize,
+                total: pagination.total,
+                showSizeChanger: true,
+                showQuickJumper: true,
+                pageSizeOptions: ["10", "20", "50", "100"],
+                showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} bản ghi`,
+                onChange: (page, pageSize) => {
+                  void handleSearch(undefined, page, pageSize);
+                },
+              }}
+              scroll={{ x: "max-content", y: 500 }}
+              summary={() => {
+                const leafCols = flattenLeafColumns(columns);
+                if (!leafCols.length) return null;
+                return (
+                  <Table.Summary fixed>
+                    <Table.Summary.Row style={{ background: "#e6f4ff", fontWeight: 600 }}>
+                      {leafCols.map((col, idx) => {
+                        if (idx === 0) {
+                          return (
+                            <Table.Summary.Cell key={idx} index={idx} align="right">
+                              Tổng
+                            </Table.Summary.Cell>
+                          );
+                        }
+                        const di: string = col.dataIndex ?? "";
+                        if (!di.startsWith("pl_")) {
+                          return <Table.Summary.Cell key={idx} index={idx} />;
+                        }
+                        if (sumLoading) {
+                          return (
+                            <Table.Summary.Cell key={idx} index={idx} align="right">
+                              <span style={{ color: "#aaa" }}>...</span>
+                            </Table.Summary.Cell>
+                          );
+                        }
+                        const val = sumRow[di];
+                        return (
+                          <Table.Summary.Cell key={idx} index={idx} align="right">
+                            {val != null ? formatNumberVN(val) : ""}
+                          </Table.Summary.Cell>
+                        );
+                      })}
+                    </Table.Summary.Row>
+                  </Table.Summary>
+                );
+              }}
+            />
+          </div>
+        </>
+      )}
     </Card>
   );
 };

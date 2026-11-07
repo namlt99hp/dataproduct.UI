@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { HRCChildColumn, HRCTableRow, HRCParentColumn } from "../components/CustomTableHRC";
 import { dlnmHRC1Api } from "./DLNMHRC1Api";
+import { Hrc1PhuLieuNmServiceApi } from "./Hrc1PhuLieuNmServiceApi";
 import { hrc1TableService, type AdjustColumnMeta } from "./HRC1TableService";
 
 export interface FetchHrc1PhuLieusParams {
@@ -46,6 +47,9 @@ const getPhuLieuEffectiveValue = (pl: Hrc1RawItem): number | null => {
  * Khác hrc2PhuLieuService: HRC1_PhuLieuNM là danh mục cố định 13 dòng (không cần Header_Mapping),
  * nên không tách mapped/unmapped — toàn bộ phụ liệu build 1 nhóm cột duy nhất theo PhuLieuID.
  * Cột "Phân bổ" và "Điều chỉnh tự do" (manual_col_*, dựa trên Header_Key dùng chung với HRC2) vẫn giữ.
+ * Cột phụ liệu (phuGiaColumns) LUÔN lấy đủ từ danh mục (dangSuDung:true, thuTu_Excel_BOF khác NULL),
+ * mirror hrc1LFPhuLieuService — KHÔNG lọc theo "đã có dữ liệu" nữa: phụ liệu nào chưa có mẻ nào dùng
+ * tới (hoặc Lò thổi này không dùng tới) vẫn hiện cột, chỉ là render rỗng.
  */
 export const hrc1PhuLieuService = {
   async fetchAndProcessPhuLieus(
@@ -54,30 +58,21 @@ export const hrc1PhuLieuService = {
   ): Promise<ProcessedHrc1PhuLieusResult> {
     const { baseColumns = [] } = options;
 
-    const res = await dlnmHRC1Api.filter({
-      NgaySX: params.NgaySX,
-      Ca: params.Ca,
-      Scope: params.Scope,
-    });
+    const [res, catalog] = await Promise.all([
+      dlnmHRC1Api.filter({
+        NgaySX: params.NgaySX,
+        Ca: params.Ca,
+        Scope: params.Scope,
+      }),
+      Hrc1PhuLieuNmServiceApi.getAll({ dangSuDung: true }),
+    ]);
 
     const rawData = (Array.isArray(res) ? res : res ? [res] : []) as Hrc1RawItem[];
 
-    const allPhuLieuMeta: Record<number, Hrc1RawItem> = {};
     const allPhanBoMeta: Record<number, Hrc1RawItem> = {};
     const allManualMeta: Record<number, Hrc1RawItem> = {};
-    // Chỉ render cột phụ liệu nào có ít nhất 1 mẻ (trong đúng Ngày/Ca/Scope đang lọc) có giá trị khác NULL và khác 0.
-    const activePhuLieuIds = new Set<number>();
 
     rawData.forEach((item) => {
-      const phuLieus = (getVal<Hrc1RawItem[]>(item, "phuLieus", "PhuLieus") ?? []) as Hrc1RawItem[];
-      phuLieus.forEach((pl) => {
-        const id = getVal<number>(pl, "idPhuLieu", "iD_PhuLieu", "ID_PhuLieu");
-        if (id == null) return;
-        if (!allPhuLieuMeta[id]) allPhuLieuMeta[id] = pl;
-        const value = getPhuLieuEffectiveValue(pl);
-        if (value != null && value !== 0) activePhuLieuIds.add(id);
-      });
-
       const phanBo = (getVal<Hrc1RawItem[]>(item, "phanBoPhulieus", "PhanBoPhulieus") ?? []) as Hrc1RawItem[];
       phanBo.forEach((pb) => {
         const id = getVal<number>(pb, "idPhuLieu", "iD_PhuLieu", "ID_PhuLieu");
@@ -91,33 +86,26 @@ export const hrc1PhuLieuService = {
       });
     });
 
-    const phuGiaColumns: HRCChildColumn[] = Object.entries(allPhuLieuMeta)
-      .filter(([idStr]) => activePhuLieuIds.has(Number(idStr)))
-      .map(([idStr, pl]) => {
-        const id = Number(idStr);
-        const label = getVal<string>(pl, "tenPhuLieu", "TenPhuLieu") ?? `PL-${id}`;
-        const thuTu = getVal<number>(pl, "thuTu", "ThuTu");
-        return {
-          title: label,
-          dataIndex: `phuLieu_${id}`,
-          width: 100,
-          format: "number-group",
-          sum: true,
-          metaLabel: label,
-          metaGroup: "BOF_PhuGia",
-          editable: false,
-          variant: "source" as const,
-          headerKeyId: id,
-          __thuTu: thuTu,
-        };
-      })
+    const phuGiaColumns: HRCChildColumn[] = catalog
+      .filter((pl) => pl.thuTu_Excel_BOF != null)
       .sort((a, b) => {
-        const ta = a.__thuTu ?? Number.MAX_SAFE_INTEGER;
-        const tb = b.__thuTu ?? Number.MAX_SAFE_INTEGER;
+        const ta = a.thuTu_Excel_BOF ?? Number.MAX_SAFE_INTEGER;
+        const tb = b.thuTu_Excel_BOF ?? Number.MAX_SAFE_INTEGER;
         if (ta !== tb) return ta - tb;
-        return (a.headerKeyId ?? 0) - (b.headerKeyId ?? 0);
+        return a.id - b.id;
       })
-      .map(({ __thuTu, ...col }) => col);
+      .map((pl) => ({
+        title: pl.tenPhuLieu,
+        dataIndex: `phuLieu_${pl.id}`,
+        width: 100,
+        format: "number-group",
+        sum: true,
+        metaLabel: pl.tenPhuLieu,
+        metaGroup: "BOF_PhuGia",
+        editable: false,
+        variant: "source" as const,
+        headerKeyId: pl.id,
+      }));
 
     const phanBoColumns: HRCChildColumn[] = Object.entries(allPhanBoMeta).map(([idStr, pb]) => {
       const id = Number(idStr);

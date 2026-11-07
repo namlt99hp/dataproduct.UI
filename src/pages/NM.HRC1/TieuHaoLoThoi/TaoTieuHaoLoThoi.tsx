@@ -282,27 +282,11 @@ const TaoTieuHaoLoThoi = () => {
         { baseColumns }
       );
 
-      const isEmpty = !result.tableData ||
-        result.tableData.length === 0 ||
-        (result.tableData.length === 1 && result.tableData[0]?.key === "row-empty");
-
-      if (isEmpty) {
-        message.info("Không có dữ liệu phù hợp với điều kiện lọc.");
-        setPhuGiaColumns([]);
-        setAdjustColumnMetas([]);
-        // Chỉ giữ lại đúng những dòng user vừa "+ Thêm dòng" nhưng CHƯA lưu (_isNewRow, xem
-        // CustomTableHRC.handleAddRow) — giống TaoTieuHaoTinhLuyenLF.tsx, không xoá trắng để tránh mất
-        // draft đang gõ dở khi Làm mới. KHÔNG dùng "chưa có id" để nhận diện: DataJson.table1 lưu
-        // verbatim payload FE gửi lên (PhieuService), còn id thật của dòng thêm tay mới chỉ được gán
-        // SAU ĐÓ khi RunJsonInitializersAsync ghi vào bảng Hrc1TieuHao — id này không bao giờ được ghi
-        // ngược lại vào DataJson, nên dòng thêm tay đã lưu vẫn mãi "không có id" trong JSON, khiến check
-        // theo id coi nó là draft vĩnh viễn → trùng dòng với chính nó đọc từ filter (có id thật).
-        setTableData((prev) => prev.filter((row) => row._isNewRow === true));
-        return;
-      }
-
-      // Nếu phiếu đã có snapshot BOF_PhuGia (đã lưu ít nhất 1 lần), giữ nguyên cột theo snapshot thay vì
-      // ghi đè bằng danh mục live hiện tại — xem comment tại khai báo savedPhuGiaSnapshotRef.
+      // Cột phụ liệu LUÔN lấy đủ từ danh mục (hrc1PhuLieuService.fetchAndProcessPhuLieus đã đổi sang
+      // catalog-driven, không còn lọc theo "đã có dữ liệu"), kể cả khi filter rỗng — mirror
+      // TaoTieuHaoTinhLuyenLF.tsx (không early-return xóa cột khi trống). Nếu phiếu đã có snapshot
+      // BOF_PhuGia (đã lưu ít nhất 1 lần), giữ nguyên cột theo snapshot thay vì ghi đè bằng danh mục
+      // live hiện tại — xem comment tại khai báo savedPhuGiaSnapshotRef.
       setPhuGiaColumns(
         savedPhuGiaSnapshotRef.current ??
           (result.phuGiaColumns ?? []).map((col) => ({ ...col, editable: false }))
@@ -341,6 +325,13 @@ const TaoTieuHaoLoThoi = () => {
         setAdjustColumnMetas((prev) => (prev ?? []).filter(keepManual));
       }
 
+      const isEmpty = !result.tableData ||
+        result.tableData.length === 0 ||
+        (result.tableData.length === 1 && result.tableData[0]?.key === "row-empty");
+      if (isEmpty) {
+        message.info("Không có dữ liệu phù hợp với điều kiện lọc.");
+      }
+
       // Bảng CHỈ render từ live api/DLNMHRC1/filter — không dùng hrc1TableService.mergeServerRows/
       // applyManualOverrides để merge với dữ liệu JSON đã lưu trên phiếu (giống
       // TaoTieuHaoTinhLuyenLF.tsx). Filter API đã là nguồn sự thật đầy đủ (BE lưu thẳng macThep/
@@ -348,11 +339,15 @@ const TaoTieuHaoLoThoi = () => {
       // giá trị đó — không cần FE tự merge lại từ JSON). Merge theo JSON cũ trước đây khiến mẻ đã bị
       // xóa/đổi ở nơi khác (JSON không tự cập nhật khi có thay đổi ngoài luồng Lưu) vẫn hiện lại.
       // Chỉ giữ lại đúng những dòng user vừa "+ Thêm dòng" nhưng CHƯA lưu (_isNewRow) — KHÔNG dùng
-      // "chưa có id" để nhận diện, xem giải thích ở nhánh isEmpty phía trên (dòng thêm tay đã lưu vẫn
-      // mãi "không có id" trong DataJson → nếu check theo id sẽ bị trùng dòng với chính nó từ filter).
+      // "chưa có id" để nhận diện: DataJson.table1 lưu verbatim payload FE gửi lên (PhieuService), còn
+      // id thật của dòng thêm tay mới chỉ được gán SAU ĐÓ khi RunJsonInitializersAsync ghi vào bảng
+      // Hrc1TieuHao — id này không bao giờ được ghi ngược lại vào DataJson, nên dòng thêm tay đã lưu
+      // vẫn mãi "không có id" trong JSON, khiến check theo id coi nó là draft vĩnh viễn → trùng dòng
+      // với chính nó đọc từ filter (có id thật).
       setTableData((prev) => {
         const unsavedNewRows = prev.filter((row) => row._isNewRow === true);
-        return hrc1TableService.sortRowsByMeThoi([...(result.tableData || []), ...unsavedNewRows]);
+        const liveRows = isEmpty ? [] : result.tableData || [];
+        return hrc1TableService.sortRowsByMeThoi([...liveRows, ...unsavedNewRows]);
       });
     } catch (error) {
       console.error("Failed to fetch phu lieus:", error);

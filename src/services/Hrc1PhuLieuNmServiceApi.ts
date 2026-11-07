@@ -14,9 +14,17 @@ export interface Hrc1PhuLieuNm {
   thuTu_Excel_BOF?: number | null;
   thuTu_Excel_LF?: number | null;
   maVatTuChiPhi?: string | null;
+  // Nhóm cột phụ liệu trên bảng Tiêu hao Tinh luyện LF (1=Kim loại/Chất hợp kim hóa, 2=Phụ gia &
+  // chất khử oxy), mirror LoaiPhuLieuLF (BE). BOF chỉ có 1 nhóm cột nên không dùng field này.
+  loaiPL?: number | null;
   ngayTao?: string;
   nguoiTao?: string | null;
 }
+
+export const LoaiPhuLieuLF = {
+  KimLoai: 1,
+  PhuGia: 2,
+} as const;
 
 export interface Hrc1PhuLieuNmPayload {
   tenPhuLieu: string;
@@ -25,6 +33,7 @@ export interface Hrc1PhuLieuNmPayload {
   thuTu_Excel_BOF?: number | null;
   thuTu_Excel_LF?: number | null;
   maVatTuChiPhi?: string | null;
+  loaiPL?: number | null;
 }
 
 export const Hrc1PhuLieuNmServiceApi = {

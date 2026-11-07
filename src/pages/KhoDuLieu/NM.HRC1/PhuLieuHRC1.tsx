@@ -1,10 +1,16 @@
-import { Button, Card, Form, Input, InputNumber, Modal, Popconfirm, Space, Switch, Table, Tag, message } from "antd";
+import { Button, Card, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table, Tag, message } from "antd";
 import { PlusOutlined, SearchOutlined, ReloadOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import { useEffect, useMemo, useState } from "react";
 import type { ColumnsType } from "antd/es/table";
 import { Hrc1PhuLieuNmServiceApi,
+  LoaiPhuLieuLF,
   type Hrc1PhuLieuNm,
   type Hrc1PhuLieuNmPayload } from "../../../services/Hrc1PhuLieuNmServiceApi";
+
+const LOAI_PL_LABELS: Record<number, string> = {
+  [LoaiPhuLieuLF.KimLoai]: "Kim loại",
+  [LoaiPhuLieuLF.PhuGia]: "Phụ gia",
+};
 
 
 const PhuLieuHRC1 = () => {
@@ -60,6 +66,7 @@ const PhuLieuHRC1 = () => {
       thuTu_Excel_BOF: record.thuTu_Excel_BOF ?? null,
       thuTu_Excel_LF: record.thuTu_Excel_LF ?? null,
       maVatTuChiPhi: record.maVatTuChiPhi ?? undefined,
+      loaiPL: record.loaiPL ?? null,
     });
     setModalVisible(true);
   };
@@ -73,6 +80,14 @@ const PhuLieuHRC1 = () => {
   const handleSave = async () => {
     try {
       const values = await modalForm.validateFields();
+
+      // Phụ liệu có cấu hình cột LF (thuTu_Excel_LF) bắt buộc phải chọn nhóm (Kim loại/Phụ gia) — nếu
+      // không, TaoTieuHaoTinhLuyenLF.tsx/ChiTietLF.tsx sẽ không biết hiện cột này ở nhóm nào (ẩn mất).
+      if (values.thuTu_Excel_LF != null && values.loaiPL == null) {
+        message.error("Đã nhập Thứ tự Excel - LF thì phải chọn Nhóm phụ liệu (LF).");
+        return;
+      }
+
       const payload: Hrc1PhuLieuNmPayload = {
         tenPhuLieu: values.tenPhuLieu.trim(),
         thuTu_TK_BOF: values.thuTu_TK_BOF ?? null,
@@ -80,6 +95,7 @@ const PhuLieuHRC1 = () => {
         thuTu_Excel_BOF: values.thuTu_Excel_BOF ?? null,
         thuTu_Excel_LF: values.thuTu_Excel_LF ?? null,
         maVatTuChiPhi: values.maVatTuChiPhi?.trim() || null,
+        loaiPL: values.loaiPL ?? null,
       };
       setModalLoading(true);
       if (editingRecord) {
@@ -254,6 +270,14 @@ const PhuLieuHRC1 = () => {
         ],
       },
       {
+        title: "Nhóm (LF)",
+        dataIndex: "loaiPL",
+        key: "loaiPL",
+        width: 100,
+        align: "center",
+        render: (v?: number | null) => (v != null && LOAI_PL_LABELS[v] ? <Tag>{LOAI_PL_LABELS[v]}</Tag> : "-"),
+      },
+      {
         title: "Thao tác",
         key: "actions",
         width: 160,
@@ -360,6 +384,20 @@ const PhuLieuHRC1 = () => {
               <InputNumber min={0} style={{ width: "100%" }} placeholder="Số thứ tự" />
             </Form.Item>
           </div>
+          <Form.Item
+            name="loaiPL"
+            label="Nhóm phụ liệu (LF)"
+            tooltip="Chỉ dùng cho bảng Tiêu hao Tinh luyện LF — quyết định cột này hiện dưới nhóm 'Chất hợp kim hóa' hay 'Phụ gia & chất khử oxy'. Bắt buộc nếu có nhập Thứ tự Excel - LF."
+          >
+            <Select
+              allowClear
+              placeholder="Chọn nhóm (bắt buộc nếu dùng cho LF)"
+              options={[
+                { value: LoaiPhuLieuLF.KimLoai, label: "Kim loại (Chất hợp kim hóa)" },
+                { value: LoaiPhuLieuLF.PhuGia, label: "Phụ gia & chất khử oxy" },
+              ]}
+            />
+          </Form.Item>
           <Form.Item name="maVatTuChiPhi" label="Mã vật tư chi phí">
             <Input placeholder="Mã vật tư bên hệ thống chi phí (để trống nếu không feed)" />
           </Form.Item>

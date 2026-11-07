@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { HRCChildColumn, HRCTableRow, HRCParentColumn } from "../components/CustomTableHRC";
 import { dlnmHRC1Api } from "./DLNMHRC1Api";
-import { Hrc1PhuLieuNmServiceApi } from "./Hrc1PhuLieuNmServiceApi";
+import { Hrc1PhuLieuNmServiceApi, LoaiPhuLieuLF } from "./Hrc1PhuLieuNmServiceApi";
 
 export interface FetchHrc1LFPhuLieusParams {
   NgaySX?: string | null;
@@ -12,7 +12,12 @@ export interface FetchHrc1LFPhuLieusParams {
 type Hrc1RawItem = Record<string, unknown>;
 
 export interface ProcessedHrc1LFPhuLieusResult {
-  phuGiaColumns: HRCChildColumn[];
+  // Tách 2 nhóm cột đúng 2 nhóm trên biểu mẫu giấy BM.14/QT.05.10 ("Chất hợp kim hóa" / "Phụ gia &
+  // chất khử oxy") — phân biệt theo Hrc1PhuLieuNm.LoaiPL (xem Models/Hrc1PhuLieuNm.cs). Phụ liệu có
+  // thuTu_Excel_LF nhưng chưa gán LoaiPL (vd danh mục cũ trước khi có field này) sẽ KHÔNG hiện ở cả
+  // 2 nhóm — phải vào trang quản lý PhuLieuHRC1.tsx gán nhóm trước.
+  phuGiaColumnsKimLoai: HRCChildColumn[];
+  phuGiaColumnsPhuGia: HRCChildColumn[];
   phanBoColumns: HRCChildColumn[];
   tableData: HRCTableRow[];
 }
@@ -38,6 +43,9 @@ const getVal = <T,>(item: Hrc1RawItem, ...keys: string[]): T | null => {
  *   "đã dùng"). Thay vào đó lấy đúng những phụ liệu đã được cấu hình `thuTu_Excel_LF` (khác NULL) trên
  *   danh mục HRC1_PhuLieuNM (trang quản lý PhuLieuHRC1.tsx) — loại nào được cấu hình cột này mới hiện
  *   ra để nhập tay, sắp theo đúng giá trị đó. Xem Models/Hrc1PhuLieuNm.cs.
+ * - Tách thành 2 nhóm cột theo `LoaiPL` (Kim loại/Chất hợp kim hóa vs Phụ gia & chất khử oxy), mirror
+ *   đúng 2 nhóm trên biểu mẫu giấy BM.14/QT.05.10 — phụ liệu có `thuTu_Excel_LF` nhưng chưa gán
+ *   `loaiPL` sẽ không hiện ở nhóm nào cho tới khi được gán ở trang quản lý.
  * - Mọi dòng trả về đều ép IsNM=false (bắt buộc để CustomTableHRC cho sửa meThoi/macThep).
  */
 export const hrc1LFPhuLieuService = {
@@ -86,26 +94,30 @@ export const hrc1LFPhuLieuService = {
       };
     });
 
-    const phuGiaColumns: HRCChildColumn[] = catalog
-      .filter((pl) => pl.thuTu_Excel_LF != null)
-      .sort((a, b) => {
-        const ta = a.thuTu_Excel_LF ?? Number.MAX_SAFE_INTEGER;
-        const tb = b.thuTu_Excel_LF ?? Number.MAX_SAFE_INTEGER;
-        if (ta !== tb) return ta - tb;
-        return a.id - b.id;
-      })
-      .map((pl) => ({
-        title: pl.tenPhuLieu,
-        dataIndex: `phuLieu_${pl.id}`,
-        width: 100,
-        format: "number-group",
-        sum: true,
-        metaLabel: pl.tenPhuLieu,
-        metaGroup: "LF_PhuGia",
-        editable: true,
-        variant: "default" as const,
-        headerKeyId: pl.id,
-      }));
+    const buildPhuGiaGroup = (loaiPL: number, metaGroup: string): HRCChildColumn[] =>
+      catalog
+        .filter((pl) => pl.thuTu_Excel_LF != null && pl.loaiPL === loaiPL)
+        .sort((a, b) => {
+          const ta = a.thuTu_Excel_LF ?? Number.MAX_SAFE_INTEGER;
+          const tb = b.thuTu_Excel_LF ?? Number.MAX_SAFE_INTEGER;
+          if (ta !== tb) return ta - tb;
+          return a.id - b.id;
+        })
+        .map((pl) => ({
+          title: pl.tenPhuLieu,
+          dataIndex: `phuLieu_${pl.id}`,
+          width: 100,
+          format: "number-group",
+          sum: true,
+          metaLabel: pl.tenPhuLieu,
+          metaGroup,
+          editable: true,
+          variant: "default" as const,
+          headerKeyId: pl.id,
+        }));
+
+    const phuGiaColumnsKimLoai = buildPhuGiaGroup(LoaiPhuLieuLF.KimLoai, "LF_PhuGia_KimLoai");
+    const phuGiaColumnsPhuGia = buildPhuGiaGroup(LoaiPhuLieuLF.PhuGia, "LF_PhuGia_PhuGia");
 
     const assignRowValue = (target: HRCTableRow, key: string, value: unknown) => {
       if (typeof value === "number" || typeof value === "string") {
@@ -183,7 +195,7 @@ export const hrc1LFPhuLieuService = {
       tableData.push({ key: "row-empty" });
     }
 
-    return { phuGiaColumns, phanBoColumns, tableData };
+    return { phuGiaColumnsKimLoai, phuGiaColumnsPhuGia, phanBoColumns, tableData };
   },
 
   /** Chuẩn hóa table rows trước khi gửi payload — LF không cần dọn __orig/manual_col_* vì không dùng. */

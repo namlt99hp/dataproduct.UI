@@ -35,6 +35,7 @@ const Tao_STD_HRC1 = () => {
   const [table1Data, setTable1Data] = useState<STD_NXT_HRC1_Table1Row[]>([]);
   const [table2Data, setTable2Data] = useState<STD_NXT_HRC1_Table2Row[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [relatedStatusMap, setRelatedStatusMap] = useState<Record<string, STD_NXT_RelatedPhieuStatusItem>>({});
   const [canPhanBo, setCanPhanBo] = useState(true);
   const [isLockedByChot, setIsLockedByChot] = useState(false);
@@ -690,6 +691,7 @@ const Tao_STD_HRC1 = () => {
   );
 
   const handleFilterData = useCallback(async () => {
+    setRefreshing(true);
     try {
       const values = await form.validateFields(["NgaySX", "ca"]);
       const ngay = values.NgaySX ? values.NgaySX.format("YYYY-MM-DD") : null;
@@ -792,6 +794,8 @@ const Tao_STD_HRC1 = () => {
     } catch (error: any) {
       console.error("Lọc dữ liệu thất bại:", error);
       message.error(error?.message || "Không thể lọc dữ liệu");
+    } finally {
+      setRefreshing(false);
     }
   }, [form, config.layout1, setTable1Data, table1Data, idphieu, loadRelatedPhieuStatuses, mapDetailsResponse, mapSummaryResponse]);
 
@@ -827,13 +831,14 @@ const Tao_STD_HRC1 = () => {
         >
           {config.headerFields.map((f, idx) => (
             <div key={f.key || idx} style={{ flex: "0 0 260px", maxWidth: 320 }}>
-              <CustomFormItem field={f} idx={idx} disabled={false}/>
+              <CustomFormItem field={f} idx={idx} disabled={true}/>
             </div>
           ))}
           <div style={{ flex: "0 0 160px", maxWidth: 160 }}>
             <Button
               type="primary"
               onClick={handleFilterData}
+              loading={refreshing}
               style={{
                 height: 35,
                 width: "100%",

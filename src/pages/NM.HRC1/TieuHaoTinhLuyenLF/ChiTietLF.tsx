@@ -184,7 +184,9 @@ const ChiTietTieuHaoTinhLuyenLF = () => {
         setTable1DisplayRows(
           sortRowsByThoiGianLF(mergeAdjustColumnValuesIntoRows(liveRows, dynAdjust), ca, ngay)
         );
-        setLivePhuGiaColumns(result.phuGiaColumns);
+        // Gộp 2 nhóm (Kim loại + Phụ gia) trong 1 state, mỗi cột tự mang metaGroup riêng — mirror
+        // TaoTieuHaoTinhLuyenLF.tsx.
+        setLivePhuGiaColumns([...result.phuGiaColumnsKimLoai, ...result.phuGiaColumnsPhuGia]);
         setLivePhanBoColumns(result.phanBoColumns ?? []);
       } catch (liveErr) {
         console.error("Lỗi tải dữ liệu Tiêu hao LF hiện tại (live):", liveErr);
@@ -213,19 +215,37 @@ const ChiTietTieuHaoTinhLuyenLF = () => {
 
   const tableColumns = useMemo(() => {
     const dyn = (formData?.table1DynamicColumns as Record<string, DynamicColumnMeta[]> | undefined) || {};
-    const savedPhuGiaCols = dyn.LF_PhuGia;
+    const savedKimLoai = dyn.LF_PhuGia_KimLoai;
+    const savedPhuGia = dyn.LF_PhuGia_PhuGia;
+    const legacyFlat = dyn.LF_PhuGia; // snapshot lưu trước khi tách 2 nhóm Kim loại/Phụ gia
 
-    // Ưu tiên snapshot LF_PhuGia đã lưu (đúng bộ + thứ tự phụ liệu tại thời điểm lưu phiếu) — KHÔNG dùng
-    // danh mục live hiện tại (livePhuGiaColumns, luôn lọc theo dangSuDung:true của danh mục HRC1_PhuLieuNM
-    // hiện tại), tránh mất/lệch cột khi danh mục đổi sau này (tắt DangSuDung, đổi ThuTu_Excel_LF, bớt/thêm
-    // phụ liệu...). Chỉ fallback về live cho phiếu cũ lưu trước khi có snapshot này.
-    let phuGiaCols: HRCChildColumn[];
-    if (savedPhuGiaCols?.length) {
-      phuGiaCols = hrc1TableService.columnsFromMeta(savedPhuGiaCols, renderDynamicColumnTitle);
+    // Ưu tiên snapshot đã lưu (đúng bộ + thứ tự phụ liệu tại thời điểm lưu phiếu) — KHÔNG dùng danh mục
+    // live hiện tại (livePhuGiaColumns, luôn lọc theo dangSuDung:true của danh mục HRC1_PhuLieuNM hiện
+    // tại), tránh mất/lệch cột khi danh mục đổi sau này. Chỉ fallback về live cho phiếu cũ lưu trước khi
+    // có snapshot này (kể cả snapshot legacy 1-nhóm: tra nhóm qua headerKeyId trên danh sách live).
+    let phuGiaColsKimLoai: HRCChildColumn[];
+    let phuGiaColsPhuGia: HRCChildColumn[];
+    if (savedKimLoai?.length || savedPhuGia?.length) {
+      phuGiaColsKimLoai = hrc1TableService.columnsFromMeta(savedKimLoai, renderDynamicColumnTitle);
+      phuGiaColsPhuGia = hrc1TableService.columnsFromMeta(savedPhuGia, renderDynamicColumnTitle);
+    } else if (legacyFlat?.length) {
+      const legacyCols = hrc1TableService.columnsFromMeta(legacyFlat, renderDynamicColumnTitle);
+      const liveGroupById = new Map<number, string | undefined>();
+      (livePhuGiaColumns ?? []).forEach((c) => {
+        if (typeof c.headerKeyId === "number") liveGroupById.set(c.headerKeyId, c.metaGroup);
+      });
+      phuGiaColsKimLoai = legacyCols.filter(
+        (c) => typeof c.headerKeyId === "number" && liveGroupById.get(c.headerKeyId) === "LF_PhuGia_KimLoai"
+      );
+      phuGiaColsPhuGia = legacyCols.filter(
+        (c) => !(typeof c.headerKeyId === "number" && liveGroupById.get(c.headerKeyId) === "LF_PhuGia_KimLoai")
+      );
     } else if (livePhuGiaColumns) {
-      phuGiaCols = livePhuGiaColumns;
+      phuGiaColsKimLoai = livePhuGiaColumns.filter((c) => c.metaGroup === "LF_PhuGia_KimLoai");
+      phuGiaColsPhuGia = livePhuGiaColumns.filter((c) => c.metaGroup === "LF_PhuGia_PhuGia");
     } else {
-      phuGiaCols = [];
+      phuGiaColsKimLoai = [];
+      phuGiaColsPhuGia = [];
     }
 
     const tableLayout = config.layout.find((l: any) => l.sectionType === "table" && l.key === "table1");
@@ -279,7 +299,7 @@ const ChiTietTieuHaoTinhLuyenLF = () => {
 
     const built = hrc1TableService.buildColumnsWithAdjust({
       baseColumns,
-      slotColumns: { LF_PhuGia: phuGiaCols },
+      slotColumns: { LF_PhuGia_KimLoai: phuGiaColsKimLoai, LF_PhuGia_PhuGia: phuGiaColsPhuGia },
       showAdjustColumns: adjustChildColumns.length > 0,
       manualAdjustColumns: adjustChildColumns,
       phanBoColumns: phanBoChildColumns,

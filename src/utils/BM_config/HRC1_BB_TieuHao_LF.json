@@ -88,8 +88,14 @@
           "sum": true
         },
         {
-          "title": "Chất hợp kim hóa / Phụ gia khử oxy (Kg)",
-          "dataIndex": "LF_PhuGia",
+          "title": "Chất hợp kim hóa",
+          "dataIndex": "LF_PhuGia_KimLoai",
+          "editable": true,
+          "sum": true
+        },
+        {
+          "title": "Phụ gia & chất khử oxy",
+          "dataIndex": "LF_PhuGia_PhuGia",
           "editable": true,
           "sum": true
         },

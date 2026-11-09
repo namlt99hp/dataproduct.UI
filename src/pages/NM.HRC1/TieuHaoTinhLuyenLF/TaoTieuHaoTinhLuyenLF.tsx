@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import HRC1_BB_TieuHao_LF from "../../../utils/BM_config/HRC1_BB_TieuHao_LF.json";
-import { Button, Card, Form, Input, Typography, message } from "antd";
+import { Button, Card, Form, Input, Modal, Select, Typography, message } from "antd";
 import { FilterOutlined, PlusOutlined, CloseOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
@@ -19,11 +19,47 @@ import {
   type AdjustColumnMeta,
 } from "../../../services/HRC1TableService";
 import { CommonAutocomplete, type AutocompleteSearchParams } from "../../../components/CommonAutocomplete";
-import { Hrc1PhuLieuNmServiceApi, type Hrc1PhuLieuNm } from "../../../services/Hrc1PhuLieuNmServiceApi";
+import { Hrc1PhuLieuNmServiceApi, LoaiPhuLieuLF, type Hrc1PhuLieuNm } from "../../../services/Hrc1PhuLieuNmServiceApi";
 import { hrc1MeThoiMacThepServiceApi } from "../../../services/Hrc1MeThoiMacThepServiceApi";
 import { phieuActionService, type PheDuyetItem } from "../../../services/PhieuActionService";
 import { TrangThaiPhieuConst } from "../../../utils/constants/TrangThaiPhieuConstant";
 import HRC1ExportBienBanButtons from "../../../components/HRC1ExportBienBanButtons";
+
+// Phụ liệu tạo mới qua "+ Tạo phụ liệu mới" (autocomplete header cột Điều chỉnh) bắt buộc chọn ngay
+// nhóm Kim loại/Phụ gia — tránh để LoaiPL NULL rồi quên gán ở trang quản lý PhuLieuHRC1.tsx, dù cột
+// thêm tay này chỉ thực sự hiện theo nhóm sau khi admin gán thêm thuTu_Excel_LF cho nó.
+const promptChonLoaiPL = (): Promise<number | null> => {
+  return new Promise((resolve) => {
+    let selected: number | null = null;
+    Modal.confirm({
+      title: "Chọn nhóm phụ liệu",
+      icon: null,
+      content: (
+        <Select
+          style={{ width: "100%" }}
+          placeholder="Chọn nhóm..."
+          onChange={(v) => {
+            selected = v;
+          }}
+          options={[
+            { value: LoaiPhuLieuLF.KimLoai, label: "Kim loại (Chất hợp kim hóa)" },
+            { value: LoaiPhuLieuLF.PhuGia, label: "Phụ gia & chất khử oxy" },
+          ]}
+        />
+      ),
+      okText: "Xác nhận",
+      cancelText: "Hủy",
+      onOk: () => {
+        if (selected == null) {
+          message.warning("Vui lòng chọn nhóm phụ liệu");
+          return Promise.reject();
+        }
+        resolve(selected);
+      },
+      onCancel: () => resolve(null),
+    });
+  });
+};
 
 const TaoTieuHaoTinhLuyenLF = () => {
   const { idphieu, navigateToDetail, safeGetDetail, redirectToList } = usePhieuNavigation(
@@ -38,6 +74,8 @@ const TaoTieuHaoTinhLuyenLF = () => {
   const [tableData, setTableData] = useState<HRCTableRow[]>([]);
   const [table2Data, setTable2Data] = useState<HRCTableRow[]>([]);
   const [table1LyDo, setTable1LyDo] = useState("");
+  // Gộp cả 2 nhóm cột (Kim loại + Phụ gia) trong 1 state — mỗi cột tự mang `metaGroup` riêng
+  // ("LF_PhuGia_KimLoai"/"LF_PhuGia_PhuGia") để tách lại khi cần (xem phuGiaColumnsKimLoai/PhuGia).
   const [phuGiaColumns, setPhuGiaColumns] = useState<HRCChildColumn[]>([]);
   const [adjustColumnMetas, setAdjustColumnMetas] = useState<AdjustColumnMeta[]>([]);
   // Snapshot cột phụ liệu LF_PhuGia đã lưu (khác null = phiếu đã tồn tại và đã có snapshot) — khi có,
@@ -168,6 +206,17 @@ const TaoTieuHaoTinhLuyenLF = () => {
     );
   }, [phuGiaColumns, manuallyManagedPhuLieuIds]);
 
+  // Tách lại 2 nhóm cột để render 2 parent-header riêng (mirror 2 nhóm trên biểu mẫu giấy
+  // BM.14/QT.05.10) — xem HRC1LFPhuLieuService.fetchAndProcessPhuLieus.
+  const effectivePhuGiaColumnsKimLoai = useMemo(
+    () => effectivePhuGiaColumns.filter((c) => c.metaGroup === "LF_PhuGia_KimLoai"),
+    [effectivePhuGiaColumns]
+  );
+  const effectivePhuGiaColumnsPhuGia = useMemo(
+    () => effectivePhuGiaColumns.filter((c) => c.metaGroup === "LF_PhuGia_PhuGia"),
+    [effectivePhuGiaColumns]
+  );
+
   // Cột "Phân bổ" (phanBo_*) — tên phụ liệu, không editable, group header "Phân bổ" do
   // buildColumnsWithAdjust render. Mirror TaoTieuHaoLoThoi.tsx (BOF) — giá trị đến từ record
   // IsPhanBo=true riêng (PhanBoAsync), phải tách khỏi cột phụ liệu đo thật (phuLieu_*).
@@ -210,8 +259,10 @@ const TaoTieuHaoTinhLuyenLF = () => {
               fallbackLabelBuilder={() => meta.headerKeyLabel ?? "Phụ liệu"}
               allowCreate
               onCreate={async (name) => {
+                const loaiPL = await promptChonLoaiPL();
+                if (loaiPL == null) return null;
                 try {
-                  return await Hrc1PhuLieuNmServiceApi.create({ tenPhuLieu: name });
+                  return await Hrc1PhuLieuNmServiceApi.create({ tenPhuLieu: name, loaiPL });
                 } catch (e: unknown) {
                   // apiService reject bằng error.response.data ({message}) thay vì Error instance
                   const msg =
@@ -280,7 +331,9 @@ const TaoTieuHaoTinhLuyenLF = () => {
       // (không early-return xóa cột khi trống, vì người dùng cần cột trống để bắt đầu nhập).
       // Nếu phiếu đã có snapshot LF_PhuGia (đã lưu ít nhất 1 lần), giữ nguyên cột theo snapshot thay vì
       // ghi đè bằng danh mục live hiện tại — xem comment tại khai báo savedPhuGiaSnapshotRef.
-      setPhuGiaColumns(savedPhuGiaSnapshotRef.current ?? result.phuGiaColumns);
+      setPhuGiaColumns(
+        savedPhuGiaSnapshotRef.current ?? [...result.phuGiaColumnsKimLoai, ...result.phuGiaColumnsPhuGia]
+      );
 
       // Cột "Phân bổ" (phanBo_*) — tái dùng adjustColumnMetas làm nơi lưu, giống hệt cơ chế BOF
       // (TaoTieuHaoLoThoi.tsx). Giữ nguyên các cột "Thêm cột điều chỉnh" (isManuallyAdded=true) đã có,
@@ -358,12 +411,15 @@ const TaoTieuHaoTinhLuyenLF = () => {
 
     return hrc1TableService.buildColumnsWithAdjust({
       baseColumns,
-      slotColumns: { LF_PhuGia: effectivePhuGiaColumns },
+      slotColumns: {
+        LF_PhuGia_KimLoai: effectivePhuGiaColumnsKimLoai,
+        LF_PhuGia_PhuGia: effectivePhuGiaColumnsPhuGia,
+      },
       manualAdjustColumns: adjustChildColumns,
       phanBoColumns: phanBoChildColumns,
       generateAdjustColumnsFromBase: false,
     });
-  }, [config.layout, effectivePhuGiaColumns, adjustChildColumns, phanBoChildColumns]);
+  }, [config.layout, effectivePhuGiaColumnsKimLoai, effectivePhuGiaColumnsPhuGia, adjustChildColumns, phanBoChildColumns]);
 
   const loadFromNM = useCallback(async () => {
     if (!ngaySX || !ca || !scope) return;
@@ -460,7 +516,29 @@ const TaoTieuHaoTinhLuyenLF = () => {
           if (formValues.table1DynamicColumns) {
             const dyn = formValues.table1DynamicColumns as Record<string, DynamicColumnMeta[]>;
             const restored = hrc1TableService.restoreDynamicGroups(dyn, renderDynamicColumnTitle);
-            const savedPhuGia = restored.LF_PhuGia ?? [];
+            let savedPhuGia = [...(restored.LF_PhuGia_KimLoai ?? []), ...(restored.LF_PhuGia_PhuGia ?? [])];
+
+            // Snapshot cũ (lưu trước khi tách 2 nhóm Kim loại/Phụ gia) chỉ có 1 key phẳng "LF_PhuGia",
+            // không phân biệt nhóm — fallback tra LoaiPL hiện tại trên danh mục theo headerKeyId để phục
+            // hồi đúng nhóm, thay vì mất cột khi mở lại phiếu đã lưu trước đây.
+            const legacyPhuGia = dyn.LF_PhuGia;
+            if (savedPhuGia.length === 0 && legacyPhuGia?.length) {
+              const legacyCols = hrc1TableService.columnsFromMeta(legacyPhuGia, renderDynamicColumnTitle);
+              try {
+                const catalog = await Hrc1PhuLieuNmServiceApi.getAll({});
+                const loaiPLById = new Map(catalog.map((pl) => [pl.id, pl.loaiPL ?? null]));
+                savedPhuGia = legacyCols.map((col) => ({
+                  ...col,
+                  metaGroup:
+                    typeof col.headerKeyId === "number" && loaiPLById.get(col.headerKeyId) === LoaiPhuLieuLF.KimLoai
+                      ? "LF_PhuGia_KimLoai"
+                      : "LF_PhuGia_PhuGia",
+                }));
+              } catch {
+                savedPhuGia = legacyCols.map((col) => ({ ...col, metaGroup: "LF_PhuGia_PhuGia" }));
+              }
+            }
+
             setPhuGiaColumns(savedPhuGia);
             savedPhuGiaSnapshotRef.current = savedPhuGia.length > 0 ? savedPhuGia : null;
             if (dyn.adjust) {
@@ -547,7 +625,10 @@ const TaoTieuHaoTinhLuyenLF = () => {
 
     // Dùng effectivePhuGiaColumns (đã loại phụ liệu đang được quản lý ở nhóm "adjust") — tránh 1 phụ
     // liệu vừa tạo/chọn qua "Thêm cột điều chỉnh" bị lưu trùng 2 lần (vừa ở LF_PhuGia vừa ở adjust).
-    const dynamicColumnMap = hrc1TableService.buildDynamicColumnMap({ LF_PhuGia: effectivePhuGiaColumns });
+    const dynamicColumnMap = hrc1TableService.buildDynamicColumnMap({
+      LF_PhuGia_KimLoai: effectivePhuGiaColumnsKimLoai,
+      LF_PhuGia_PhuGia: effectivePhuGiaColumnsPhuGia,
+    });
     dynamicColumnMap.adjust = hrc1PhuLieuService.buildAdjustDynamicWithValues(
       adjustColumnMetas.filter((m) => m.isManuallyAdded === true),
       tableData
@@ -581,7 +662,7 @@ const TaoTieuHaoTinhLuyenLF = () => {
     };
   }, [
     getUserInfo, form, config.headerFields, config.signatures, config.code, config.prefix,
-    idphieu, phieuInfo.nguoiTaoId, phieuInfo.tinhTrang, scope, effectivePhuGiaColumns, adjustColumnMetas, tableData, table1LyDo, table2Data,
+    idphieu, phieuInfo.nguoiTaoId, phieuInfo.tinhTrang, scope, effectivePhuGiaColumnsKimLoai, effectivePhuGiaColumnsPhuGia, adjustColumnMetas, tableData, table1LyDo, table2Data,
   ]);
 
   const handleAutoSave = useCallback(async () => {

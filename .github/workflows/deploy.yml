@@ -1,0 +1,148 @@
+name: UI Build & Deploy
+
+# Chạy thủ công, cùng cơ chế package/deploy với workflow của API.
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_mode:
+        description: 'Chọn phương thức triển khai'
+        required: true
+        type: choice
+        options:
+          - package_only
+          - deploy_api
+        default: package_only
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '22'
+  SOURCE_BRANCH: 'demo'
+  PACKAGE_NAME: 'dataproduct.UI.zip'
+  IIS_CODE: 'UI.Dataproduct.v2'
+
+jobs:
+  build_deploy:
+    name: Build & Deploy UI
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout source from demo
+        uses: actions/checkout@v4
+        with:
+          ref: demo
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Check source information
+        shell: powershell
+        run: |
+          Write-Host "Source branch: demo"
+          Write-Host "Commit: ${{ github.sha }}"
+          Write-Host "Repository: ${{ github.repository }}"
+
+      - name: Install dependencies
+        shell: powershell
+        run: npm ci
+
+      - name: Build UI
+        shell: powershell
+        run: |
+          npm run build:prod
+          if ($LASTEXITCODE -ne 0) {
+            throw "UI build failed!"
+          }
+
+          if (-not (Test-Path "dist" -PathType Container)) {
+            throw "Build output directory not found!"
+          }
+
+          if (-not (Get-ChildItem "dist" -Recurse -File)) {
+            throw "Build output directory is empty!"
+          }
+
+      - name: Create Deployment ZIP
+        shell: powershell
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP "${{ env.PACKAGE_NAME }}"
+          Remove-Item $zip -Force -ErrorAction SilentlyContinue
+
+          Compress-Archive `
+            -Path "dist\*" `
+            -DestinationPath $zip `
+            -CompressionLevel Optimal `
+            -Force
+
+          if (-not (Test-Path $zip -PathType Leaf)) {
+            throw "Deployment ZIP was not created!"
+          }
+
+          $zipEntries = @(tar.exe -tf $zip)
+          if ($LASTEXITCODE -ne 0 -or $zipEntries.Count -eq 0) {
+            throw "Could not verify ZIP contents or the ZIP is empty!"
+          }
+
+          Write-Host "Package created: $zip"
+          Write-Host "Entries: $($zipEntries.Count)"
+          Write-Host "Size: $([math]::Round((Get-Item $zip).Length / 1MB, 2)) MB"
+
+      - name: Upload ZIP Artifact
+        if: inputs.deploy_mode == 'package_only'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dataproduct.UI-demo-${{ github.run_number }}
+          path: ${{ runner.temp }}\${{ env.PACKAGE_NAME }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Deploy via API
+        if: inputs.deploy_mode == 'deploy_api'
+        shell: powershell
+        env:
+          DEPLOY_API_URL: ${{ secrets.DEPLOY_API_URL }}
+          DEPLOY_API_USERNAME: ${{ secrets.DEPLOY_API_USERNAME }}
+          DEPLOY_API_PASSWORD: ${{ secrets.DEPLOY_API_PASSWORD }}
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP "${{ env.PACKAGE_NAME }}"
+
+          if ([string]::IsNullOrWhiteSpace($env:DEPLOY_API_URL)) {
+            throw "DEPLOY_API_URL is not configured!"
+          }
+          if ([string]::IsNullOrWhiteSpace($env:DEPLOY_API_USERNAME)) {
+            throw "DEPLOY_API_USERNAME is not configured!"
+          }
+          if ([string]::IsNullOrWhiteSpace($env:DEPLOY_API_PASSWORD)) {
+            throw "DEPLOY_API_PASSWORD is not configured!"
+          }
+          if (-not (Test-Path $zip -PathType Leaf)) {
+            throw "ZIP package not found!"
+          }
+
+          Write-Host "Starting deployment..."
+          Write-Host "IisCode: ${{ env.IIS_CODE }}"
+          Write-Host "Package: $zip"
+
+          $response = curl.exe `
+            --fail-with-body `
+            --silent `
+            --show-error `
+            --ssl-no-revoke `
+            --request POST `
+            --user "$($env:DEPLOY_API_USERNAME):$($env:DEPLOY_API_PASSWORD)" `
+            --form-string "IisCode=${{ env.IIS_CODE }}" `
+            --form "File=@$zip;type=application/zip" `
+            "$env:DEPLOY_API_URL"
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Deploy API request failed. Curl exit code: $LASTEXITCODE"
+          }
+
+          Write-Host "API RESPONSE:"
+          Write-Host $response
+          Write-Host "Deploy API request completed successfully."

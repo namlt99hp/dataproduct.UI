@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button, Divider, Input, Modal, Popconfirm, Space, Tooltip } from "antd";
+import { Button, Checkbox, Divider, Input, Modal, Popconfirm, Radio, Space, Tooltip, message } from "antd";
 import { DeleteOutlined, PlusSquareOutlined, SnippetsOutlined } from "@ant-design/icons";
 import type { ThanhPham } from "./lcTabsConfig";
 import { buildDefaultCoHatNghien1Rows } from "./lcMockOptions";
 import { VatTuAutoCompleteCell, MaLoAutoCompleteCell, useMaLoBatchCache, type VatTuMaLoCellPatch } from "./LcVatTuMaLoCells";
 import { NumberCell, TextCell } from "./LcExcelGridCells";
+import { LcCanTuDongApi, type CanTuDongRawLogRow } from "../../services/LcCanTuDongApi";
 
 /**
  * Vùng "Cấp liệu & Silo" — lát cắt đầu tiên theo LC_02_Prompt_Vibecoding_V5.md mục 3.
@@ -51,6 +52,9 @@ export interface CapLieuRow {
   soHieuLo?: string | null;
   khoiLuongKeHoach?: string | number | null;
   khoiLuongAmThucTe?: string | number | null;
+  /** Snapshot lúc "Gán" cân tự động — NULL = chưa từng Gán. Dùng để khoá chọn lại dòng này
+   *  làm đích Gán + highlight khi khoiLuongAmThucTe bị sửa tay khác giá trị này. */
+  khoiLuongAmThucTeCanTuDong?: string | number | null;
   doAm?: string | number | null;
   khoiLuongKhoThucTe?: string | number | null;
   luyKeQuyKho?: string | number | null;
@@ -78,7 +82,13 @@ interface TabCapLieuSiloProps {
   onCapLieuChange: (rows: CapLieuRow[]) => void;
   coHatNghien1Rows: CoHatNghien1Row[];
   onCoHatNghien1Change: (rows: CoHatNghien1Row[]) => void;
+  idPhieu?: string;
 }
+
+const getErrMsg = (err: unknown, fallback: string): string =>
+  typeof err === "object" && err != null && "message" in err && typeof (err as { message?: unknown }).message === "string"
+    ? (err as { message: string }).message
+    : fallback;
 
 /**
  * F01 (PREVIEW ONLY — TẠM Ở FE, KHÔNG PHẢI CÔNG THỨC CHÍNH THỨC):
@@ -158,6 +168,7 @@ const TabCapLieuSilo = ({
   onCapLieuChange,
   coHatNghien1Rows,
   onCoHatNghien1Change,
+  idPhieu,
 }: TabCapLieuSiloProps) => {
   // capLieuRows thay đổi theo mỗi phím gõ ở các ô khác (Input không kiểm soát qua state này),
   // nên dùng ref để patch nhiều field 1 lúc (than + lô) luôn đọc được dữ liệu MỚI NHẤT, không
@@ -352,6 +363,96 @@ const TabCapLieuSilo = ({
    *  gốc của silo — xem comment TONSILO_FIELDS đầu file). */
   const isTonSiloLocked = (dataIndex: string, row: CapLieuRow) => TONSILO_FIELDS.has(dataIndex) && (row.stt ?? 1) !== 1;
 
+  /* ================= CÂN TỰ ĐỘNG (xem [[lc-bcsx-xnl-cantudong-design]]) =================
+   * Gán dữ liệu cân thô (LC_CanTuDongRawLog) vào KhoiLuongAmThucTe — ghi NGAY qua API riêng,
+   * KHÔNG qua nút Lưu phiếu của tab này. Mỗi dòng Cấp liệu chỉ Gán được 1 lần (chốt thiết kế);
+   * khoiLuongAmThucTe vẫn sửa/xoá tay tự do sau đó. */
+  const targetKey = (row: CapLieuRow) => `${row.siloSo}-${row.stt ?? 1}`;
+
+  const [rawLogRows, setRawLogRows] = useState<CanTuDongRawLogRow[]>([]);
+  const [loadingRawLog, setLoadingRawLog] = useState(false);
+  const [selectedRawLogIds, setSelectedRawLogIds] = useState<number[]>([]);
+  const [selectedTargetKey, setSelectedTargetKey] = useState<string | null>(null);
+  const [ganLoading, setGanLoading] = useState(false);
+  const [boGanKey, setBoGanKey] = useState<string | null>(null);
+
+  const handleLamMoiCan = useCallback(async () => {
+    if (!idPhieu) return;
+    setLoadingRawLog(true);
+    try {
+      const rows = await LcCanTuDongApi.getByPhieu(idPhieu);
+      setRawLogRows(rows);
+    } catch (err) {
+      console.error("Không thể tải dữ liệu cân tự động:", err);
+      message.error(getErrMsg(err, "Không thể tải dữ liệu cân tự động."));
+    } finally {
+      setLoadingRawLog(false);
+    }
+  }, [idPhieu]);
+
+  const toggleRawLogSelected = (id: number, checked: boolean) => {
+    setSelectedRawLogIds((prev) => (checked ? [...prev, id] : prev.filter((x) => x !== id)));
+  };
+
+  const tongKhoiLuongDaChon = useMemo(
+    () => rawLogRows.filter((r) => selectedRawLogIds.includes(r.id)).reduce((acc, r) => acc + r.khoiLuong, 0),
+    [rawLogRows, selectedRawLogIds]
+  );
+
+  const handleGanCanTuDong = useCallback(async () => {
+    if (!idPhieu || !selectedTargetKey || selectedRawLogIds.length === 0) return;
+    const targetRow = capLieuRowsRef.current.find((r) => targetKey(r) === selectedTargetKey);
+    if (!targetRow) return;
+    setGanLoading(true);
+    try {
+      const result = await LcCanTuDongApi.gan(idPhieu, {
+        siloSo: targetRow.siloSo,
+        stt: targetRow.stt ?? 1,
+        rawLogIds: selectedRawLogIds,
+      });
+      const next = capLieuRowsRef.current.map((row) =>
+        targetKey(row) === selectedTargetKey
+          ? { ...row, khoiLuongAmThucTe: result.khoiLuongAmThucTe, khoiLuongAmThucTeCanTuDong: result.khoiLuongAmThucTeCanTuDong }
+          : row
+      );
+      onCapLieuChange(next);
+      setRawLogRows(result.rawLogRows);
+      setSelectedRawLogIds([]);
+      setSelectedTargetKey(null);
+      message.success("Đã gán dữ liệu cân tự động vào Cấp liệu.");
+    } catch (err) {
+      console.error("Gán cân tự động thất bại:", err);
+      message.error(getErrMsg(err, "Không thể gán dữ liệu cân tự động."));
+    } finally {
+      setGanLoading(false);
+    }
+  }, [idPhieu, selectedTargetKey, selectedRawLogIds, onCapLieuChange]);
+
+  /** "Bỏ gán" — undo toàn bộ (KhoiLuongAmThucTe + snapshot về null), mở khoá lại các dòng
+   *  RawLog đã dùng cho lần Gán đó (xem [[lc-bcsx-xnl-cantudong-design]]). */
+  const handleBoGanCanTuDong = useCallback(
+    async (row: CapLieuRow) => {
+      if (!idPhieu) return;
+      const key = targetKey(row);
+      setBoGanKey(key);
+      try {
+        const freshRawLog = await LcCanTuDongApi.boGan(idPhieu, { siloSo: row.siloSo, stt: row.stt ?? 1 });
+        const next = capLieuRowsRef.current.map((r) =>
+          targetKey(r) === key ? { ...r, khoiLuongAmThucTe: null, khoiLuongAmThucTeCanTuDong: null } : r
+        );
+        onCapLieuChange(next);
+        setRawLogRows(freshRawLog);
+        message.success("Đã bỏ gán cân tự động.");
+      } catch (err) {
+        console.error("Bỏ gán cân tự động thất bại:", err);
+        message.error(getErrMsg(err, "Không thể bỏ gán cân tự động."));
+      } finally {
+        setBoGanKey(null);
+      }
+    },
+    [idPhieu, onCapLieuChange]
+  );
+
   return (
     <div>
       {/* <Typography.Text type="secondary">
@@ -373,6 +474,7 @@ const TabCapLieuSilo = ({
         <table className="w-full min-w-[1700px] border-collapse text-xs">
           <thead>
             <tr className="bg-gray-50">
+              {editable && <th style={{ width: 90 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Thao tác</th>}
               <th style={{ width: 60 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Silo</th>
               <th style={{ width: 200 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Tên than</th>
               <th style={{ width: 160 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Số hiệu lô</th>
@@ -387,12 +489,44 @@ const TabCapLieuSilo = ({
               <th style={{ width: 95 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">{renderPasteableTitle("Độ ẩm silo (%)", "doAmSilo")}</th>
               <th style={{ width: 150 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Khối lượng tồn silo cuối kíp quy khô (tấn)</th>
               <th style={{ width: 160 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Ghi chú / vị trí bãi</th>
-              {editable && <th style={{ width: 90 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Thao tác</th>}
             </tr>
           </thead>
           <tbody>
             {displayRows.map((row, idx) => (
               <tr key={row.key ?? `${row.siloSo}-${row.stt ?? 1}`} className="hover:bg-blue-50/50">
+                {editable && (
+                  <td className="border border-gray-300 px-1 py-1 text-center">
+                    <Space size={4}>
+                      {row.khoiLuongAmThucTeCanTuDong != null ? (
+                        <Popconfirm
+                          title="Bỏ gán cân tự động? KL ẩm thực tế sẽ về trống, các dòng cân đã dùng được mở lại."
+                          okText="Bỏ gán"
+                          cancelText="Hủy"
+                          onConfirm={() => handleBoGanCanTuDong(row)}
+                        >
+                          <Button size="small" danger loading={boGanKey === targetKey(row)} title="Bỏ gán cân tự động">
+                            Bỏ gán
+                          </Button>
+                        </Popconfirm>
+                      ) : (
+                        <Tooltip title="Chọn làm đích Gán cân tự động">
+                          <Radio
+                            checked={selectedTargetKey === targetKey(row)}
+                            onChange={() => setSelectedTargetKey(targetKey(row))}
+                          />
+                        </Tooltip>
+                      )}
+                      <Tooltip title="Tách liệu (thêm 1 lớp liệu khác cho silo này)">
+                        <Button size="small" icon={<PlusSquareOutlined />} onClick={() => handleTachLieu(idx)} />
+                      </Tooltip>
+                      {(row.stt ?? 1) !== 1 && (
+                        <Popconfirm title="Xoá lớp liệu này?" okText="Xoá" cancelText="Hủy" onConfirm={() => handleXoaLop(idx)}>
+                          <Button size="small" danger icon={<DeleteOutlined />} />
+                        </Popconfirm>
+                      )}
+                    </Space>
+                  </td>
+                )}
                 <td className="border border-gray-300 px-2 py-1 text-center">{row.siloSo}</td>
                 <td className="border border-gray-300 p-0">
                   <VatTuAutoCompleteCell
@@ -417,7 +551,20 @@ const TabCapLieuSilo = ({
                 <td className="border border-gray-300 p-0">
                   <NumberCell value={toNumOrNull(row.khoiLuongKeHoach)} disabled={!editable} onCommit={(v) => updateDisplayField(idx, { khoiLuongKeHoach: v })} />
                 </td>
-                <td className="border border-gray-300 p-0">
+                <td
+                  className={`border border-gray-300 p-0 ${
+                    row.khoiLuongAmThucTeCanTuDong != null && Number(row.khoiLuongAmThucTe) !== Number(row.khoiLuongAmThucTeCanTuDong)
+                      ? "bg-amber-100"
+                      : ""
+                  }`}
+                  title={
+                    row.khoiLuongAmThucTeCanTuDong != null
+                      ? `Đã gán cân tự động = ${row.khoiLuongAmThucTeCanTuDong}${
+                          Number(row.khoiLuongAmThucTe) !== Number(row.khoiLuongAmThucTeCanTuDong) ? " (đã sửa tay)" : ""
+                        }`
+                      : undefined
+                  }
+                >
                   <NumberCell value={toNumOrNull(row.khoiLuongAmThucTe)} disabled={!editable} onCommit={(v) => updateDisplayField(idx, { khoiLuongAmThucTe: v })} />
                 </td>
                 <td className="border border-gray-300 p-0">
@@ -445,20 +592,7 @@ const TabCapLieuSilo = ({
                 <td className="border border-gray-300 p-0">
                   <TextCell value={row.ghiChu ?? null} disabled={!editable} onCommit={(v) => updateDisplayField(idx, { ghiChu: v })} />
                 </td>
-                {editable && (
-                  <td className="border border-gray-300 px-1 py-1 text-center">
-                    <Space size={4}>
-                      <Tooltip title="Tách liệu (thêm 1 lớp liệu khác cho silo này)">
-                        <Button size="small" icon={<PlusSquareOutlined />} onClick={() => handleTachLieu(idx)} />
-                      </Tooltip>
-                      {(row.stt ?? 1) !== 1 && (
-                        <Popconfirm title="Xoá lớp liệu này?" okText="Xoá" cancelText="Hủy" onConfirm={() => handleXoaLop(idx)}>
-                          <Button size="small" danger icon={<DeleteOutlined />} />
-                        </Popconfirm>
-                      )}
-                    </Space>
-                  </td>
-                )}
+                
               </tr>
             ))}
           </tbody>
@@ -519,6 +653,73 @@ const TabCapLieuSilo = ({
           </tbody>
         </table>
       </div>
+
+      {editable && (
+        <>
+          <Divider orientation="left" plain>
+            Cân tự động
+          </Divider>
+          <Space style={{ marginBottom: 8 }}>
+            <Button size="small" loading={loadingRawLog} disabled={!idPhieu} onClick={handleLamMoiCan}>
+              Làm mới dữ liệu cân
+            </Button>
+            <span className="text-xs text-gray-600">
+              {selectedTargetKey
+                ? `Đích: Silo ${selectedTargetKey.split("-")[0]}${selectedTargetKey.endsWith("-1") ? "" : ` (lớp ${selectedTargetKey.split("-")[1]})`}`
+                : "Chưa chọn dòng Cấp liệu đích (tick ở cột Thao tác bên trên)"}
+            </span>
+          </Space>
+          <div className="overflow-x-auto">
+            <table className="border-collapse text-xs" style={{ width: 720 }}>
+              <thead>
+                <tr className="bg-gray-50">
+                  <th style={{ width: 40 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700"></th>
+                  <th style={{ width: 150 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Thời gian cân</th>
+                  <th style={{ width: 120 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Tên cân</th>
+                  <th style={{ width: 200 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Loại liệu (theo NM)</th>
+                  <th style={{ width: 100 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Khối lượng</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rawLogRows.map((row) => (
+                  <tr key={row.id} className="hover:bg-blue-50/50">
+                    <td className="border border-gray-300 px-2 py-1 text-center">
+                      <Checkbox
+                        checked={selectedRawLogIds.includes(row.id)}
+                        disabled={row.isDaGan}
+                        onChange={(e) => toggleRawLogSelected(row.id, e.target.checked)}
+                      />
+                    </td>
+                    <td className="border border-gray-300 px-2 py-1 text-center">{row.ngayGio}</td>
+                    <td className="border border-gray-300 px-2 py-1 text-center">{row.tenCan ?? "-"}</td>
+                    <td className="border border-gray-300 px-2 py-1 text-center">{row.loaiLieuTen ?? "-"}</td>
+                    <td className="border border-gray-300 px-2 py-1 text-right">{row.khoiLuong}</td>
+                  </tr>
+                ))}
+                {rawLogRows.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="border border-gray-300 px-2 py-2 text-center text-gray-500">
+                      Chưa có dữ liệu — bấm "Làm mới dữ liệu cân".
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <Space style={{ marginTop: 8 }}>
+            <span className="text-xs text-gray-600">Tổng đã chọn: {tongKhoiLuongDaChon.toLocaleString("en-US", { maximumFractionDigits: 3 })}</span>
+            <Button
+              size="small"
+              type="primary"
+              loading={ganLoading}
+              disabled={!selectedTargetKey || selectedRawLogIds.length === 0}
+              onClick={handleGanCanTuDong}
+            >
+              Gán
+            </Button>
+          </Space>
+        </>
+      )}
 
       <Modal
         title={`Paste dữ liệu - ${pasteModal.columnTitle}`}

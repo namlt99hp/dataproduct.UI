@@ -14,6 +14,7 @@ interface BackendCapLieuSiloRow {
   soHieuLo?: string | null; SoHieuLo?: string | null;
   khoiLuongKeHoach?: number | null; KhoiLuongKeHoach?: number | null;
   khoiLuongAmThucTe?: number | null; KhoiLuongAmThucTe?: number | null;
+  khoiLuongAmThucTeCanTuDong?: number | null; KhoiLuongAmThucTeCanTuDong?: number | null;
   doAm?: number | null; DoAm?: number | null;
   khoiLuongKhoThucTe?: number | null; KhoiLuongKhoThucTe?: number | null;
   luyKeQuyKho?: number | null; LuyKeQuyKho?: number | null;
@@ -56,6 +57,7 @@ const toCapLieuRow = (x: BackendCapLieuSiloRow, idx: number): CapLieuRow => {
   soHieuLo: x.soHieuLo ?? x.SoHieuLo ?? null,
   khoiLuongKeHoach: x.khoiLuongKeHoach ?? x.KhoiLuongKeHoach ?? null,
   khoiLuongAmThucTe: x.khoiLuongAmThucTe ?? x.KhoiLuongAmThucTe ?? null,
+  khoiLuongAmThucTeCanTuDong: x.khoiLuongAmThucTeCanTuDong ?? x.KhoiLuongAmThucTeCanTuDong ?? null,
   doAm: x.doAm ?? x.DoAm ?? null,
   khoiLuongKhoThucTe: x.khoiLuongKhoThucTe ?? x.KhoiLuongKhoThucTe ?? null,
   luyKeQuyKho: x.luyKeQuyKho ?? x.LuyKeQuyKho ?? null,

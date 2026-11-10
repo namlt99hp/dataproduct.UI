@@ -48,6 +48,7 @@ const LcPhieuTabs = ({ thanhPham, editable, tables, onTablesChange, idPhieu, nga
             onCapLieuChange={(rows) => onTablesChange({ capLieu: rows })}
             coHatNghien1Rows={tables.coHatNghien1}
             onCoHatNghien1Change={(rows) => onTablesChange({ coHatNghien1: rows })}
+            idPhieu={idPhieu}
           />
         );
         break;

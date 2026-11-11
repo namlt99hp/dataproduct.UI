@@ -803,6 +803,7 @@ const TaoTieuHaoTinhLuyenLF = () => {
                   disableRowHover
                   meThoiSearchApi={hrc1MeThoiMacThepServiceApi.searchMeThoi}
                   macThepSearchApi={hrc1MeThoiMacThepServiceApi.searchMacThep}
+                  requireMeThoiMacThep={false}
                   scrollX="1500px"
                   lyDoLabel={(layout as any).lyDo?.label}
                   lyDoValue={table1LyDo}

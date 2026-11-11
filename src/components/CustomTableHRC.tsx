@@ -164,6 +164,12 @@ interface CustomTableHRCProps {
   meThoiSearchApi?: AutocompleteSearchApi<HRCTextAutocompleteOption>;
   /** API tìm kiếm autocomplete cho ô macThep trên dòng thêm tay (IsNM===false) — cùng cơ chế với meThoiSearchApi. */
   macThepSearchApi?: AutocompleteSearchApi<HRCTextAutocompleteOption>;
+  /**
+   * false: bỏ bắt buộc Mẻ thổi + Mác thép khi validate() (mặc định true — giữ hành vi cũ, bắt buộc cho
+   * mọi trang có meThoiSearchApi, vd BOF TaoTieuHaoLoThoi.tsx). Dùng khi 1 trang cụ thể (vd LF
+   * TaoTieuHaoTinhLuyenLF.tsx) muốn cho lưu thoải mái mà không ràng buộc 2 cột này.
+   */
+  requireMeThoiMacThep?: boolean;
   maBm?: string;
   ngaySX?: Date;
   ca?: number;
@@ -304,6 +310,7 @@ const CustomTableHRC = forwardRef(({
   allowEditMacThepOnNMRow = false,
   meThoiSearchApi,
   macThepSearchApi,
+  requireMeThoiMacThep = true,
   maBm = "",
   ngaySX = new Date(),
   ca = 0,
@@ -362,8 +369,8 @@ const CustomTableHRC = forwardRef(({
       }
       // Mọi dòng (kể cả IsNM === true từ NM, không chỉ dòng thêm tay) trên các trang có meThoiSearchApi
       // (BOF/LF tiêu hao) đều bắt buộc có Mẻ thổi + Mác thép — thiếu 1 trong 2 thì BE không match được
-      // dữ liệu ở lượt lưu sau.
-      if (meThoiSearchApi) {
+      // dữ liệu ở lượt lưu sau. requireMeThoiMacThep=false (vd LF) bỏ qua check này.
+      if (meThoiSearchApi && requireMeThoiMacThep) {
         const hasInvalidRow = rows.some(
           (row) => !String(row.meThoi ?? "").trim() || !String(row.macThep ?? "").trim()
         );
@@ -375,7 +382,7 @@ const CustomTableHRC = forwardRef(({
       setLyDoError(false);
       return true;
     },
-  }), [lyDoLabel, hasCellChanges, lyDoValue, rows, columns, meThoiSearchApi]);
+  }), [lyDoLabel, hasCellChanges, lyDoValue, rows, columns, meThoiSearchApi, requireMeThoiMacThep]);
 
   useEffect(() => {
     if (initialData) {

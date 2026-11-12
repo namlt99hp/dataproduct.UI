@@ -86,6 +86,16 @@
               "readonly": true
             },
             {
+              "title": "Gang lỏng + xỉ (tổng)",
+              "dataIndex": "klGangLongTong",
+              "editable": false,
+              "width": 110,
+              "format": "number-group",
+              "align": "right",
+              "sum": true,
+              "readonly": true
+            },
+            {
               "title": "Thép phế",
               "dataIndex": "klThepPhe",
               "editable": true,

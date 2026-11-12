@@ -9,8 +9,8 @@
   },
   "isoInfo": {
     "code": "BM.07/QT.05.10",
-    "effectiveDate": "01/07/2024",
-    "revision": "02"
+    "effectiveDate": "25/09/2026",
+    "revision": "03"
   },
 
   "headerFields": [
@@ -60,7 +60,7 @@
           "readonly": true
         },
         {
-          "title": "Mẻ thổi số",
+          "title": "Mẻ nấu số",
           "dataIndex": "meThoi",
           "width": 145,
           "editable": false,
@@ -107,16 +107,7 @@
           ]
         },
         {
-          "title": "Phụ gia công nghệ (Kg)",
-          "dataIndex": "BOF_PhuGia",
-          "editable": false,
-          "sum": true
-        },
-        {
-          "dataIndex": "dieuChinh"
-        },
-        {
-          "title": "Khí (nhập tay)",
+          "title": "Nhiên liệu (m3)",
           "children": [
             {
               "title": "Oxy (m3)",
@@ -135,36 +126,17 @@
               "align": "right",
               "editable": true,
               "sum": true
-            },
-            {
-              "title": "Argon (m3)",
-              "dataIndex": "ar",
-              "width": 100,
-              "format": "number-group",
-              "align": "right",
-              "editable": true,
-              "sum": true
             }
           ]
         },
         {
-          "title": "Que",
-          "children": [
-            {
-              "title": "Que lấy mẫu",
-              "dataIndex": "queLayMau",
-              "width": 90,
-              "align": "right",
-              "editable": true
-            },
-            {
-              "title": "Que đo nhiệt",
-              "dataIndex": "queDoNhiet",
-              "width": 90,
-              "align": "right",
-              "editable": true
-            }
-          ]
+          "title": "Phụ gia công nghệ (Kg)",
+          "dataIndex": "BOF_PhuGia",
+          "editable": false,
+          "sum": true
+        },
+        {
+          "dataIndex": "dieuChinh"
         },
         {
           "title": "Ghi chú",

@@ -2,15 +2,15 @@
   "code": "HRC1_BB_TieuHao_LF",
   "prefix": "BBTH_LF",
   "loaiBm": "LF",
-  "title": "BIÊN BẢN TIÊU HAO NẤU LUYỆN TINH LUYỆN LF",
+  "title": "BẢNG TIÊU HAO NẤU LUYỆN LÒ TINH LUYỆN",
   "headerInfo": {
     "company": "CÔNG TY CỔ PHẦN THÉP HÒA PHÁT DUNG QUẤT",
     "subCompany": "HÒA PHÁT GANG THÉP"
   },
   "isoInfo": {
     "code": "BM.14/QT.05.10",
-    "effectiveDate": "01/09/2023",
-    "revision": "00"
+    "effectiveDate": "25/09/2026",
+    "revision": "01"
   },
 
   "headerFields": [
@@ -103,7 +103,7 @@
           "dataIndex": "dieuChinh"
         },
         {
-          "title": "Khí (nhập tay)",
+          "title": "Khí",
           "children": [
             {
               "title": "Argon (m3)",

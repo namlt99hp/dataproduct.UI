@@ -831,6 +831,7 @@ const CustomTableHRC = forwardRef(({
                     }}
                     placeholder={
                       child.placeholder ??
+                      child.metaLabel ??
                       (typeof child.title === "string" ? child.title : undefined)
                     }
                   />
@@ -841,6 +842,7 @@ const CustomTableHRC = forwardRef(({
                     style={editableStyle}
                     placeholder={
                       child.placeholder ??
+                      child.metaLabel ??
                       (typeof child.title === "string" ? child.title : undefined)
                     }
                   />

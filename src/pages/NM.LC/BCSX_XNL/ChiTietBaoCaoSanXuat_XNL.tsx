@@ -17,7 +17,7 @@ import { LcSanLuongCocApi } from "../../../services/LcSanLuongCocApi";
 import { LcSiloCocTonApi } from "../../../services/LcSiloCocTonApi";
 import { LcXuatCapApi } from "../../../services/LcXuatCapApi";
 import { LcTieuHaoApi } from "../../../services/LcTieuHaoApi";
-import { LcChatLuongCocApi } from "../../../services/LcChatLuongCocApi";
+import { LcChatLuongCocApi, LcCoHatCocApi } from "../../../services/LcChatLuongCocApi";
 
 const { Title, Text } = Typography;
 
@@ -62,6 +62,7 @@ const ChiTietBaoCaoSanXuat_XNL = () => {
         xuatCapCoc: [],
         tieuHao: [],
         chatLuongCoc: [],
+        coHatCoc: [],
       });
 
       // Ghi đè bằng giá trị THẬT đã tính ở BE (TonDauKyQuyKho/LuyKeQuyKho/KhoiLuongKhoThucTe) —
@@ -144,6 +145,15 @@ const ChiTietBaoCaoSanXuat_XNL = () => {
           }
         } catch (err) {
           console.error("Không thể tải dữ liệu Chất lượng cốc (bảng quan hệ):", err);
+        }
+
+        try {
+          if (Number(fd.scope) === 1) {
+            const coHatCocRows = await LcCoHatCocApi.getByPhieu(resIdPhieu);
+            setTables((prev) => ({ ...prev, coHatCoc: coHatCocRows }));
+          }
+        } catch (err) {
+          console.error("Không thể tải dữ liệu Cỡ hạt cốc (bảng quan hệ):", err);
         }
       }
     } catch (error) {

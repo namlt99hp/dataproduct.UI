@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import LC_BCSX_XNL from "../../../utils/BM_config/LC_BCSX_XNL.json";
-import { Button, Card, Form, Input, Popconfirm, Typography, message } from "antd";
+import { Button, Card, Form, Input, Popconfirm, Spin, Typography, message } from "antd";
 import dayjs from "dayjs";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import CustomFormItem from "../../../components/CustomFormItem";
@@ -17,7 +17,7 @@ import { LcSanLuongCocApi } from "../../../services/LcSanLuongCocApi";
 import { LcSiloCocTonApi } from "../../../services/LcSiloCocTonApi";
 import { LcXuatCapApi } from "../../../services/LcXuatCapApi";
 import { LcTieuHaoApi } from "../../../services/LcTieuHaoApi";
-import { LcChatLuongCocApi } from "../../../services/LcChatLuongCocApi";
+import { LcChatLuongCocApi, LcCoHatCocApi } from "../../../services/LcChatLuongCocApi";
 
 /**
  * Trang Tạo / thao tác phiếu "Báo cáo sản xuất Xưởng Nguyên liệu" — dùng chung TP1/TP2.
@@ -123,6 +123,7 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
         xuatCapCoc: [],
         tieuHao: [],
         chatLuongCoc: [],
+        coHatCoc: [],
       });
 
       // Ghi đè bằng giá trị THẬT đã tính ở BE (TonDauKyQuyKho/LuyKeQuyKho/KhoiLuongKhoThucTe,
@@ -206,6 +207,15 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
           }
         } catch (err) {
           console.error("Không thể tải dữ liệu Chất lượng cốc (bảng quan hệ):", err);
+        }
+
+        try {
+          if (Number(data.scope) === 1) {
+            const coHatCocRows = await LcCoHatCocApi.getByPhieu(resIdPhieu);
+            setTables((prev) => ({ ...prev, coHatCoc: coHatCocRows }));
+          }
+        } catch (err) {
+          console.error("Không thể tải dữ liệu Cỡ hạt cốc (bảng quan hệ):", err);
         }
       }
 
@@ -375,6 +385,16 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
               "Đã lưu phiếu nhưng lưu dữ liệu Chất lượng cốc thất bại, vui lòng kiểm tra lại."
           );
         }
+
+        try {
+          if (thanhPhamToScope(thanhPham) === 1) await LcCoHatCocApi.save(targetId, tables.coHatCoc);
+        } catch (err: any) {
+          console.error("Không thể lưu Cỡ hạt cốc:", err);
+          message.error(
+            err?.response?.data?.message ||
+              "Đã lưu phiếu nhưng lưu dữ liệu Cỡ hạt cốc thất bại, vui lòng kiểm tra lại."
+          );
+        }
       }
       if (context?.newPhieuId) {
         navigateToDetail(context.newPhieuId, "/taophieubaocaosanxuat_xnl");
@@ -446,7 +466,11 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
   }, [getUserInfo, idphieu, phieuInfo, getFormData, handleActionSuccess, redirectToList]);
 
   return (
-    <Card style={{ margin: 24, boxShadow: "0 2px 8px #f0f1f2" }} loading={loading}>
+    <Card style={{ margin: 24, boxShadow: "0 2px 8px #f0f1f2" }}>
+      {/* Spin (overlay, không unmount children) thay cho Card `loading` (thay hẳn children bằng
+          skeleton) — Card `loading` làm toàn bộ Form/LcPhieuTabs bị unmount rồi mount lại mỗi
+          lần initData() chạy sau khi Lưu, khiến Tabs (uncontrolled) luôn reset về tab đầu. */}
+      <Spin spinning={loading}>
       <div
         style={{
           display: "flex",
@@ -568,6 +592,7 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
       >
         {actionButtons}
       </div>
+      </Spin>
     </Card>
   );
 };

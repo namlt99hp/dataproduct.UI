@@ -129,9 +129,12 @@ const LcPhieuTabs = ({ thanhPham, editable, tables, onTablesChange, idPhieu, nga
       case "chatLuongCoc":
         children = (
           <TabChatLuongCoc
+            thanhPham={thanhPham}
             editable={editable}
             rows={tables.chatLuongCoc}
             onChange={(rows) => onTablesChange({ chatLuongCoc: rows })}
+            coHatCocRows={tables.coHatCoc}
+            onCoHatCocChange={(rows) => onTablesChange({ coHatCoc: rows })}
           />
         );
         break;

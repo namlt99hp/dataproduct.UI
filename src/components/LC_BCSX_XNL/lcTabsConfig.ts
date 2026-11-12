@@ -65,8 +65,13 @@ export interface LcPhieuTables {
   xuatCapCoc: import("./TabXuatCapCoc").XuatCapSlot[];
   /** Lưu ở bảng quan hệ LC_TP_TieuHao (LcTieuHaoApi), không qua DataJson. */
   tieuHao: import("./TabTieuHao").TieuHaoRow[];
-  /** Lưu ở bảng quan hệ LC_TP_ChatLuongCocCa (LcChatLuongCocApi), không qua DataJson. */
+  /** Lưu ở bảng quan hệ LC_TP_ChatLuongCocCa (LcChatLuongCocApi), không qua DataJson.
+   *  TP2 only — xem TabChatLuongCoc.tsx. */
   chatLuongCoc: import("./TabChatLuongCoc").ChatLuongCocRow[];
+  /** "Cỡ hạt cốc" — TP1 only, lưu ở bảng quan hệ LC_TP_CoHatCoc (LcCoHatCocApi), không qua
+   *  DataJson. Cùng tab UI với chatLuongCoc (nhãn "Cỡ hạt / Chất lượng cốc") nhưng 2 mục loại
+   *  trừ nhau theo Scope — xem TabChatLuongCoc.tsx. */
+  coHatCoc: import("../../services/LcChatLuongCocApi").CoHatCocRow[];
 }
 
 export const EMPTY_LC_PHIEU_TABLES: LcPhieuTables = {
@@ -86,6 +91,7 @@ export const EMPTY_LC_PHIEU_TABLES: LcPhieuTables = {
   xuatCapCoc: [],
   tieuHao: [],
   chatLuongCoc: [],
+  coHatCoc: [],
 };
 
 export function getTabsForThanhPham(thanhPham: ThanhPham | null | undefined): LcTabDef[] {

@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from "react";
  * PHẢI dùng ở module-level (không định nghĩa lồng trong component khác) — nếu lồng, mỗi lần cha
  * render sẽ tạo lại component mới, React coi là component khác → input đang gõ bị mất focus.
  */
-const cellInputClass =
+export const cellInputClass =
   "w-full border-0 bg-transparent px-1 py-0.5 text-xs outline-none focus:bg-blue-50 focus:ring-1 focus:ring-blue-400 disabled:bg-transparent disabled:text-gray-500";
 
 export const NumberCell = ({
@@ -55,6 +55,37 @@ export const NumberCell = ({
     />
   );
 };
+
+/** Ô chọn 1 giá trị cố định (vd "Đạt"/"Không đạt") dạng "ô Excel" — commit ngay khi onChange,
+ * không cần buffer cục bộ như NumberCell/TextCell vì select không phát sinh nhiều sự kiện mỗi
+ * ký tự gõ. */
+export const SelectCell = <T extends string>({
+  value,
+  options,
+  placeholder,
+  disabled,
+  onCommit,
+}: {
+  value: T | null;
+  options: { label: string; value: T }[];
+  placeholder?: string;
+  disabled?: boolean;
+  onCommit: (value: T | null) => void;
+}) => (
+  <select
+    className={cellInputClass}
+    value={value ?? ""}
+    disabled={disabled}
+    onChange={(e) => onCommit((e.target.value || null) as T | null)}
+  >
+    <option value="">{placeholder ?? ""}</option>
+    {options.map((o) => (
+      <option key={o.value} value={o.value}>
+        {o.label}
+      </option>
+    ))}
+  </select>
+);
 
 export const TextCell = ({
   value,

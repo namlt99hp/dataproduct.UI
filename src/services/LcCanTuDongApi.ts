@@ -48,8 +48,17 @@ const toRawLogRow = (x: BackendRawLogRow): CanTuDongRawLogRow => ({
 });
 
 export const LcCanTuDongApi = {
+  /** Đọc thuần dữ liệu đã có trong LC_CanTuDongRawLog, KHÔNG chạy SP đồng bộ — dùng để tự
+   *  render khi mở tab/phiếu. */
   getByPhieu: async (idPhieu: string): Promise<CanTuDongRawLogRow[]> => {
     const res = (await apiService.get(`/api/LC_CanTuDong/by-phieu/${idPhieu}`)) as BackendRawLogRow[];
+    return Array.isArray(res) ? res.map(toRawLogRow) : [];
+  },
+
+  /** Chủ động chạy SP đồng bộ (đúng Scope của phiếu) rồi đọc lại — chỉ gọi khi người dùng bấm
+   *  "Làm mới dữ liệu cân". */
+  sync: async (idPhieu: string): Promise<CanTuDongRawLogRow[]> => {
+    const res = (await apiService.post(`/api/LC_CanTuDong/by-phieu/${idPhieu}/sync`, {})) as BackendRawLogRow[];
     return Array.isArray(res) ? res.map(toRawLogRow) : [];
   },
 

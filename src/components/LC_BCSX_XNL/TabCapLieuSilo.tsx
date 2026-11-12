@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button, Checkbox, Divider, Input, Modal, Popconfirm, Radio, Space, Tooltip, message } from "antd";
+import { Button, Checkbox, Divider, Input, Modal, Popconfirm, Space, Tooltip, message } from "antd";
+import dayjs from "dayjs";
 import { DeleteOutlined, PlusSquareOutlined, SnippetsOutlined } from "@ant-design/icons";
 import type { ThanhPham } from "./lcTabsConfig";
 import { buildDefaultCoHatNghien1Rows } from "./lcMockOptions";
@@ -295,8 +296,14 @@ const TabCapLieuSilo = ({
   // có silo bị tách thành nhiều dòng) — xem handleTachLieu/handleXoaLop.
   useEffect(() => {
     if (!thanhPham) return;
-    const expected = thanhPham === "TP2" ? 20 : 16;
     const current = capLieuRowsRef.current;
+    // mảng RỖNG chỉ xảy ra trong lúc trang cha đang load phiếu (set tạm capLieu=[] trước khi
+    // fetch dữ liệu thật từ API xong) — KHÔNG tự tạo skeleton lúc này, tránh race: nếu lần set
+    // skeleton (không có than/lô) này đến SAU khi dữ liệu thật đã load xong, nó sẽ đè mất
+    // than/lô vừa đọc đúng (bug 2026-11-11: "Lưu rồi Gán, tải lại phiếu mất Tên than/Số hiệu
+    // lô" — API trả đúng dữ liệu nhưng UI hiện trống do bị effect này đè lại).
+    if (current.length === 0) return;
+    const expected = thanhPham === "TP2" ? 20 : 16;
     const presentSilos = new Set(current.map((r) => r.siloSo));
     const missingSilos: number[] = [];
     for (let s = 1; s <= expected; s++) if (!presentSilos.has(s)) missingSilos.push(s);
@@ -363,6 +370,7 @@ const TabCapLieuSilo = ({
    *  gốc của silo — xem comment TONSILO_FIELDS đầu file). */
   const isTonSiloLocked = (dataIndex: string, row: CapLieuRow) => TONSILO_FIELDS.has(dataIndex) && (row.stt ?? 1) !== 1;
 
+
   /* ================= CÂN TỰ ĐỘNG (xem [[lc-bcsx-xnl-cantudong-design]]) =================
    * Gán dữ liệu cân thô (LC_CanTuDongRawLog) vào KhoiLuongAmThucTe — ghi NGAY qua API riêng,
    * KHÔNG qua nút Lưu phiếu của tab này. Mỗi dòng Cấp liệu chỉ Gán được 1 lần (chốt thiết kế);
@@ -376,15 +384,31 @@ const TabCapLieuSilo = ({
   const [ganLoading, setGanLoading] = useState(false);
   const [boGanKey, setBoGanKey] = useState<string | null>(null);
 
+  // Tự render dữ liệu cân đã sync sẵn trong LC_CanTuDongRawLog khi mở tab/phiếu — CHỈ đọc,
+  // KHÔNG chạy SP đồng bộ (xem LC_CanTuDongController.GetByPhieu).
+  useEffect(() => {
+    if (!idPhieu) return;
+    (async () => {
+      try {
+        const rows = await LcCanTuDongApi.getByPhieu(idPhieu);
+        setRawLogRows(rows);
+      } catch (err) {
+        console.error("Không thể tải dữ liệu cân tự động:", err);
+      }
+    })();
+  }, [idPhieu]);
+
+  // Nút "Làm mới dữ liệu cân" — chủ động chạy SP đồng bộ (SECTION 30, đúng Scope của phiếu)
+  // rồi đọc lại, KHÁC lúc tự render ở trên (chỉ đọc).
   const handleLamMoiCan = useCallback(async () => {
     if (!idPhieu) return;
     setLoadingRawLog(true);
     try {
-      const rows = await LcCanTuDongApi.getByPhieu(idPhieu);
+      const rows = await LcCanTuDongApi.sync(idPhieu);
       setRawLogRows(rows);
     } catch (err) {
-      console.error("Không thể tải dữ liệu cân tự động:", err);
-      message.error(getErrMsg(err, "Không thể tải dữ liệu cân tự động."));
+      console.error("Đồng bộ dữ liệu cân tự động thất bại:", err);
+      message.error(getErrMsg(err, "Không thể đồng bộ dữ liệu cân tự động."));
     } finally {
       setLoadingRawLog(false);
     }
@@ -466,10 +490,76 @@ const TabCapLieuSilo = ({
         trước ở trình duyệt, backend tính lại chính thức khi Lưu. "Lũy kế", "Tồn đầu" vẫn để
         trống, chờ engine.
       </Typography.Text> */}
-
+{editable && (
+        <>
+          <Divider orientation="left" plain>
+            Cân tự động
+          </Divider>
+          <Space style={{ marginBottom: 8 }}>
+            <Button size="small" loading={loadingRawLog} disabled={!idPhieu} onClick={handleLamMoiCan}>
+              Làm mới dữ liệu cân
+            </Button>
+            <span className="text-xs text-gray-600">
+              {selectedTargetKey
+                ? `Đích: Silo ${selectedTargetKey.split("-")[0]}${selectedTargetKey.endsWith("-1") ? "" : ` (lớp ${selectedTargetKey.split("-")[1]})`}`
+                : "Chưa chọn dòng Cấp liệu đích (tick ở cột Thao tác bên trên)"}
+            </span>
+          </Space>
+          <div className="overflow-x-auto">
+            <table className="border-collapse text-xs" style={{ width: 720 }}>
+              <thead>
+                <tr className="bg-gray-50">
+                  <th style={{ width: 40 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700"></th>
+                  <th style={{ width: 150 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Thời gian cân</th>
+                  <th style={{ width: 120 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Tên cân</th>
+                  <th style={{ width: 200 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Loại liệu (theo NM)</th>
+                  <th style={{ width: 100 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Khối lượng</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rawLogRows.map((row) => (
+                  <tr key={row.id} className="hover:bg-blue-50/50">
+                    <td className="border border-gray-300 px-2 py-1 text-center">
+                      <Checkbox
+                        checked={selectedRawLogIds.includes(row.id)}
+                        disabled={row.isDaGan}
+                        onChange={(e) => toggleRawLogSelected(row.id, e.target.checked)}
+                      />
+                    </td>
+                    <td className="border border-gray-300 px-2 py-1 text-center">{dayjs(row.ngayGio).format("DD/MM/YYYY HH:mm:ss")}</td>
+                    <td className="border border-gray-300 px-2 py-1 text-center">{row.tenCan ?? "-"}</td>
+                    <td className="border border-gray-300 px-2 py-1 text-center">{row.loaiLieuTen ?? "-"}</td>
+                    <td className="border border-gray-300 px-2 py-1 text-right">{row.khoiLuong}</td>
+                  </tr>
+                ))}
+                {rawLogRows.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="border border-gray-300 px-2 py-2 text-center text-gray-500">
+                      Chưa có dữ liệu — bấm "Làm mới dữ liệu cân".
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <Space style={{ marginTop: 8 }}>
+            <span className="text-xs text-gray-600">Tổng đã chọn: {tongKhoiLuongDaChon.toLocaleString("en-US", { maximumFractionDigits: 3 })}</span>
+            <Button
+              size="small"
+              type="primary"
+              loading={ganLoading}
+              disabled={!selectedTargetKey || selectedRawLogIds.length === 0}
+              onClick={handleGanCanTuDong}
+            >
+              Gán
+            </Button>
+          </Space>
+        </>
+      )}
       <Divider orientation="left" plain>
         Cấp liệu &amp; tồn silo
       </Divider>
+      
       <div className="overflow-x-auto">
         <table className="w-full min-w-[1700px] border-collapse text-xs">
           <thead>
@@ -510,9 +600,9 @@ const TabCapLieuSilo = ({
                         </Popconfirm>
                       ) : (
                         <Tooltip title="Chọn làm đích Gán cân tự động">
-                          <Radio
+                          <Checkbox
                             checked={selectedTargetKey === targetKey(row)}
-                            onChange={() => setSelectedTargetKey(targetKey(row))}
+                            onChange={(e) => setSelectedTargetKey(e.target.checked ? targetKey(row) : null)}
                           />
                         </Tooltip>
                       )}
@@ -599,7 +689,9 @@ const TabCapLieuSilo = ({
           {displayRows.length > 0 && (
             <tfoot>
               <tr className="bg-gray-50 font-semibold">
-                <td colSpan={3} className="border border-gray-300 px-2 py-1 text-center">Tổng</td>
+                <td colSpan={editable ? 4 : 3} className="border border-gray-300 px-2 py-1 text-center">
+                  Tổng
+                </td>
                 <td className="border border-gray-300 px-2 py-1 text-right">{sumCapLieu(displayRows, "khoiLuongKeHoach")}</td>
                 <td className="border border-gray-300 px-2 py-1 text-right">{sumCapLieu(displayRows, "khoiLuongAmThucTe")}</td>
                 <td className="border border-gray-300 px-2 py-1" />
@@ -611,7 +703,6 @@ const TabCapLieuSilo = ({
                 <td className="border border-gray-300 px-2 py-1" />
                 <td className="border border-gray-300 px-2 py-1 text-right">{sumCapLieu(displayRows, "klTonCuoiQuyKho")}</td>
                 <td className="border border-gray-300 px-2 py-1" />
-                {editable && <td className="border border-gray-300 px-2 py-1" />}
               </tr>
             </tfoot>
           )}
@@ -654,72 +745,7 @@ const TabCapLieuSilo = ({
         </table>
       </div>
 
-      {editable && (
-        <>
-          <Divider orientation="left" plain>
-            Cân tự động
-          </Divider>
-          <Space style={{ marginBottom: 8 }}>
-            <Button size="small" loading={loadingRawLog} disabled={!idPhieu} onClick={handleLamMoiCan}>
-              Làm mới dữ liệu cân
-            </Button>
-            <span className="text-xs text-gray-600">
-              {selectedTargetKey
-                ? `Đích: Silo ${selectedTargetKey.split("-")[0]}${selectedTargetKey.endsWith("-1") ? "" : ` (lớp ${selectedTargetKey.split("-")[1]})`}`
-                : "Chưa chọn dòng Cấp liệu đích (tick ở cột Thao tác bên trên)"}
-            </span>
-          </Space>
-          <div className="overflow-x-auto">
-            <table className="border-collapse text-xs" style={{ width: 720 }}>
-              <thead>
-                <tr className="bg-gray-50">
-                  <th style={{ width: 40 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700"></th>
-                  <th style={{ width: 150 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Thời gian cân</th>
-                  <th style={{ width: 120 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Tên cân</th>
-                  <th style={{ width: 200 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Loại liệu (theo NM)</th>
-                  <th style={{ width: 100 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Khối lượng</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rawLogRows.map((row) => (
-                  <tr key={row.id} className="hover:bg-blue-50/50">
-                    <td className="border border-gray-300 px-2 py-1 text-center">
-                      <Checkbox
-                        checked={selectedRawLogIds.includes(row.id)}
-                        disabled={row.isDaGan}
-                        onChange={(e) => toggleRawLogSelected(row.id, e.target.checked)}
-                      />
-                    </td>
-                    <td className="border border-gray-300 px-2 py-1 text-center">{row.ngayGio}</td>
-                    <td className="border border-gray-300 px-2 py-1 text-center">{row.tenCan ?? "-"}</td>
-                    <td className="border border-gray-300 px-2 py-1 text-center">{row.loaiLieuTen ?? "-"}</td>
-                    <td className="border border-gray-300 px-2 py-1 text-right">{row.khoiLuong}</td>
-                  </tr>
-                ))}
-                {rawLogRows.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="border border-gray-300 px-2 py-2 text-center text-gray-500">
-                      Chưa có dữ liệu — bấm "Làm mới dữ liệu cân".
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-          <Space style={{ marginTop: 8 }}>
-            <span className="text-xs text-gray-600">Tổng đã chọn: {tongKhoiLuongDaChon.toLocaleString("en-US", { maximumFractionDigits: 3 })}</span>
-            <Button
-              size="small"
-              type="primary"
-              loading={ganLoading}
-              disabled={!selectedTargetKey || selectedRawLogIds.length === 0}
-              onClick={handleGanCanTuDong}
-            >
-              Gán
-            </Button>
-          </Space>
-        </>
-      )}
+      
 
       <Modal
         title={`Paste dữ liệu - ${pasteModal.columnTitle}`}

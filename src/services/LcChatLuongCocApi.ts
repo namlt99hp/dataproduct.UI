@@ -89,3 +89,62 @@ export const LcChatLuongCocApi = {
     await apiService.put(`${BASE}/chat-luong-coc`, items, { params: { phieuId, scope } });
   },
 };
+
+// ─── Cỡ hạt cốc (LC_TP_CoHatCoc) — TP1 only, by-phieu (KHÔNG cần tham số scope: luôn = 1).
+// TP2 không có mục này (có "Chất lượng cốc" ở trên thay thế) — xem TabChatLuongCoc.tsx. ───
+
+export interface CoHatCocRow {
+  key?: string | number;
+  thoiGianLayMau?: string | null;
+  viTriLayMau?: string | null;
+  pctDuoi10mm?: string | number | null;
+  pct10Den25mm?: string | number | null;
+  pct25Den80mm?: string | number | null;
+  pct40Den80mm?: string | number | null;
+  pctTren80mm?: string | number | null;
+}
+
+interface CoHatCocDto {
+  stt: number;
+  thoiGianLayMau?: string | null;
+  viTriLayMau?: string | null;
+  pctDuoi10mm?: number | null;
+  pct10Den25mm?: number | null;
+  pct25Den80mm?: number | null;
+  pct40Den80mm?: number | null;
+  pctTren80mm?: number | null;
+}
+
+// <input type="datetime-local"> cần đúng "YYYY-MM-DDTHH:mm" (không giây/timezone)
+const toDatetimeLocal = (v: string | null | undefined): string | null => (v ? v.slice(0, 16) : null);
+const toIsoDatetime = (v: string | null | undefined): string | null => (v ? `${v}:00` : null);
+
+export const LcCoHatCocApi = {
+  getByPhieu: async (idPhieu: string): Promise<CoHatCocRow[]> => {
+    const list = ((await apiService.get(`${BASE}/co-hat-coc/by-phieu/${idPhieu}`)) as CoHatCocDto[]) ?? [];
+    return list.map((x) => ({
+      key: `cht-${x.stt}`,
+      thoiGianLayMau: toDatetimeLocal(x.thoiGianLayMau),
+      viTriLayMau: x.viTriLayMau ?? null,
+      pctDuoi10mm: x.pctDuoi10mm ?? null,
+      pct10Den25mm: x.pct10Den25mm ?? null,
+      pct25Den80mm: x.pct25Den80mm ?? null,
+      pct40Den80mm: x.pct40Den80mm ?? null,
+      pctTren80mm: x.pctTren80mm ?? null,
+    }));
+  },
+
+  save: async (idPhieu: string, rows: CoHatCocRow[]): Promise<void> => {
+    const items = rows.map((r, i) => ({
+      stt: i + 1,
+      thoiGianLayMau: toIsoDatetime(r.thoiGianLayMau),
+      viTriLayMau: r.viTriLayMau || null,
+      pctDuoi10mm: toNumberOrNull(r.pctDuoi10mm),
+      pct10Den25mm: toNumberOrNull(r.pct10Den25mm),
+      pct25Den80mm: toNumberOrNull(r.pct25Den80mm),
+      pct40Den80mm: toNumberOrNull(r.pct40Den80mm),
+      pctTren80mm: toNumberOrNull(r.pctTren80mm),
+    }));
+    await apiService.put(`${BASE}/co-hat-coc/by-phieu/${idPhieu}`, items);
+  },
+};

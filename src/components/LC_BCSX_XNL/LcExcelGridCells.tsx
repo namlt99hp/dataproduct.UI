@@ -9,19 +9,32 @@ import { useEffect, useRef, useState } from "react";
  * `onChange(cards/slots.map(...))` ở component cha (rất tốn vì map lại toàn bộ mảng) mỗi keystroke.
  * PHẢI dùng ở module-level (không định nghĩa lồng trong component khác) — nếu lồng, mỗi lần cha
  * render sẽ tạo lại component mới, React coi là component khác → input đang gõ bị mất focus.
+ *
+ * SỬA 2026-11-14: ô bình thường (1 input = 1 `<td>`) đủ viền nhờ `<td>` bọc ngoài, giữ nguyên
+ * `cellInputClass` (`border-0 bg-transparent`). Nhưng input nằm trong `<td rowSpan>` (merge nhiều
+ * dòng — TabThapPheu "Độ ẩm tháp"/"Ghi chú" rowSpan 2-5, TabPhoiTron "Cân 2A/Độ ẩm" rowSpan theo
+ * silo) thì nổi giữa 1 vùng trắng to, không còn viền riêng để biết đây là ô bấm vào nhập được —
+ * dùng `cellInputMergedClass` (viền tĩnh, không chỉ lúc focus) qua prop `merged` cho riêng các ô đó.
  */
 export const cellInputClass =
   "w-full border-0 bg-transparent px-1 py-0.5 text-xs outline-none focus:bg-blue-50 focus:ring-1 focus:ring-blue-400 disabled:bg-transparent disabled:text-gray-500";
+
+export const cellInputMergedClass =
+  "w-full border border-gray-300 bg-white px-1 py-0.5 text-xs outline-none hover:border-blue-400 focus:bg-blue-50 focus:ring-1 focus:ring-blue-400 focus:border-blue-400 disabled:border-transparent disabled:bg-transparent disabled:text-gray-500";
 
 export const NumberCell = ({
   value,
   step,
   disabled,
+  merged,
   onCommit,
 }: {
   value: number | null;
   step?: number;
   disabled?: boolean;
+  /** true khi ô nằm trong `<td rowSpan>` — dùng viền tĩnh `cellInputMergedClass` thay vì
+   *  `cellInputClass` để không bị lẫn vào vùng merge xung quanh (xem SỬA 2026-11-14). */
+  merged?: boolean;
   onCommit: (value: number | null) => void;
 }) => {
   const [local, setLocal] = useState(value == null ? "" : String(value));
@@ -45,7 +58,7 @@ export const NumberCell = ({
       type="number"
       inputMode="decimal"
       step={step}
-      className={`${cellInputClass} text-right`}
+      className={`${merged ? cellInputMergedClass : cellInputClass} text-right`}
       value={local}
       disabled={disabled}
       onFocus={() => (editingRef.current = true)}
@@ -90,10 +103,13 @@ export const SelectCell = <T extends string>({
 export const TextCell = ({
   value,
   disabled,
+  merged,
   onCommit,
 }: {
   value: string | null;
   disabled?: boolean;
+  /** true khi ô nằm trong `<td rowSpan>` — xem NumberCell. */
+  merged?: boolean;
   onCommit: (value: string | null) => void;
 }) => {
   const [local, setLocal] = useState(value ?? "");
@@ -112,7 +128,7 @@ export const TextCell = ({
   return (
     <input
       type="text"
-      className={cellInputClass}
+      className={merged ? cellInputMergedClass : cellInputClass}
       value={local}
       disabled={disabled}
       onFocus={() => (editingRef.current = true)}

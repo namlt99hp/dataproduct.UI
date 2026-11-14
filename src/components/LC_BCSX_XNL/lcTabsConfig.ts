@@ -17,6 +17,12 @@ export interface LcTabDef {
 }
 
 export const LC_BCSX_XNL_TABS: LcTabDef[] = [
+  {
+    key: "suCo",
+    label: "Nhân sự / Sự cố",
+    implemented: true,
+    note: "Gồm Tình hình nhân sự (branch theo Scope) + Sự cố + (TP1) Vệ sinh 5S/Công việc bàn giao — xem TabSuCo.tsx. Đặt đầu tiên theo yêu cầu người dùng 2026-11-12.",
+  },
   { key: "capLieuSilo", label: "Cấp liệu & Silo", implemented: true },
   { key: "phoiTron", label: "Phối trộn", implemented: true },
   { key: "thapPheu", label: "Tháp / Phễu", implemented: true, note: "Gồm cả Phân tích và (TP1) Bụi cốc — xem TabThapPheu.tsx." },
@@ -29,16 +35,7 @@ export const LC_BCSX_XNL_TABS: LcTabDef[] = [
     note: "Layout cố định theo TP, nguồn BBGN gán tay — xem .claude/LuyenCoc/PhanTich_TabCapCoc.md §9.",
   },
   { key: "chatLuongCoc", label: "Cỡ hạt / Chất lượng cốc", implemented: true },
-  { key: "tieuHao", label: "Tiêu hao", implemented: true },
-  { key: "suCo", label: "Sự cố", implemented: true },
-  {
-    key: "ghiChuCa",
-    label: "5S & Bàn giao",
-    implemented: false,
-    appliesTo: ["TP1"],
-    note: "TP2 có áp dụng 5S & Bàn giao hay không đang chờ xác nhận (OQ-14, LC_01 mục 7).",
-  },
-  { key: "kpi", label: "KPI", implemented: false },
+  { key: "tieuHao", label: "Tiêu hao", implemented: true }
 ];
 
 export interface LcPhieuTables {
@@ -60,7 +57,11 @@ export interface LcPhieuTables {
   dapCoc: import("./TabSanLuongCoc").DapCocRow[];
   cocChuyenNhaSang: import("./TabSanLuongCoc").CocChuyenNhaSangRow[];
   sanLuong: import("./TabSanLuongCoc").SanLuongCocRow[];
+  /** Tab "Nhân sự / Sự cố" — xem TabSuCo.tsx. */
+  nhanSu: import("./TabSuCo").NhanSuRow[];
   suCo: import("./TabSuCo").SuCoRow[];
+  /** TP1 only (5S + Bàn giao gộp 1 mảng, phân biệt bằng `loai`) — xem TabSuCo.tsx. */
+  ghiChuCa: import("./TabSuCo").GhiChuCaRow[];
   tonCoc: import("./TabCocTonSilo").CocTonCum[];
   xuatCapCoc: import("./TabXuatCapCoc").XuatCapSlot[];
   /** Lưu ở bảng quan hệ LC_TP_TieuHao (LcTieuHaoApi), không qua DataJson. */
@@ -86,7 +87,9 @@ export const EMPTY_LC_PHIEU_TABLES: LcPhieuTables = {
   cocChuyenNhaSang: [],
   sanLuong: [],
   phanTich: [],
+  nhanSu: [],
   suCo: [],
+  ghiChuCa: [],
   tonCoc: [],
   xuatCapCoc: [],
   tieuHao: [],

@@ -18,6 +18,8 @@ import { LcSiloCocTonApi } from "../../../services/LcSiloCocTonApi";
 import { LcXuatCapApi } from "../../../services/LcXuatCapApi";
 import { LcTieuHaoApi } from "../../../services/LcTieuHaoApi";
 import { LcChatLuongCocApi, LcCoHatCocApi } from "../../../services/LcChatLuongCocApi";
+import { LcNhanSuSuCoApi } from "../../../services/LcNhanSuSuCoApi";
+import { LcChotLuyKeApi } from "../../../services/LcChotLuyKeApi";
 
 /**
  * Trang Tạo / thao tác phiếu "Báo cáo sản xuất Xưởng Nguyên liệu" — dùng chung TP1/TP2.
@@ -43,6 +45,7 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
   );
   const [loading, setLoading] = useState(false);
   const [refreshLoading, setRefreshLoading] = useState(false);
+  const [chotLuyKeLoading, setChotLuyKeLoading] = useState(false);
   const [soPhieu, setSoPhieu] = useState("");
   const [phieuInfo, setPhieuInfo] = useState<{
     tinhTrang?: number;
@@ -118,7 +121,9 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
         cocChuyenNhaSang: [],
         sanLuong: [],
         phanTich: data.table_phanTich || [],
-        suCo: data.table_suCo || [],
+        nhanSu: [],
+        suCo: [],
+        ghiChuCa: [],
         tonCoc: [],
         xuatCapCoc: [],
         tieuHao: [],
@@ -217,6 +222,35 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
         } catch (err) {
           console.error("Không thể tải dữ liệu Cỡ hạt cốc (bảng quan hệ):", err);
         }
+
+        try {
+          const nhanSuScope = Number(data.scope);
+          if (nhanSuScope) {
+            const nhanSuRows = await LcNhanSuSuCoApi.getNhanSu(resIdPhieu, nhanSuScope);
+            setTables((prev) => ({ ...prev, nhanSu: nhanSuRows }));
+          }
+        } catch (err) {
+          console.error("Không thể tải dữ liệu Nhân sự (bảng quan hệ):", err);
+        }
+
+        try {
+          const suCoScope = Number(data.scope);
+          if (suCoScope) {
+            const suCoRows = await LcNhanSuSuCoApi.getSuCo(resIdPhieu, suCoScope);
+            setTables((prev) => ({ ...prev, suCo: suCoRows }));
+          }
+        } catch (err) {
+          console.error("Không thể tải dữ liệu Sự cố (bảng quan hệ):", err);
+        }
+
+        try {
+          if (Number(data.scope) === 1) {
+            const ghiChuCaRows = await LcNhanSuSuCoApi.getGhiChuCa(resIdPhieu, 1);
+            setTables((prev) => ({ ...prev, ghiChuCa: ghiChuCaRows }));
+          }
+        } catch (err) {
+          console.error("Không thể tải dữ liệu 5S/Bàn giao (bảng quan hệ):", err);
+        }
       }
 
       setPhieuInfo({
@@ -272,12 +306,11 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
       tenScope: thanhPham ?? null,
       xuongId: userInfo.iD_PhanXuong ?? null,
       idphongBan: userInfo.iD_PhongBan ?? null,
-      // table_capLieu/table_coHatNghien1/table_phoiTron/table_tonCoc/table_pheu/table_thap
-      // KHÔNG gửi qua DataJson nữa (rủi ro lệch dữ liệu) — lưu trực tiếp vào bảng quan hệ
-      // riêng qua LcCapLieuSiloApi.save / LcPhoiTronApi.save / LcSiloCocTonApi.save /
-      // lcThapThanApi.save trong handleActionSuccess bên dưới.
+      // table_capLieu/table_coHatNghien1/table_phoiTron/table_tonCoc/table_pheu/table_thap/
+      // table_suCo KHÔNG gửi qua DataJson nữa (rủi ro lệch dữ liệu) — lưu trực tiếp vào bảng
+      // quan hệ riêng qua LcCapLieuSiloApi.save / LcPhoiTronApi.save / LcSiloCocTonApi.save /
+      // lcThapThanApi.save / LcNhanSuSuCoApi.save* trong handleActionSuccess bên dưới.
       table_phanTich: tables.phanTich,
-      table_suCo: tables.suCo,
       pheDuyet: pheDuyetFlow,
     };
   }, [getUserInfo, form, config, idphieu, phieuInfo, thanhPham, tables]);
@@ -395,6 +428,29 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
               "Đã lưu phiếu nhưng lưu dữ liệu Cỡ hạt cốc thất bại, vui lòng kiểm tra lại."
           );
         }
+
+        try {
+          const nhanSuScope = thanhPhamToScope(thanhPham);
+          if (nhanSuScope) await LcNhanSuSuCoApi.saveNhanSu(targetId, nhanSuScope, tables.nhanSu);
+        } catch (err) {
+          console.error("Không thể lưu Nhân sự:", err);
+          message.error("Đã lưu phiếu nhưng lưu dữ liệu Nhân sự thất bại, vui lòng kiểm tra lại.");
+        }
+
+        try {
+          const suCoScope = thanhPhamToScope(thanhPham);
+          if (suCoScope) await LcNhanSuSuCoApi.saveSuCo(targetId, suCoScope, tables.suCo);
+        } catch (err) {
+          console.error("Không thể lưu Sự cố:", err);
+          message.error("Đã lưu phiếu nhưng lưu dữ liệu Sự cố thất bại, vui lòng kiểm tra lại.");
+        }
+
+        try {
+          if (thanhPhamToScope(thanhPham) === 1) await LcNhanSuSuCoApi.saveGhiChuCa(targetId, 1, tables.ghiChuCa);
+        } catch (err) {
+          console.error("Không thể lưu 5S/Bàn giao:", err);
+          message.error("Đã lưu phiếu nhưng lưu dữ liệu 5S/Bàn giao thất bại, vui lòng kiểm tra lại.");
+        }
       }
       if (context?.newPhieuId) {
         navigateToDetail(context.newPhieuId, "/taophieubaocaosanxuat_xnl");
@@ -406,21 +462,31 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
   );
 
   /**
-   * "Làm mới" — tính lại Tồn đầu/Lũy kế của tab Cấp liệu & Silo và tab Phối trộn theo dữ
-   * liệu MỚI NHẤT của kíp liền trước (trường hợp kíp trước đã tạo xong rồi mới bị sửa lại).
-   * Chỉ tính lại 2 cột dẫn xuất đó — KHÔNG gửi dữ liệu đang nhập ở FE lên, nên các ô khác
-   * (KL ẩm thực tế, độ ẩm, tỷ lệ phối...) không bị ảnh hưởng. Vì đọc lại từ DB, các thay đổi
-   * CHƯA LƯU ở chính 2 tab này sẽ bị nạp lại theo bản đã lưu gần nhất — đã cảnh báo ở Popconfirm.
+   * "Làm mới" — tính lại Tồn đầu/Lũy kế của MỌI tab có dữ liệu kế thừa từ kíp liền trước (Cấp
+   * liệu & Silo, Phối trộn, Tháp/Phễu, Bụi cốc, Cấp cốc, Sản lượng cốc + Dập cốc) theo dữ liệu
+   * MỚI NHẤT (trường hợp kíp trước đã tạo xong rồi mới bị sửa lại). SỬA 2026-11-13: trước đây
+   * chỉ làm mới 4/6 nhóm — Cấp cốc (LcXuatCapApi) và Sản lượng cốc/Dập cốc (LcSanLuongCocApi)
+   * bị bỏ sót (API `/lam-moi` của 2 repository đó mới thêm cùng lúc với "Chốt lũy kế", xem
+   * LC_XuatCapRepository.RefreshLuyKeTuCaTruocAsync/LC_SanLuongCocRepository.RefreshLuyKeTuCaTruocAsync).
+   * Các tab còn lại (Tồn cốc silo, Tiêu hao, Chất lượng cốc, Cỡ hạt cốc, Sự cố, Nhân sự, Ghi chú
+   * ca, 5S/Bàn giao) đều là dữ liệu NHẬP TAY thuần, không có công thức kế thừa kíp trước nên
+   * không cần "Làm mới".
+   * Chỉ tính lại các cột dẫn xuất (Tồn đầu/Trong ca/Lũy kế) — KHÔNG gửi dữ liệu đang nhập ở FE
+   * lên, nên các ô khác (KL ẩm thực tế, độ ẩm, tỷ lệ phối, khối lượng ẩm cấp cốc...) không bị
+   * ảnh hưởng. Vì đọc lại từ DB, các thay đổi CHƯA LƯU ở các tab này sẽ bị nạp lại theo bản đã
+   * lưu gần nhất — đã cảnh báo ở Popconfirm.
    */
   const handleLamMoiTuCaTruoc = useCallback(async () => {
     if (!idphieu) return;
     setRefreshLoading(true);
     try {
-      const [capLieuRes, phoiTronRes, thapPheuRes, buiCocRes] = await Promise.all([
+      const [capLieuRes, phoiTronRes, thapPheuRes, buiCocRes, xuatCapRes, sanLuongCocRes] = await Promise.all([
         LcCapLieuSiloApi.refreshTuCaTruoc(idphieu),
         LcPhoiTronApi.refreshTuCaTruoc(idphieu),
         lcThapThanApi.refreshTuCaTruoc(idphieu),
         lcThapThanApi.refreshBuiCocTuCaTruoc(idphieu),
+        LcXuatCapApi.refreshTuCaTruoc(idphieu),
+        LcSanLuongCocApi.refreshTuCaTruoc(idphieu),
       ]);
       setTables((prev) => ({
         ...prev,
@@ -431,6 +497,10 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
         thap: thapPheuRes.thap,
         buiCoc: buiCocRes.buiCoc,
         buiCocXuat: buiCocRes.buiCocXuat,
+        xuatCapCoc: xuatCapRes,
+        dapCoc: sanLuongCocRes.dapCoc,
+        cocChuyenNhaSang: sanLuongCocRes.cocChuyenNhaSang,
+        sanLuong: sanLuongCocRes.sanLuong,
       }));
       message.success("Đã làm mới Tồn đầu/Lũy kế theo dữ liệu mới nhất của kíp liền trước.");
     } catch (err: any) {
@@ -440,6 +510,30 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
       setRefreshLoading(false);
     }
   }, [idphieu]);
+
+  /**
+   * "Chốt lũy kế" — từ phiên NGAY SAU phiếu này, lũy kế của cả 8 chuỗi trong module LC (Cấp
+   * liệu & Silo, Phối trộn, Cấp cốc, Dập cốc/Cốc chuyển, Tháp/Phễu, Bụi cốc xuất) bắt đầu lại
+   * từ 0 thay vì chờ đúng mốc lịch Ca1/ngày1. Vì lũy kế là snapshot nối tiếp, BE sẽ CASCADE
+   * tính lại mọi phiếu cùng Thành phẩm đã lưu SAU phiếu này (xem LC_ChotLuyKeRepository) — hành
+   * động không thể hoàn tác bằng 1 nút bấm khác, chỉ có thể chốt tiếp 1 mốc mới.
+   */
+  const handleChotLuyKe = useCallback(async () => {
+    if (!idphieu) return;
+    const userInfo = getUserInfo();
+    setChotLuyKeLoading(true);
+    try {
+      const res = await LcChotLuyKeApi.chotLuyKe(idphieu, userInfo?.tenNgan ?? null);
+      message.success(
+        `Đã chốt lũy kế tại phiếu này — đã tính lại ${res.soPhieuDaTinhLai} phiếu sau đó.`
+      );
+    } catch (err: any) {
+      console.error("Chốt lũy kế thất bại:", err);
+      message.error(err?.message || "Không thể chốt lũy kế.");
+    } finally {
+      setChotLuyKeLoading(false);
+    }
+  }, [idphieu, getUserInfo]);
 
   const actionButtons = useMemo(() => {
     const userInfo = getUserInfo();
@@ -511,16 +605,30 @@ const TaoPhieuBaoCaoSanXuat_XNL = () => {
           ))}
         </div>
 
-        {idphieu && !isFormLocked && (
-          <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
+        {idphieu && (
+          <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 12 }}>
+            {!isFormLocked && (
+              <Popconfirm
+                title="Làm mới từ kíp liền trước?"
+                description="Tồn đầu/Lũy kế của tab Cấp liệu & Silo, Phối trộn, Tháp/Phễu, Cấp cốc và Sản lượng cốc + Dập cốc sẽ được nạp lại theo dữ liệu kíp trước MỚI NHẤT. Các thay đổi CHƯA LƯU ở các tab này sẽ bị mất."
+                okText="Làm mới"
+                cancelText="Hủy"
+                onConfirm={handleLamMoiTuCaTruoc}
+              >
+                <Button loading={refreshLoading}>Làm mới</Button>
+              </Popconfirm>
+            )}
             <Popconfirm
-              title="Làm mới từ kíp liền trước?"
-              description="Tồn đầu/Lũy kế của tab Cấp liệu & Silo, Phối trộn và Tháp/Phễu sẽ được nạp lại theo dữ liệu kíp trước MỚI NHẤT. Các thay đổi CHƯA LƯU ở 3 tab này sẽ bị mất."
-              okText="Làm mới"
+              title="Chốt lũy kế tại phiếu này?"
+              description="Từ phiên NGAY SAU phiếu này, lũy kế (Cấp liệu & Silo, Phối trộn, Cấp cốc, Dập cốc/Cốc chuyển, Tháp/Phễu, Bụi cốc xuất) sẽ bắt đầu lại từ 0, không chờ mốc Ca1/ngày1. Hệ thống sẽ tính lại mọi phiếu cùng Thành phẩm đã lưu SAU phiếu này — KHÔNG thể hoàn tác bằng 1 nút, chỉ có thể chốt tiếp 1 mốc mới. Nếu có phiếu Hoàn thành/Đã chốt nằm sau mốc này, hành động sẽ bị chặn."
+              okText="Chốt lũy kế"
+              okButtonProps={{ danger: true }}
               cancelText="Hủy"
-              onConfirm={handleLamMoiTuCaTruoc}
+              onConfirm={handleChotLuyKe}
             >
-              <Button loading={refreshLoading}>Làm mới</Button>
+              <Button danger loading={chotLuyKeLoading}>
+                Chốt lũy kế
+              </Button>
             </Popconfirm>
           </div>
         )}

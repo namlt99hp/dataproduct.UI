@@ -154,6 +154,12 @@ const ChatLuongCocSection = ({
 
   // Số cột con (Loại) của 1 chỉ tiêu; chưa có TCNB thì vẫn chừa 1 cột
   const spanOf = (n: (typeof nhom)[number]) => Math.max(n.nguong.length, 1);
+  // Cột "Chỉ tiêu"/"Giá trị TCNB" cố định %, phần còn lại chia đều cho mọi cột con (Loại) của
+  // mọi chỉ tiêu — khoá cứng chiều rộng bảng theo đúng màn hình, không tràn ra phải scroll ngang
+  // (cùng pattern đã áp cho bảng Cốc tồn silo ở TabCocTonSilo.tsx).
+  const labelPct = 12;
+  const totalLeafCols = nhom.reduce((acc, n) => acc + spanOf(n), 0);
+  const subColPct = totalLeafCols > 0 ? (100 - labelPct) / totalLeafCols : 0;
 
   return (
     <div>
@@ -161,13 +167,21 @@ const ChatLuongCocSection = ({
         1. Chất lượng cốc trong ca
       </Typography.Text>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[1100px] border-collapse text-xs">
+      <div className="w-full overflow-hidden">
+        <table className="w-full table-fixed border-collapse text-xs">
+          <colgroup>
+            <col style={{ width: `${labelPct}%` }} />
+            {nhom.flatMap((n) =>
+              Array.from({ length: spanOf(n) }, (_, i) => (
+                <col key={`${n.chiTieu.id}-${i}`} style={{ width: `${subColPct}%` }} />
+              ))
+            )}
+          </colgroup>
           <tbody>
             <tr>
-              <th className={th}>Chỉ tiêu</th>
+              <th className={`${th} leading-tight`}>Chỉ tiêu</th>
               {nhom.map((n) => (
-                <th key={n.chiTieu.id} className={th} colSpan={spanOf(n)}>
+                <th key={n.chiTieu.id} className={`${th} break-words leading-tight`} colSpan={spanOf(n)}>
                   {n.chiTieu.ten}
                   {n.chiTieu.donVi ? ` (${n.chiTieu.donVi})` : ""}
                 </th>
@@ -294,18 +308,26 @@ const CoHatCocSection = ({
         4. Cỡ hạt cốc trong ca
       </Typography.Text>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px] border-collapse text-xs">
+      <div className="w-full overflow-hidden">
+        <table className="w-full table-fixed border-collapse text-xs">
+          <colgroup>
+            {COHAT_FIELDS.map((f) => (
+              <col key={f.key} style={{ width: "11%" }} />
+            ))}
+            <col style={{ width: editable ? "17%" : "19%" }} />
+            <col style={{ width: editable ? "18%" : "22%" }} />
+            {editable && <col style={{ width: "5%" }} />}
+          </colgroup>
           <thead>
             <tr>
               {COHAT_FIELDS.map((f) => (
-                <th key={f.key} className={th}>
+                <th key={f.key} className={`${th} leading-tight`}>
                   {f.label}
                 </th>
               ))}
-              <th className={th}>Thời gian lấy mẫu</th>
-              <th className={th}>Vị trí lấy mẫu</th>
-              {editable && <th className={`${th} w-[40px]`} />}
+              <th className={`${th} leading-tight`}>Thời gian lấy mẫu</th>
+              <th className={`${th} leading-tight`}>Vị trí lấy mẫu</th>
+              {editable && <th className={th} />}
             </tr>
           </thead>
           <tbody>

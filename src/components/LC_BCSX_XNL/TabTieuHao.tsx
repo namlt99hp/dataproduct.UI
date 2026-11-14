@@ -128,29 +128,38 @@ const TabTieuHao = ({ editable, rows, onChange }: TabTieuHaoProps) => {
           <Typography.Text strong style={{ display: "block", padding: "4px 0" }}>
             {index + 1}. {nhom}
           </Typography.Text>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] border-collapse text-xs">
+          <div className="w-full overflow-hidden">
+            <table className="w-full table-fixed border-collapse text-xs">
+              <colgroup>
+                <col style={{ width: "22%" }} />
+                <col style={{ width: "13%" }} />
+                <col style={{ width: "13%" }} />
+                <col style={{ width: "13%" }} />
+                <col style={{ width: "13%" }} />
+                <col style={{ width: "13%" }} />
+                <col style={{ width: "13%" }} />
+              </colgroup>
               <thead>
                 <tr className="bg-gray-50">
-                  <th className="w-[220px] border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">
+                  <th className="border border-gray-300 px-2 py-1.5 text-center font-medium leading-tight text-gray-700">
                     Hạng mục
                   </th>
-                  <th className="w-[130px] border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">
+                  <th className="border border-gray-300 px-2 py-1.5 text-center font-medium leading-tight text-gray-700">
                     Chỉ số đầu ca
                   </th>
-                  <th className="w-[130px] border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">
+                  <th className="border border-gray-300 px-2 py-1.5 text-center font-medium leading-tight text-gray-700">
                     Chỉ số cuối ca
                   </th>
-                  <th className="w-[130px] border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">
+                  <th className="border border-gray-300 px-2 py-1.5 text-center font-medium leading-tight text-gray-700">
                     Trong ca
                   </th>
-                  <th className="w-[130px] border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">
+                  <th className="border border-gray-300 px-2 py-1.5 text-center font-medium leading-tight text-gray-700">
                     Tổng nhà máy
                   </th>
-                  <th className="w-[130px] border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">
+                  <th className="border border-gray-300 px-2 py-1.5 text-center font-medium leading-tight text-gray-700">
                     Lũy kế
                   </th>
-                  <th className="w-[170px] border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">
+                  <th className="border border-gray-300 px-2 py-1.5 text-center font-medium leading-tight text-gray-700">
                     Tiêu hao trên tấn
                   </th>
                 </tr>

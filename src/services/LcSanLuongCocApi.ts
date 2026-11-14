@@ -167,4 +167,13 @@ export const LcSanLuongCocApi = {
     const res = (await apiService.put(`${BASE}/by-phieu/${idPhieu}`, body)) as BackendSanLuongCocTab;
     return toTables(res);
   },
+
+  /** "Làm mới" — tính lại LuyKe* của các dòng Dập cốc/Cốc chuyển ĐÃ CÓ theo dữ liệu MỚI NHẤT
+   *  của kíp liền trước (không gửi dữ liệu đang nhập ở FE lên). */
+  refreshTuCaTruoc: async (
+    idPhieu: string
+  ): Promise<{ dapCoc: DapCocRow[]; cocChuyenNhaSang: CocChuyenNhaSangRow[]; sanLuong: SanLuongCocRow[] }> => {
+    const res = (await apiService.post(`${BASE}/by-phieu/${idPhieu}/lam-moi`, {})) as BackendSanLuongCocTab;
+    return toTables(res);
+  },
 };

@@ -24,6 +24,14 @@ import { NumberCell } from "./LcExcelGridCells";
  * `onBlur` (gọi API tính thử công thức) của InputNumber cũ gộp thành 1 `onCommit` (NumberCell chỉ
  * bắn lúc blur) — `handleTinhKhoiLuong` đổi sang nhận `giaTri` trực tiếp làm tham số thay vì đọc
  * lại từ `cums`, vì state cha chưa chắc đã cập nhật xong ngay trong cùng tick gọi.
+ *
+ * SỬA 2026-11-13: Modal "Thêm silo" đổi sang chọn NHIỀU silo 1 lần (`Select mode="multiple"`,
+ * `addModalSelected` đổi từ `number | null` thành `number[]`) — trước đó chọn từng silo một, bấm
+ * OK, mở lại modal... khá mất thời gian khi 1 cụm có nhiều silo. Bảng pivot giữ nguyên 2 cột con
+ * "Giá trị"/"Khối lượng" mỗi silo như cũ, nhưng đổi sang `table-fixed` + `<colgroup>` theo %
+ * (cột Hạng mục cố định 18%, còn lại chia đều N silo×2 cột con) — khoá cứng chiều rộng bảng theo
+ * đúng div cha (Card), không còn tràn ra phải scroll ngang; nhiều silo thì mỗi cột tự hẹp lại
+ * theo màn hình thay vì đẩy bảng rộng ra.
  */
 
 export interface CocTonSiloCol {
@@ -72,7 +80,7 @@ const TabCocTonSilo = ({ editable, thanhPham, cums, onChange }: TabCocTonSiloPro
   const scope = thanhPhamToScope(thanhPham);
   const [catalog, setCatalog] = useState<LcSiloTon[]>([]);
   const [addModalCumKey, setAddModalCumKey] = useState<string | null>(null);
-  const [addModalSelected, setAddModalSelected] = useState<number | null>(null);
+  const [addModalSelected, setAddModalSelected] = useState<number[]>([]);
   const [computingKey, setComputingKey] = useState<string | null>(null);
   const catalogById = useMemo(() => new Map(catalog.map((c) => [c.id, c])), [catalog]);
 
@@ -102,7 +110,7 @@ const TabCocTonSilo = ({ editable, thanhPham, cums, onChange }: TabCocTonSiloPro
 
   const openAddSiloModal = (cumKey: string) => {
     setAddModalCumKey(cumKey);
-    setAddModalSelected(null);
+    setAddModalSelected([]);
   };
 
   const daDuocThemIds = useMemo(
@@ -111,22 +119,26 @@ const TabCocTonSilo = ({ editable, thanhPham, cums, onChange }: TabCocTonSiloPro
   );
 
   const handleXacNhanThemSilo = () => {
-    if (!addModalCumKey || addModalSelected == null) return;
-    const siloTon = catalogById.get(addModalSelected);
-    if (!siloTon) return;
-    const newCol: CocTonSiloCol = {
-      key: genKey(),
-      id: 0,
-      idSiloTon: siloTon.id,
-      tenSilo: siloTon.tenSilo,
-      loaiLieu: siloTon.loaiLieu,
-      tenNhapLieu: siloTon.tenNhapLieu,
-    };
+    if (!addModalCumKey || addModalSelected.length === 0) return;
+    const newCols: CocTonSiloCol[] = addModalSelected.flatMap((id) => {
+      const siloTon = catalogById.get(id);
+      if (!siloTon) return [];
+      return [
+        {
+          key: genKey(),
+          id: 0,
+          idSiloTon: siloTon.id,
+          tenSilo: siloTon.tenSilo,
+          loaiLieu: siloTon.loaiLieu,
+          tenNhapLieu: siloTon.tenNhapLieu,
+        },
+      ];
+    });
     updateCums(
-      cums.map((c) => (c.key === addModalCumKey ? { ...c, silos: [...c.silos, newCol] } : c))
+      cums.map((c) => (c.key === addModalCumKey ? { ...c, silos: [...c.silos, ...newCols] } : c))
     );
     setAddModalCumKey(null);
-    setAddModalSelected(null);
+    setAddModalSelected([]);
   };
 
   const handleXoaSilo = (cumKey: string, siloKey: string) => {
@@ -275,58 +287,72 @@ const TabCocTonSilo = ({ editable, thanhPham, cums, onChange }: TabCocTonSiloPro
               {cum.silos.length === 0 ? (
                 <Empty description="Chưa có silo nào" />
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="border-collapse text-xs" style={{ minWidth: 240 + cum.silos.length * 220 }}>
-                    <thead>
-                      <tr className="bg-gray-50">
-                        <th
-                          rowSpan={2}
-                          style={{ width: 240 }}
-                          className="sticky left-0 z-10 border border-gray-300 bg-gray-50 px-2 py-1 text-center font-medium text-gray-700"
-                        >
-                          Hạng mục
-                        </th>
-                        {cum.silos.map((col) => (
-                          <th key={col.key} colSpan={2} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">
-                            <Space>
-                              <span>{col.tenSilo}</span>
-                              {editable && (
-                                <Button
-                                  type="text"
-                                  size="small"
-                                  icon={<CloseOutlined />}
-                                  onClick={() => handleXoaSilo(cum.key, col.key)}
-                                  title="Xoá silo này"
-                                />
-                              )}
-                            </Space>
-                          </th>
-                        ))}
-                      </tr>
-                      <tr className="bg-gray-50">
+                (() => {
+                  // table-fixed + colgroup % — khoá cứng chiều rộng bảng theo đúng chiều rộng
+                  // div cha (Card), KHÔNG tràn ra ngoài phải scroll ngang: cột Hạng mục cố định
+                  // 18%, phần còn lại (82%) chia đều cho N silo × 2 cột con. Co giãn theo màn
+                  // hình (table rộng/hẹp theo Card cha); nhiều silo → mỗi cột tự hẹp lại.
+                  const labelPct = 18;
+                  const subColPct = (100 - labelPct) / (cum.silos.length * 2);
+                  return (
+                    <table className="w-full table-fixed border-collapse text-xs">
+                      <colgroup>
+                        <col style={{ width: `${labelPct}%` }} />
                         {cum.silos.map((col) => (
                           <Fragment key={col.key}>
-                            <th style={{ width: 110 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">{col.tenNhapLieu}</th>
-                            <th style={{ width: 110 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Khối lượng</th>
+                            <col style={{ width: `${subColPct}%` }} />
+                            <col style={{ width: `${subColPct}%` }} />
                           </Fragment>
                         ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {HANG_MUC_ROWS.map((r) => (
-                        <tr key={r.key} className="hover:bg-blue-50/50">
-                          <td className="sticky left-0 z-10 border border-gray-300 bg-white px-2 py-1 text-center">{r.label}</td>
+                      </colgroup>
+                      <thead>
+                        <tr className="bg-gray-50">
+                          <th rowSpan={2} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">
+                            Hạng mục
+                          </th>
+                          {cum.silos.map((col) => (
+                            <th key={col.key} colSpan={2} className="border border-gray-300 px-1 py-1.5 text-center font-medium text-gray-700">
+                              <div className="flex flex-col items-center justify-center gap-0.5">
+                                <span className="break-words leading-tight">{col.tenSilo}</span>
+                                {editable && (
+                                  <Button
+                                    type="text"
+                                    size="small"
+                                    icon={<CloseOutlined />}
+                                    onClick={() => handleXoaSilo(cum.key, col.key)}
+                                    title="Xoá silo này"
+                                    style={{ height: 18, width: 18, minWidth: 18, lineHeight: "18px" }}
+                                  />
+                                )}
+                              </div>
+                            </th>
+                          ))}
+                        </tr>
+                        <tr className="bg-gray-50">
                           {cum.silos.map((col) => (
                             <Fragment key={col.key}>
-                              <td className="border border-gray-300 p-0">{renderGiaTriCell(r.key, cum.key, col)}</td>
-                              <td className="border border-gray-300 px-2 py-1 text-right">{renderKhoiLuongCell(r.key, col)}</td>
+                              <th className="border border-gray-300 px-1 py-1 text-center text-[11px] font-normal text-gray-700">{col.tenNhapLieu}</th>
+                              <th className="border border-gray-300 px-1 py-1 text-center text-[11px] font-normal text-gray-700">KL</th>
                             </Fragment>
                           ))}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {HANG_MUC_ROWS.map((r) => (
+                          <tr key={r.key} className="hover:bg-blue-50/50">
+                            <td className="border border-gray-300 px-2 py-1 text-center">{r.label}</td>
+                            {cum.silos.map((col) => (
+                              <Fragment key={col.key}>
+                                <td className="border border-gray-300 p-0">{renderGiaTriCell(r.key, cum.key, col)}</td>
+                                <td className="border border-gray-300 px-1 py-1 text-right">{renderKhoiLuongCell(r.key, col)}</td>
+                              </Fragment>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  );
+                })()
               )}
               {editable && (
                 <Button
@@ -348,18 +374,19 @@ const TabCocTonSilo = ({ editable, thanhPham, cums, onChange }: TabCocTonSiloPro
         open={addModalCumKey != null}
         onCancel={() => setAddModalCumKey(null)}
         onOk={handleXacNhanThemSilo}
-        okButtonProps={{ disabled: addModalSelected == null }}
+        okButtonProps={{ disabled: addModalSelected.length === 0 }}
         destroyOnHidden
       >
         {!scope ? (
           <Tag color="warning">Vui lòng chọn Thành phẩm (TP1/TP2) ở phần đầu phiếu trước.</Tag>
         ) : (
           <Select
+            mode="multiple"
             showSearch
             style={{ width: "100%" }}
-            placeholder="Tìm theo tên silo..."
+            placeholder="Tìm và chọn nhiều silo..."
             options={siloOptionsForAdd}
-            value={addModalSelected ?? undefined}
+            value={addModalSelected}
             onChange={setAddModalSelected}
             filterOption={(input, option) => (option?.label as string)?.toLowerCase().includes(input.toLowerCase())}
             notFoundContent={

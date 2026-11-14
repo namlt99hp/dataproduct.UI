@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button, Card, DatePicker, Empty, Select, Space, Table, Tag, Tooltip, Typography, message } from "antd";
-import { ReloadOutlined } from "@ant-design/icons";
+import { EyeInvisibleOutlined, EyeOutlined, ReloadOutlined } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
 import { LcXuatCapApi } from "../../services/LcXuatCapApi";
 import { LcXuatCapDanhMucApi } from "../../services/LcXuatCapDanhMucApi";
@@ -41,10 +41,12 @@ import { round3 } from "./lcExcelFormat";
  * Lũy kế KẾ THỪA từ ca/phiếu liền trước (Trong ca để `null` vì đúng là chưa có số của ca này). Bỏ
  * hẳn `manualPicks`/"+ Thêm dòng" (dư thừa — mọi Chi tiết đã luôn hiện sẵn để nhập tay).
  *
- * KHÔNG auto-map nguồn BBGN vào ô — người dùng bấm "Làm mới" để liệt kê các dòng "chấm chuyến"
- * (Tbl_ChiTiet_BienBanGiaoNhan) trong ngày/ca/kíp, rồi chọn Cụm (bắt buộc — không suy được từ
- * BBGN) + Phòng ban/Loại nhận (gợi ý sẵn, có thể đổi) + Chi tiết rồi "Gán". Gán/bỏ gán ghi DB
- * NGAY (không đợi "Lưu phiếu") vì cần kiểm tra trùng lặp và tính lại Trong ca/Lũy kế.
+ * KHÔNG auto-map nguồn BBGN vào ô — panel tự liệt kê các dòng "chấm chuyến"
+ * (Tbl_ChiTiet_BienBanGiaoNhan) trong ngày/ca/kíp ngay khi đủ điều kiện (Thành phẩm/Ngày/Ca, xem
+ * SỬA 2026-11-14 cuối file — nút "Làm mới" vẫn còn để tải lại tay, có thêm nút Ẩn/Hiện panel), rồi
+ * chọn Cụm (bắt buộc — không suy được từ BBGN) + Phòng ban/Loại nhận (gợi ý sẵn, có thể đổi) + Chi
+ * tiết rồi "Gán". Gán/bỏ gán ghi DB NGAY (không đợi "Lưu phiếu") vì cần kiểm tra trùng lặp và tính
+ * lại Trong ca/Lũy kế.
  *
  * SỬA 2026-11-02 (tiếp — preview Quy khô/Trong ca): trước đây gõ KL ẩm/Độ ẩm xong KHÔNG thấy Quy
  * khô/Trong ca đổi số ngay — 2 cột này chỉ được BE tính lại (`RecomputeDerivedAsync`) lúc bấm "Lưu
@@ -68,6 +70,10 @@ import { round3 } from "./lcExcelFormat";
  * lồng trong component — nếu lồng sẽ bị định nghĩa lại mỗi render, làm input mất focus) giữ state
  * cục bộ bằng `useState`, CHỈ gọi `onCommit` (→ `updateSlotField`) khi blur — gõ nhanh không còn
  * làm re-render cả bảng mỗi ký tự.
+ *
+ * SỬA 2026-11-14: panel "Nguồn BBGN" tự gọi `handleLamMoiNguon` ngay khi đủ Thành phẩm/Ngày/Ca
+ * (không cần bấm "Làm mới" lần đầu nữa), và thêm nút Ẩn/Hiện (`showNguon`) ở góc panel vì bảng
+ * chấm chuyến có thể dài, muốn gọn lại sau khi đã gán xong.
  */
 
 export interface XuatCapNguon {
@@ -163,6 +169,7 @@ const TabXuatCapCoc = ({ editable, thanhPham, idPhieu, ngaySX, caPhieu, slots, o
   }, [ngaySX]);
   const [nguonBbgn, setNguonBbgn] = useState<XuatCapNguonBbgn[]>([]);
   const [loadingNguon, setLoadingNguon] = useState(false);
+  const [showNguon, setShowNguon] = useState(true);
   const [savingTab, setSavingTab] = useState(false);
   const [ganKey, setGanKey] = useState<number | null>(null);
 
@@ -315,6 +322,14 @@ const TabXuatCapCoc = ({ editable, thanhPham, idPhieu, ngaySX, caPhieu, slots, o
       setLoadingNguon(false);
     }
   };
+
+  // Tự tải danh sách chấm chuyến ngay khi đủ điều kiện (Thành phẩm/Ngày/Ca), không chờ người dùng
+  // bấm "Làm mới" nữa — nút "Làm mới" vẫn giữ để tải lại tay khi đổi Ngày/Ca sau đó.
+  useEffect(() => {
+    if (!scope || !ngay || !caPhieu) return;
+    handleLamMoiNguon();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scope, ngay?.format("YYYY-MM-DD"), caPhieu]);
 
   const handleGan = async (row: XuatCapNguonBbgn) => {
     const idDanhMucChiTiet = pickChiTietByCtBbgn[row.idCtBbgn];
@@ -499,27 +514,40 @@ const TabXuatCapCoc = ({ editable, thanhPham, idPhieu, ngaySX, caPhieu, slots, o
 
   return (
     <div>
-      <Card size="small" title="Nguồn BBGN (chấm chuyến) — liệt kê để tự gán tay" style={{ marginBottom: 16 }}>
-        <Space wrap style={{ marginBottom: 12 }}>
-          <DatePicker value={ngay} onChange={setNgay} placeholder="Ngày" format="DD/MM/YYYY" />
-          <Tag>{caPhieu ? CA_LABELS[caPhieu] ?? `Ca ${caPhieu}` : "Chưa chọn Ca"}</Tag>
-          <Button icon={<ReloadOutlined />} onClick={handleLamMoiNguon} loading={loadingNguon}>
-            Làm mới
+      <Card
+        size="small"
+        title="Nguồn BBGN (chấm chuyến) — liệt kê để tự gán tay"
+        style={{ marginBottom: 16 }}
+        extra={
+          <Button size="small" icon={showNguon ? <EyeInvisibleOutlined /> : <EyeOutlined />} onClick={() => setShowNguon((v) => !v)}>
+            {showNguon ? "Ẩn" : "Hiện"}
           </Button>
-          <Typography.Text type="secondary">Ca lấy mặc định theo Ca của phiếu. Phòng ban đã gợi ý sẵn theo nơi nhận BBGN.</Typography.Text>
-        </Space>
-        {nguonBbgn.length === 0 ? (
-          <Empty description="Chưa tải danh sách chấm chuyến — bấm &quot;Làm mới&quot;" />
-        ) : (
-          <Table
-            rowKey="idCtBbgn"
-            size="small"
-            bordered
-            pagination={false}
-            scroll={{ x: true }}
-            columns={nguonColumns}
-            dataSource={nguonBbgn}
-          />
+        }
+      >
+        {showNguon && (
+          <>
+            <Space wrap style={{ marginBottom: 12 }}>
+              <DatePicker value={ngay} onChange={setNgay} placeholder="Ngày" format="DD/MM/YYYY" />
+              <Tag>{caPhieu ? CA_LABELS[caPhieu] ?? `Ca ${caPhieu}` : "Chưa chọn Ca"}</Tag>
+              <Button icon={<ReloadOutlined />} onClick={handleLamMoiNguon} loading={loadingNguon}>
+                Làm mới
+              </Button>
+              <Typography.Text type="secondary">Ca lấy mặc định theo Ca của phiếu. Phòng ban đã gợi ý sẵn theo nơi nhận BBGN.</Typography.Text>
+            </Space>
+            {nguonBbgn.length === 0 ? (
+              <Empty description={loadingNguon ? "Đang tải..." : "Chưa có dòng chấm chuyến nào trong ngày/ca này"} />
+            ) : (
+              <Table
+                rowKey="idCtBbgn"
+                size="small"
+                bordered
+                pagination={false}
+                scroll={{ x: true }}
+                columns={nguonColumns}
+                dataSource={nguonBbgn}
+              />
+            )}
+          </>
         )}
       </Card>
 
@@ -540,20 +568,32 @@ const TabXuatCapCoc = ({ editable, thanhPham, idPhieu, ngaySX, caPhieu, slots, o
             styles={{ header: { background: "#eaf7e5" } }}
             title={`${group.maCum ? group.maCum + " · " : ""}${group.tenCum ?? "Chưa gán Cụm"}`}
           >
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1100px] border-collapse text-xs">
+            <div className="w-full overflow-hidden">
+              <table className="w-full table-fixed border-collapse text-xs">
+                <colgroup>
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "12%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "13%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "14%" }} />
+                </colgroup>
                 <thead>
                   <tr className="bg-gray-50">
-                    <th style={{ width: 110 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Loại cốc</th>
-                    <th style={{ width: 130 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Nơi nhận</th>
-                    <th style={{ width: 110 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Chi tiết</th>
-                    <th style={{ width: 150 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Khối lượng ẩm</th>
-                    <th style={{ width: 100 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Độ ẩm (%)</th>
-                    <th style={{ width: 90 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Tỷ khối</th>
-                    <th style={{ width: 90 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Quy khô</th>
-                    <th style={{ width: 90 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Trong ca</th>
-                    <th style={{ width: 90 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Lũy kế</th>
-                    <th style={{ width: 150 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Ghi chú</th>
+                    <th className="border border-gray-300 px-2 py-1.5 text-center font-medium leading-tight text-gray-700">Loại cốc</th>
+                    <th className="border border-gray-300 px-2 py-1.5 text-center font-medium leading-tight text-gray-700">Nơi nhận</th>
+                    <th className="border border-gray-300 px-2 py-1.5 text-center font-medium leading-tight text-gray-700">Chi tiết</th>
+                    <th className="border border-gray-300 px-2 py-1.5 text-center font-medium leading-tight text-gray-700">Khối lượng ẩm</th>
+                    <th className="border border-gray-300 px-2 py-1.5 text-center font-medium leading-tight text-gray-700">Độ ẩm (%)</th>
+                    <th className="border border-gray-300 px-2 py-1.5 text-center font-medium leading-tight text-gray-700">Tỷ khối</th>
+                    <th className="border border-gray-300 px-2 py-1.5 text-center font-medium leading-tight text-gray-700">Quy khô</th>
+                    <th className="border border-gray-300 px-2 py-1.5 text-center font-medium leading-tight text-gray-700">Trong ca</th>
+                    <th className="border border-gray-300 px-2 py-1.5 text-center font-medium leading-tight text-gray-700">Lũy kế</th>
+                    <th className="border border-gray-300 px-2 py-1.5 text-center font-medium leading-tight text-gray-700">Ghi chú</th>
                   </tr>
                 </thead>
                 <tbody>

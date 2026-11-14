@@ -219,15 +219,15 @@ const TabCapLieuSilo = ({
     (rawTitle: string, dataIndex: string) => {
       if (!editable || !PASTE_COLUMNS.has(dataIndex)) return rawTitle;
       return (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
-          <span>{rawTitle}</span>
+        <div className="flex flex-col items-center justify-center gap-0.5">
+          <span className="break-words leading-tight">{rawTitle}</span>
           <Button
             size="small"
             type="primary"
             ghost
             icon={<SnippetsOutlined />}
             title="Paste từ Excel"
-            style={{ lineHeight: 1, padding: "0 6px" }}
+            style={{ height: 18, lineHeight: "18px", padding: "0 6px" }}
             onClick={(e) => {
               e.stopPropagation();
               setPasteModal({ open: true, columnKey: dataIndex, columnTitle: rawTitle });
@@ -560,25 +560,42 @@ const TabCapLieuSilo = ({
         Cấp liệu &amp; tồn silo
       </Divider>
       
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[1700px] border-collapse text-xs">
+      <div className="w-full overflow-hidden">
+        <table className="w-full table-fixed border-collapse text-xs">
+          <colgroup>
+            {editable && <col style={{ width: "9%" }} />}
+            <col style={{ width: editable ? "3%" : "3%" }} />
+            <col style={{ width: editable ? "10%" : "12%" }} />
+            <col style={{ width: editable ? "7%" : "8%" }} />
+            <col style={{ width: editable ? "5%" : "6%" }} />
+            <col style={{ width: editable ? "7%" : "7%" }} />
+            <col style={{ width: editable ? "4%" : "5%" }} />
+            <col style={{ width: editable ? "7%" : "7%" }} />
+            <col style={{ width: editable ? "7%" : "7%" }} />
+            <col style={{ width: editable ? "7%" : "8%" }} />
+            <col style={{ width: editable ? "7%" : "7%" }} />
+            <col style={{ width: editable ? "7%" : "7%" }} />
+            <col style={{ width: editable ? "5%" : "5%" }} />
+            <col style={{ width: editable ? "7%" : "9%" }} />
+            <col style={{ width: editable ? "8%" : "9%" }} />
+          </colgroup>
           <thead>
             <tr className="bg-gray-50">
-              {editable && <th style={{ width: 90 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Thao tác</th>}
-              <th style={{ width: 60 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Silo</th>
-              <th style={{ width: 200 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Tên than</th>
-              <th style={{ width: 160 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Số hiệu lô</th>
-              <th style={{ width: 100 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">{renderPasteableTitle("Kế hoạch (tấn)", "khoiLuongKeHoach")}</th>
-              <th style={{ width: 130 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">{renderPasteableTitle("KL ẩm thực tế (tấn)", "khoiLuongAmThucTe")}</th>
-              <th style={{ width: 85 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">{renderPasteableTitle("Độ ẩm (%)", "doAm")}</th>
-              <th style={{ width: 130 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">KL khô thực tế (tấn)</th>
-              <th style={{ width: 130 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Lũy kế quy khô (tấn)</th>
-              <th style={{ width: 150 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">KL tồn silo đầu kíp quy khô (tấn)</th>
-              <th style={{ width: 130 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">{renderPasteableTitle("Âm silo cuối kíp (m)", "amSiloCuoiKy")}</th>
-              <th style={{ width: 130 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">KL ẩm tồn silo cuối kíp (tấn)</th>
-              <th style={{ width: 95 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">{renderPasteableTitle("Độ ẩm silo (%)", "doAmSilo")}</th>
-              <th style={{ width: 150 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Khối lượng tồn silo cuối kíp quy khô (tấn)</th>
-              <th style={{ width: 160 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Ghi chú / vị trí bãi</th>
+              {editable && <th className="border border-gray-300 px-1 py-1.5 text-center font-medium leading-tight text-gray-700">Thao tác</th>}
+              <th className="border border-gray-300 px-1 py-1.5 text-center font-medium leading-tight text-gray-700">Silo</th>
+              <th className="border border-gray-300 px-1 py-1.5 text-center font-medium leading-tight text-gray-700">Tên than</th>
+              <th className="border border-gray-300 px-1 py-1.5 text-center font-medium leading-tight text-gray-700">Số hiệu lô</th>
+              <th className="border border-gray-300 px-1 py-1.5 text-center font-medium leading-tight text-gray-700">{renderPasteableTitle("Kế hoạch (tấn)", "khoiLuongKeHoach")}</th>
+              <th className="border border-gray-300 px-1 py-1.5 text-center font-medium leading-tight text-gray-700">{renderPasteableTitle("KL ẩm thực tế (tấn)", "khoiLuongAmThucTe")}</th>
+              <th className="border border-gray-300 px-1 py-1.5 text-center font-medium leading-tight text-gray-700">{renderPasteableTitle("Độ ẩm (%)", "doAm")}</th>
+              <th className="border border-gray-300 px-1 py-1.5 text-center font-medium leading-tight text-gray-700">KL khô thực tế (tấn)</th>
+              <th className="border border-gray-300 px-1 py-1.5 text-center font-medium leading-tight text-gray-700">Lũy kế quy khô (tấn)</th>
+              <th className="border border-gray-300 px-1 py-1.5 text-center font-medium leading-tight text-gray-700">KL tồn silo đầu kíp quy khô (tấn)</th>
+              <th className="border border-gray-300 px-1 py-1.5 text-center font-medium leading-tight text-gray-700">{renderPasteableTitle("Âm silo cuối kíp (m)", "amSiloCuoiKy")}</th>
+              <th className="border border-gray-300 px-1 py-1.5 text-center font-medium leading-tight text-gray-700">KL ẩm tồn silo cuối kíp (tấn)</th>
+              <th className="border border-gray-300 px-1 py-1.5 text-center font-medium leading-tight text-gray-700">{renderPasteableTitle("Độ ẩm silo (%)", "doAmSilo")}</th>
+              <th className="border border-gray-300 px-1 py-1.5 text-center font-medium leading-tight text-gray-700">Khối lượng tồn silo cuối kíp quy khô (tấn)</th>
+              <th className="border border-gray-300 px-1 py-1.5 text-center font-medium leading-tight text-gray-700">Ghi chú / vị trí bãi</th>
             </tr>
           </thead>
           <tbody>
@@ -586,7 +603,7 @@ const TabCapLieuSilo = ({
               <tr key={row.key ?? `${row.siloSo}-${row.stt ?? 1}`} className="hover:bg-blue-50/50">
                 {editable && (
                   <td className="border border-gray-300 px-1 py-1 text-center">
-                    <Space size={4}>
+                    <Space size={4} wrap>
                       {row.khoiLuongAmThucTeCanTuDong != null ? (
                         <Popconfirm
                           title="Bỏ gán cân tự động? KL ẩm thực tế sẽ về trống, các dòng cân đã dùng được mở lại."

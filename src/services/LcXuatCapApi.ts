@@ -165,4 +165,11 @@ export const LcXuatCapApi = {
     const res = (await apiService.delete(`/api/LC_XuatCap/gan/${idXuatCapNguon}`)) as BackendSlot;
     return toSlot(res);
   },
+
+  /** "Làm mới" — tính lại Trong ca/Lũy kế của các dòng ĐÃ CÓ theo dữ liệu MỚI NHẤT của kíp
+   *  liền trước (không gửi dữ liệu đang nhập ở FE lên, không đổi Khối lượng ẩm/Độ ẩm/Tỷ khối). */
+  refreshTuCaTruoc: async (idPhieu: string): Promise<XuatCapSlot[]> => {
+    const res = (await apiService.post(`/api/LC_XuatCap/by-phieu/${idPhieu}/lam-moi`, {})) as BackendSlot[];
+    return Array.isArray(res) ? res.map(toSlot) : [];
+  },
 };

@@ -18,6 +18,7 @@ import { LcSiloCocTonApi } from "../../../services/LcSiloCocTonApi";
 import { LcXuatCapApi } from "../../../services/LcXuatCapApi";
 import { LcTieuHaoApi } from "../../../services/LcTieuHaoApi";
 import { LcChatLuongCocApi, LcCoHatCocApi } from "../../../services/LcChatLuongCocApi";
+import { LcNhanSuSuCoApi } from "../../../services/LcNhanSuSuCoApi";
 
 const { Title, Text } = Typography;
 
@@ -57,7 +58,9 @@ const ChiTietBaoCaoSanXuat_XNL = () => {
         cocChuyenNhaSang: [],
         sanLuong: [],
         phanTich: fd.table_phanTich || [],
-        suCo: fd.table_suCo || [],
+        nhanSu: [],
+        suCo: [],
+        ghiChuCa: [],
         tonCoc: [],
         xuatCapCoc: [],
         tieuHao: [],
@@ -154,6 +157,35 @@ const ChiTietBaoCaoSanXuat_XNL = () => {
           }
         } catch (err) {
           console.error("Không thể tải dữ liệu Cỡ hạt cốc (bảng quan hệ):", err);
+        }
+
+        try {
+          const nhanSuScope = Number(fd.scope);
+          if (nhanSuScope) {
+            const nhanSuRows = await LcNhanSuSuCoApi.getNhanSu(resIdPhieu, nhanSuScope);
+            setTables((prev) => ({ ...prev, nhanSu: nhanSuRows }));
+          }
+        } catch (err) {
+          console.error("Không thể tải dữ liệu Nhân sự (bảng quan hệ):", err);
+        }
+
+        try {
+          const suCoScope = Number(fd.scope);
+          if (suCoScope) {
+            const suCoRows = await LcNhanSuSuCoApi.getSuCo(resIdPhieu, suCoScope);
+            setTables((prev) => ({ ...prev, suCo: suCoRows }));
+          }
+        } catch (err) {
+          console.error("Không thể tải dữ liệu Sự cố (bảng quan hệ):", err);
+        }
+
+        try {
+          if (Number(fd.scope) === 1) {
+            const ghiChuCaRows = await LcNhanSuSuCoApi.getGhiChuCa(resIdPhieu, 1);
+            setTables((prev) => ({ ...prev, ghiChuCa: ghiChuCaRows }));
+          }
+        } catch (err) {
+          console.error("Không thể tải dữ liệu 5S/Bàn giao (bảng quan hệ):", err);
         }
       }
     } catch (error) {

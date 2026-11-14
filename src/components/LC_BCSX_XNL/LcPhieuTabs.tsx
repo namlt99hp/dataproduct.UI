@@ -97,9 +97,14 @@ const LcPhieuTabs = ({ thanhPham, editable, tables, onTablesChange, idPhieu, nga
       case "suCo":
         children = (
           <TabSuCo
+            thanhPham={thanhPham}
             editable={editable}
-            rows={tables.suCo}
-            onChange={(rows) => onTablesChange({ suCo: rows })}
+            nhanSu={tables.nhanSu}
+            onNhanSuChange={(rows) => onTablesChange({ nhanSu: rows })}
+            suCo={tables.suCo}
+            onSuCoChange={(rows) => onTablesChange({ suCo: rows })}
+            ghiChuCa={tables.ghiChuCa}
+            onGhiChuCaChange={(rows) => onTablesChange({ ghiChuCa: rows })}
           />
         );
         break;

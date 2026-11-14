@@ -302,15 +302,15 @@ const TabPhoiTron = ({ thanhPham, editable, cards, onChange, capLieuRows }: TabP
     (rawTitle: string, dataIndex: string, card: PhoiTronCard) => {
       if (!editable || !PASTE_COLUMNS.has(dataIndex)) return rawTitle;
       return (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
-          <span>{rawTitle}</span>
+        <div className="flex flex-col items-center justify-center gap-0.5">
+          <span className="break-words leading-tight">{rawTitle}</span>
           <Button
             size="small"
             type="primary"
             ghost
             icon={<SnippetsOutlined />}
             title="Paste từ Excel"
-            style={{ lineHeight: 1, padding: "0 6px" }}
+            style={{ height: 18, lineHeight: "18px", padding: "0 6px" }}
             onClick={(e) => {
               e.stopPropagation();
               setPasteModal({
@@ -351,6 +351,7 @@ const TabPhoiTron = ({ thanhPham, editable, cards, onChange, capLieuRows }: TabP
         <NumberCell
           value={toNum(card.klCanAm) ?? null}
           disabled={!editable}
+          merged
           onCommit={(v) => updateCard(card.cumThapMa, card.loaiPhoiTron, card.thuTu, { klCanAm: v })}
         />
       ),
@@ -359,6 +360,7 @@ const TabPhoiTron = ({ thanhPham, editable, cards, onChange, capLieuRows }: TabP
         <NumberCell
           value={toNum(card.doAm) ?? null}
           disabled={!editable}
+          merged
           onCommit={(v) => updateCard(card.cumThapMa, card.loaiPhoiTron, card.thuTu, { doAm: v })}
         />
       ),
@@ -496,23 +498,34 @@ const TabPhoiTron = ({ thanhPham, editable, cards, onChange, capLieuRows }: TabP
                   };
 
                   return (
-                    <div className="overflow-x-auto">
-                      <table className="w-full min-w-[1000px] border-collapse text-xs">
+                    <div className="w-full overflow-hidden">
+                      <table className="w-full table-fixed border-collapse text-xs">
+                        <colgroup>
+                          <col style={{ width: "5%" }} />
+                          <col style={{ width: "7%" }} />
+                          <col style={{ width: "16%" }} />
+                          <col style={{ width: "11%" }} />
+                          <col style={{ width: "11%" }} />
+                          <col style={{ width: "17%" }} />
+                          <col style={{ width: "11%" }} />
+                          <col style={{ width: "11%" }} />
+                          <col style={{ width: "11%" }} />
+                        </colgroup>
                         <thead>
                           <tr className="bg-gray-50">
-                            <th style={{ width: 50 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">STT</th>
-                            <th style={{ width: 70 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Silo</th>
-                            <th style={{ width: 180 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Tên than</th>
-                            <th style={{ width: 120 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">
+                            <th className="border border-gray-300 px-1 py-1.5 text-center font-medium leading-tight text-gray-700">STT</th>
+                            <th className="border border-gray-300 px-1 py-1.5 text-center font-medium leading-tight text-gray-700">Silo</th>
+                            <th className="border border-gray-300 px-1 py-1.5 text-center font-medium leading-tight text-gray-700">Tên than</th>
+                            <th className="border border-gray-300 px-1 py-1.5 text-center font-medium leading-tight text-gray-700">
                               {renderPasteableTitle("Tỷ lệ kế hoạch (%)", "tyLeKeHoach", card)}
                             </th>
-                            <th style={{ width: 120 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">
+                            <th className="border border-gray-300 px-1 py-1.5 text-center font-medium leading-tight text-gray-700">
                               {renderPasteableTitle("Tỷ lệ quy khô thực tế (%)", "tyLeThucTe", card)}
                             </th>
-                            <th style={{ width: 200 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Khối lượng cân 2A, (tấn)</th>
-                            <th style={{ width: 120 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">KL quy khô (tấn)</th>
-                            <th style={{ width: 140 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Lũy kế quy khô (tấn)</th>
-                            <th style={{ width: 160 }} className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">Ghi chú</th>
+                            <th className="border border-gray-300 px-1 py-1.5 text-center font-medium leading-tight text-gray-700">Khối lượng cân 2A, (tấn)</th>
+                            <th className="border border-gray-300 px-1 py-1.5 text-center font-medium leading-tight text-gray-700">KL quy khô (tấn)</th>
+                            <th className="border border-gray-300 px-1 py-1.5 text-center font-medium leading-tight text-gray-700">Lũy kế quy khô (tấn)</th>
+                            <th className="border border-gray-300 px-1 py-1.5 text-center font-medium leading-tight text-gray-700">Ghi chú</th>
                           </tr>
                         </thead>
                         <tbody>

@@ -831,7 +831,7 @@ const Tao_STD_HRC1 = () => {
         >
           {config.headerFields.map((f, idx) => (
             <div key={f.key || idx} style={{ flex: "0 0 260px", maxWidth: 320 }}>
-              <CustomFormItem field={f} idx={idx} disabled={true}/>
+              <CustomFormItem field={f} idx={idx} disabled={false}/>
             </div>
           ))}
           <div style={{ flex: "0 0 160px", maxWidth: 160 }}>

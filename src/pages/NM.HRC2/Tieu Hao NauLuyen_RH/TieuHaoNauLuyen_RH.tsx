@@ -283,7 +283,7 @@ const TieuHaoNauLuyen_LF = ({ type }: { type?: string }) => {
         filterFields={filterFieldsConfig}
         mergeFilters={{ usercode: userObj?.maNV || "" }}
         storageKey={true}
-        showCreateButton={isAdmin}
+        showCreateButton={true}
         onCreateClick={() => {
           navigate("/taophieutieuhaonauluyen_rh");
         }}

@@ -384,6 +384,10 @@ const Tao_STD_HRC1 = () => {
       } else {
         const res = await PhieuApi.postData(formData as Record<string, unknown>);
         const newId = (res as any)?.idphieu || (res as any)?.data?.idphieu;
+        if (nxtPayload && newId) {
+          nxtPayload.IdPhieu = newId;
+          await STD_NXT_HRC1ServiceApi.upsert(nxtPayload);
+        }
         message.success("Lưu thành công!");
         if (newId) navigateToDetail(newId, "/tao_std_hrc1");
       }

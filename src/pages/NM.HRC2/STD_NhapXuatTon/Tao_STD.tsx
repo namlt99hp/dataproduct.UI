@@ -418,12 +418,12 @@ const Tao_STD = () => {
       } else {
         const res = await PhieuApi.postData(formData as Record<string, unknown>);
          const newId = (res as any)?.idphieu || (res as any)?.data?.idphieu;
-        // if (nxtPayload && newId) {
-        //   nxtPayload.IdPhieu = newId;
-        //   await STD_NXT_HRC2ServiceApi.upsert(nxtPayload);
-        // }
+        if (nxtPayload && newId) {
+          nxtPayload.IdPhieu = newId;
+          await STD_NXT_HRC2ServiceApi.upsert(nxtPayload);
+        }
         message.success("Lưu thành công!");
-        if (newId) navigateToDetail(newId, "/tao-std");
+        if (newId) navigateToDetail(newId, "/tao_std");
       }
     } catch (err: any) {
       if (err?.message?.startsWith("Validation")) return;

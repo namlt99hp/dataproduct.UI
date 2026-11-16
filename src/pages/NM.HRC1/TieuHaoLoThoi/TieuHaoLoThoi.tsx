@@ -259,7 +259,7 @@ const TieuHaoLoThoi = ({ type }: { type?: string }) => {
         filterFields={filterFieldsConfig}
         mergeFilters={{ usercode: userObj?.maNV || "" }}
         storageKey={true}
-        showCreateButton={isAdmin}
+        showCreateButton={true}
         onCreateClick={() => {
           navigate("/hrc1_taotieuhaolothoi");
         }}

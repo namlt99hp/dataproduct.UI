@@ -641,49 +641,8 @@ export const phieuActionService = {
         },
       });
 
-      // Button Lưu và Gửi
-      buttons.push({
-        key: PhieuActionButtonKeys.SaveAndSend,
-        label: sendLabel,
-        icon: <SendOutlined />,
-        type: "primary",
-        confirm: {
-          title: "Xác nhận",
-          description: sendConfirmDesc,
-        },
-        onClick: async (_phieuIdParam, formDataParam) => {
-          try {
-            if (!formDataParam) {
-              message.error("Không có dữ liệu để lưu");
-              return;
-            }
-            const res = await PhieuApi.postData(formDataParam);
-            const resData = res as
-              | { idphieu?: string; soPhieu?: string }
-              | undefined;
-            if (resData?.idphieu) {
-              await PhieuApi.changeStatus(
-                resData.idphieu,
-                sendTargetStatus,
-                currentUserId ?? null,
-              );
-              await onStatusChange?.(resData.idphieu, sendTargetStatus);
-            }
-            message.success(
-              `Tạo và gửi phiếu thành công: ${resData?.soPhieu || ""}`,
-            );
-            onSuccess?.(resData?.idphieu ? { newPhieuId: String(resData.idphieu) } : undefined);
-          } catch (error) {
-            handleActionError(
-              error,
-              onError,
-              redirectToList,
-              "Không thể tạo và gửi phiếu",
-            );
-          }
-        },
-      });
-
+      // Chưa có phiếu thì chỉ cho "Tạo mới" — "Lưu và Gửi" chỉ xuất hiện sau khi phiếu đã được
+      // tạo (trạng thái Đang lưu), để người dùng có đủ dữ liệu/chọn người ký trước khi gửi.
       return buttons; // Trả về ngay khi chưa có phieuId
     }
 

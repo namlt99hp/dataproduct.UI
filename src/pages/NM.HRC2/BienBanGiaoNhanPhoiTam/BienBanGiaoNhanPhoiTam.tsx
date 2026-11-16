@@ -194,7 +194,7 @@ const PhieuListView = ({ type }: { type?: "taoMoi" | "viecdentoi" | "xemphieu" }
         filterFields={filterFieldsConfig}
         mergeFilters={{ usercode: userObj?.maNV || "" }}
         storageKey={true}
-        showCreateButton={false}
+        showCreateButton={true}
         onCreateClick={() => navigate("/form-bbgnphoitam")}
         createButtonText="Tạo phiếu mới"
       />

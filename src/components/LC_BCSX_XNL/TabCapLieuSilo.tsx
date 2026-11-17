@@ -563,21 +563,21 @@ const TabCapLieuSilo = ({
       <div className="w-full overflow-hidden">
         <table className="w-full table-fixed border-collapse text-xs">
           <colgroup>
-            {editable && <col style={{ width: "9%" }} />}
+            {editable && <col style={{ width: "7%" }} />}
             <col style={{ width: editable ? "3%" : "3%" }} />
-            <col style={{ width: editable ? "10%" : "12%" }} />
-            <col style={{ width: editable ? "7%" : "8%" }} />
-            <col style={{ width: editable ? "5%" : "6%" }} />
+            <col style={{ width: editable ? "13%" : "16%" }} />
+            <col style={{ width: editable ? "9%" : "10%" }} />
+            <col style={{ width: editable ? "5%" : "5%" }} />
             <col style={{ width: editable ? "7%" : "7%" }} />
             <col style={{ width: editable ? "4%" : "5%" }} />
             <col style={{ width: editable ? "7%" : "7%" }} />
-            <col style={{ width: editable ? "7%" : "7%" }} />
-            <col style={{ width: editable ? "7%" : "8%" }} />
+            <col style={{ width: editable ? "6%" : "6%" }} />
+            <col style={{ width: editable ? "6%" : "6%" }} />
             <col style={{ width: editable ? "7%" : "7%" }} />
             <col style={{ width: editable ? "7%" : "7%" }} />
             <col style={{ width: editable ? "5%" : "5%" }} />
-            <col style={{ width: editable ? "7%" : "9%" }} />
-            <col style={{ width: editable ? "8%" : "9%" }} />
+            <col style={{ width: editable ? "6%" : "9%" }} />
+            <col style={{ width: editable ? "6%" : "7%" }} />
           </colgroup>
           <thead>
             <tr className="bg-gray-50">
@@ -616,9 +616,16 @@ const TabCapLieuSilo = ({
                           </Button>
                         </Popconfirm>
                       ) : (
-                        <Tooltip title="Chọn làm đích Gán cân tự động">
+                        <Tooltip
+                          title={
+                            row.idVatTu == null || row.idMaLo == null
+                              ? "Chọn Tên than và Số hiệu lô trước khi gán cân tự động"
+                              : "Chọn làm đích Gán cân tự động"
+                          }
+                        >
                           <Checkbox
                             checked={selectedTargetKey === targetKey(row)}
+                            disabled={row.idVatTu == null || row.idMaLo == null}
                             onChange={(e) => setSelectedTargetKey(e.target.checked ? targetKey(row) : null)}
                           />
                         </Tooltip>
@@ -635,19 +642,19 @@ const TabCapLieuSilo = ({
                   </td>
                 )}
                 <td className="border border-gray-300 px-2 py-1 text-center">{row.siloSo}</td>
-                <td className="border border-gray-300 p-0">
+                <td className="border border-gray-300 p-0" title={row.khoiLuongAmThucTeCanTuDong != null ? "Đã gán cân tự động — Bỏ gán trước khi đổi than" : undefined}>
                   <VatTuAutoCompleteCell
                     idx={idx}
-                    disabled={!editable}
+                    disabled={!editable || row.khoiLuongAmThucTeCanTuDong != null}
                     onUpdateRow={updateCapLieuRow}
                     idVatTu={row.idVatTu}
                     vatLieuTen={row.vatLieuTen}
                   />
                 </td>
-                <td className="border border-gray-300 p-0">
+                <td className="border border-gray-300 p-0" title={row.khoiLuongAmThucTeCanTuDong != null ? "Đã gán cân tự động — Bỏ gán trước khi đổi lô" : undefined}>
                   <MaLoAutoCompleteCell
                     idx={idx}
-                    disabled={!editable}
+                    disabled={!editable || row.khoiLuongAmThucTeCanTuDong != null}
                     onUpdateRow={updateCapLieuRow}
                     idVatTu={row.idVatTu}
                     idMaLo={row.idMaLo}
